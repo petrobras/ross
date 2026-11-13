@@ -74,9 +74,19 @@ UNITS_MAPPING = {
         "frequency": "RPM",
         "radial_clearance": "mm",
     },
-    "BallBearingElement": {},
-    "RollerBearingElement": {},
-    "MagneticBearingElement": {},
+    # Metres and radians, not millimetres and degrees: these fields had no unit
+    # before, and a value typed then was read in SI by ROSS. A project saved
+    # without the unit keeps its meaning (an absent `*_unit` is the default).
+    "BallBearingElement": {"d_balls": "m", "fs": "N", "alpha": "rad"},
+    "RollerBearingElement": {"l_rollers": "m", "fs": "N", "alpha": "rad"},
+    "MagneticBearingElement": {
+        "g0": "m",
+        "i0": "A",
+        "ag": "m**2",
+        "alpha": "rad",
+        "k_amp": "V/A",
+        "k_sense": "V/m",
+    },
     "CylindricalBearing": {
         "speed": "RPM",
         "weight": "N",
@@ -126,8 +136,8 @@ UNITS_MAPPING = {
         "oil_supply_temperature": "degC",
         "journal_temperature": "degC",
         "speed": "RPM",
-        "xj": "mm",
-        "yj": "mm",
+        # xj and yj are fractions of the radial clearance (ROSS's docstring):
+        # they were mapped to mm, and a typed 0.3 reached ROSS as 0.0003.
         "attitude_angle": "rad",
         "fxs_load": "N",
         "fys_load": "N",
@@ -184,6 +194,19 @@ UNITS_MAPPING = {
         "inlet_temperature": "degC",
         "speed": "RPM",
         "frequency": "RPM",
+        # One field per key of the two stages (domain/field_catalog.py):
+        # ROSS takes these in m, K and Pa*s; the form, like the other seals'.
+        "hp_radial_clearance": "mm",
+        "hp_axial_length": "mm",
+        "hp_cell_length": "mm",
+        "hp_cell_width": "mm",
+        "hp_cell_depth": "mm",
+        "lab_radial_clearance": "mm",
+        "lab_pitch": "mm",
+        "lab_tooth_height": "mm",
+        "lab_tooth_width": "mm",
+        "lab_reference_temperatures": "kelvin",
+        "lab_reference_viscosities": "Pa*s",
     },
     "PointMass": {"m": "kg", "mx": "kg", "my": "kg", "mz": "kg"},
 }
@@ -205,8 +228,13 @@ UNIT_ALTERNATIVES = {
     "N": ["N", "lbf", "kN"],
     "Pa*s": ["Pa*s", "cP"],
     "degC": ["degC", "kelvin", "degF"],
+    "kelvin": ["kelvin", "degC"],
     "l/min": ["l/min", "m**3/s"],
     "rad/s": ["rad/s", "RPM", "Hz"],
+    "A": ["A", "mA"],
+    "m**2": ["m**2", "cm**2", "mm**2"],
+    "V/A": ["V/A"],
+    "V/m": ["V/m", "V/mm"],
 }
 
 # Parameters ROSS expects as integers, whatever the user typed (the interface
@@ -244,6 +272,21 @@ INT_PARAMETERS = frozenset(
 # and a single list cannot be right about both. Since Phase 2 each runner
 # declares its own in PLOT_PARAMS, and a test checks that none of them reaches
 # the computation. See services/analysis/base.py.
+
+
+# Units a field used to have and no longer has. A row saved with one still
+# carries its `*_unit`, which would go on converting a number that has no unit:
+# TiltingPad's journal position is a fraction of the clearance, and was mapped
+# to mm until this was found by users. The unit is ignored for these.
+DROPPED_UNITS = {"TiltingPad": frozenset({"xj", "yj"})}
+
+
+def typed_unit(ross_class, row, parameter, fallback=None):
+    """The unit a row's field is typed in: its own `*_unit`, else `fallback` --
+    or none at all for a field whose unit was dropped."""
+    if parameter in DROPPED_UNITS.get(ross_class, ()):
+        return None
+    return row.get(parameter + "_unit", fallback)
 
 
 def unit_for(ross_class, parameter):

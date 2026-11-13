@@ -23,8 +23,15 @@ def F(
     optional=False,
     placeholder=None,
     is_dict=False,
+    part_of=None,
 ):
-    """Describe one form field."""
+    """Describe one form field.
+
+    `part_of` is `(parameter, key)` for a field that is one key of a
+    dictionary parameter of ROSS -- the hybrid seal's stages: the form shows
+    the key as a field of its own, and domain/seal_stages.py puts the
+    dictionary back together for ROSS.
+    """
     return {
         "name": name,
         "label": {"en": label_en, "pt": label_pt},
@@ -35,15 +42,254 @@ def F(
         "optional": optional,
         "placeholder": placeholder,
         "is_dict": is_dict,
+        "part_of": part_of,
     }
 
 
+# The options of a lubricant field: the keys of ROSS's
+# `ross.bearings.lubricants.lubricants_dict`, filled in by domain/schema.py,
+# where the library is read (this catalogue imports none of it).
+LUBRICANTS = "ross-lubricants"
+
 SECTIONS = {
+    "Hole-pattern stage": {"en": "Hole-pattern stage", "pt": "Estágio hole-pattern"},
+    "Labyrinth stage": {"en": "Labyrinth stage", "pt": "Estágio labirinto"},
     "Mesh & Solver": {"en": "Mesh & Solver", "pt": "Malha e Solver"},
     "Loads & Positions": {"en": "Loads & Positions", "pt": "Cargas e Posições"},
     "Thermal Parameters": {"en": "Thermal Parameters", "pt": "Parâmetros Térmicos"},
 }
 
+
+# The hybrid seal's two stages, one field per key of the dictionary ROSS takes
+# for each (`hole_pattern_parameters`, `labyrinth_parameters`): typing a whole
+# dictionary into one box was what the users found hard to read and to get
+# right. `hp_` and `lab_` keep the names apart; domain/seal_stages.py folds
+# them back into the dictionaries. The dictionaries themselves stay, last in
+# the advanced fields, for projects typed that way: a field given wins over
+# the same key there.
+HOLE_PATTERN = "hole_pattern_parameters"
+LABYRINTH = "labyrinth_parameters"
+HP = "Hole-pattern stage"
+LAB = "Labyrinth stage"
+
+
+def _stage(prefix, parameter, key, en, pt, **extra):
+    return F(prefix + key, en, pt, part_of=(parameter, key), **extra)
+
+
+HYBRID_STAGES_MAIN = [
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "radial_clearance",
+        "Radial Clearance",
+        "Folga Radial",
+        section=HP,
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "axial_length",
+        "Axial Length",
+        "Comprimento Axial",
+        section=HP,
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "relative_roughness",
+        "Relative Roughness",
+        "Rugosidade Relativa",
+        section=HP,
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "cell_length",
+        "Cell Length",
+        "Comprimento da Célula",
+        section=HP,
+    ),
+    _stage(
+        "hp_", HOLE_PATTERN, "cell_width", "Cell Width", "Largura da Célula", section=HP
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "cell_depth",
+        "Cell Depth",
+        "Profundidade da Célula",
+        section=HP,
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "preswirl",
+        "Preswirl",
+        "Pré-rotação",
+        section=HP,
+        optional=True,
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "entrance_loss_coefficient",
+        "Entrance Loss Coef.",
+        "Coef. de Perda na Entrada",
+        section=HP,
+        optional=True,
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "exit_loss_coefficient",
+        "Exit Loss Coef.",
+        "Coef. de Perda na Saída",
+        section=HP,
+        optional=True,
+    ),
+    _stage(
+        "lab_",
+        LABYRINTH,
+        "radial_clearance",
+        "Radial Clearance",
+        "Folga Radial",
+        section=LAB,
+    ),
+    _stage(
+        "lab_", LABYRINTH, "n_teeth", "Number of Teeth", "Número de Dentes", section=LAB
+    ),
+    _stage("lab_", LABYRINTH, "pitch", "Pitch", "Passo", section=LAB),
+    _stage(
+        "lab_",
+        LABYRINTH,
+        "tooth_height",
+        "Tooth Height",
+        "Altura do Dente",
+        section=LAB,
+    ),
+    _stage(
+        "lab_", LABYRINTH, "tooth_width", "Tooth Width", "Largura do Dente", section=LAB
+    ),
+    _stage(
+        "lab_",
+        LABYRINTH,
+        "seal_type",
+        "Seal Type",
+        "Tipo de Selo",
+        section=LAB,
+        control="select",
+        options=["inter", "rotor", "stator"],
+    ),
+    _stage("lab_", LABYRINTH, "preswirl", "Preswirl", "Pré-rotação", section=LAB),
+]
+
+HYBRID_STAGES_ADVANCED = [
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "sutherland_b",
+        "Hole-pattern: Sutherland b",
+        "Hole-pattern: Sutherland b",
+        group="advanced",
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "sutherland_s",
+        "Hole-pattern: Sutherland s",
+        "Hole-pattern: Sutherland s",
+        group="advanced",
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "excitation_ratio",
+        "Hole-pattern: Excitation Ratio",
+        "Hole-pattern: Razão de Excitação",
+        group="advanced",
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "nz",
+        "Hole-pattern: Axial Points (nz)",
+        "Hole-pattern: Pontos Axiais (nz)",
+        group="advanced",
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "max_iterations",
+        "Hole-pattern: Max Iterations",
+        "Hole-pattern: Máx. de Iterações",
+        group="advanced",
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "tolerance",
+        "Hole-pattern: Tolerance",
+        "Hole-pattern: Tolerância",
+        group="advanced",
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "first_step_size",
+        "Hole-pattern: First Step",
+        "Hole-pattern: Primeiro Passo",
+        group="advanced",
+    ),
+    _stage(
+        "hp_",
+        HOLE_PATTERN,
+        "relaxation_factor",
+        "Hole-pattern: Relaxation",
+        "Hole-pattern: Relaxação",
+        group="advanced",
+    ),
+    _stage(
+        "lab_",
+        LABYRINTH,
+        "reference_temperatures",
+        "Labyrinth: Reference Temperatures",
+        "Labirinto: Temperaturas de Referência",
+        group="advanced",
+    ),
+    _stage(
+        "lab_",
+        LABYRINTH,
+        "reference_viscosities",
+        "Labyrinth: Reference Viscosities",
+        "Labirinto: Viscosidades de Referência",
+        group="advanced",
+    ),
+    _stage(
+        "lab_",
+        LABYRINTH,
+        "use_jenny_kanki",
+        "Labyrinth: Jenny-Kanki Swirl",
+        "Labirinto: Swirl de Jenny-Kanki",
+        group="advanced",
+        control="select",
+        options=["false", "true"],
+    ),
+    F(
+        HOLE_PATTERN,
+        "Hole-pattern stage as a dictionary",
+        "Estágio hole-pattern como dicionário",
+        group="advanced",
+        is_dict=True,
+    ),
+    F(
+        LABYRINTH,
+        "Labyrinth stage as a dictionary",
+        "Estágio labirinto como dicionário",
+        group="advanced",
+        is_dict=True,
+    ),
+]
 
 FIELDS = {
     "materials": {
@@ -92,6 +338,8 @@ FIELDS = {
                 "Shear Calc Method",
                 "Método de Cálculo do Cisalhamento",
                 group="advanced",
+                control="select",
+                options=["cowper", "hutchinson"],
             ),
             F("alpha", "Alpha", "Alfa", group="advanced"),
             F("beta", "Beta", "Beta", group="advanced"),
@@ -291,7 +539,7 @@ FIELDS = {
             F("speed", "Speed", "Velocidade"),
             F("fxs_load", "FXS Load", "Carga FXS"),
             F("fys_load", "FYS Load", "Carga FYS"),
-            F("lubricant", "Lubricant", "Lubrificante"),
+            F("lubricant", "Lubricant", "Lubrificante", options=LUBRICANTS),
             F("initial_position", "Initial Position (x,y)", "Posição Inicial (x,y)"),
             F("oil_supply_pressure", "Oil Supply Pres", "Pressão de Alimentação"),
             F("oil_flow_v", "Oil Flow (v)", "Vazão de Óleo (v)"),
@@ -307,7 +555,7 @@ FIELDS = {
             F("journal_diameter", "Journal Diameter", "Diâmetro do Munhão"),
             F("radial_clearance", "Radial Clearance", "Folga Radial"),
             F("eccentricity_ratio", "Eccentricity Ratio", "Razão de Excentricidade"),
-            F("lubricant", "Lubricant", "Lubrificante"),
+            F("lubricant", "Lubricant", "Lubrificante", options=LUBRICANTS),
             F(
                 "geometry",
                 "Geometry",
@@ -327,7 +575,7 @@ FIELDS = {
             F("pad_arc", "Pad Arc", "Arco da Sapata"),
             F("pivot_angle", "Pivot Angle", "Ângulo do Pivô"),
             F("oil_supply_temperature", "Oil Supply Temp", "Temp. de Alimentação"),
-            F("lubricant", "Lubricant", "Lubrificante"),
+            F("lubricant", "Lubricant", "Lubrificante", options=LUBRICANTS),
             F("n_pads", "Number of Pads", "Número de Sapatas"),
             F("n_theta", "Theta Mesh (n_theta)", "Malha em Theta (n_theta)"),
             F("n_radial", "Radial Mesh (n_radial)", "Malha Radial (n_radial)"),
@@ -372,7 +620,7 @@ FIELDS = {
             F("pivot_angle", "Pivot Angle", "Ângulo do Pivô"),
             F("preload", "Preload", "Pré-carga"),
             F("offset", "Offset", "Offset"),
-            F("lubricant", "Lubricant", "Lubrificante"),
+            F("lubricant", "Lubricant", "Lubrificante", options=LUBRICANTS),
             F("oil_supply_temperature", "Oil Supply Temp", "Temp. de Alimentação"),
             F("speed", "Speed", "Velocidade"),
             F(
@@ -398,6 +646,8 @@ FIELDS = {
                 "Equilibrium Type",
                 "Tipo de Equilíbrio",
                 section="Mesh & Solver",
+                control="select",
+                options=["match_eccentricity", "match_load"],
             ),
             F(
                 "eccentricity",
@@ -638,25 +888,15 @@ FIELDS = {
             F("outlet_pressure", "Outlet Pressure", "Pressão de Saída"),
             F("inlet_temperature", "Inlet Temp", "Temp. de Entrada"),
             F("speed", "Speeds", "Velocidades"),
-            F(
-                "hole_pattern_parameters",
-                "Hole-Pattern Params",
-                "Parâmetros Hole-Pattern",
-                is_dict=True,
-            ),
-            F(
-                "labyrinth_parameters",
-                "Labyrinth Params",
-                "Parâmetros do Labirinto",
-                is_dict=True,
-            ),
             F("gas_composition", "Gas Composition", "Composição do Gás", is_dict=True),
+            *HYBRID_STAGES_MAIN,
             F(
                 "frequency",
                 "Excitation Frequencies",
                 "Frequências de Excitação",
                 group="advanced",
             ),
+            *HYBRID_STAGES_ADVANCED,
             F("molar_mass", "Molar Mass", "Massa Molar", group="advanced"),
             F("gamma", "Gamma (Cp/Cv)", "Gama (Cp/Cv)", group="advanced"),
             F("tolerance", "Tolerance", "Tolerância", group="advanced"),
@@ -702,9 +942,9 @@ FIELDS = {
         "BASIC": [
             F("n", "Node #", "Nó", optional=True),
             F("m", "Mass", "Massa"),
-            F("mx", "mx", "mx", group="advanced"),
-            F("my", "my", "my", group="advanced"),
-            F("mz", "mz", "mz", group="advanced"),
+            F("mx", "Mass in x (mx)", "Massa na direção x (mx)", group="advanced"),
+            F("my", "Mass in y (my)", "Massa na direção y (my)", group="advanced"),
+            F("mz", "Mass in z (mz)", "Massa na direção z (mz)", group="advanced"),
             F("scale_factor", "Scale Factor", "Fator de Escala", group="advanced"),
             F("tag", "Tag", "Identificador", group="advanced"),
             F("color", "Hex Color", "Cor (hex)", group="advanced"),
