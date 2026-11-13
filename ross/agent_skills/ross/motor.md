@@ -36,6 +36,43 @@ motor.T_rated  # rated torque (N·m), the reference for load_torque_ratio
 - The direct-on-line supply voltage and frequency are the `voltage_net` and `frequency_net` arguments of `run_direct_on_line`, which default to the rated values. The `MotorElement` arguments of the same name do not reach the supply: `voltage_net` only sets the network short-circuit impedance and `frequency_net` is not used. `run_with_motor` does not pass a supply voltage or frequency, so its `"DOL"` mode always runs at the rated values. The inverters set the voltage and frequency themselves.
 - Speeds and frequencies are rad/s internally; pass `Q_(..., "RPM")` or `Q_(..., "Hz")` to convert.
 
+## Estimating the circuit parameters
+
+When only rated data are available, `MotorElement.from_nameplate` and `MotorElement.from_catalog` estimate the stator and rotor resistances and reactances and the magnetizing reactance, and return the `MotorElement`. Voltage and current are per phase of the star equivalent (phase voltage = line voltage / sqrt(3)); the core loss branch of the methods is not represented in the motor model.
+
+```python
+motor = rs.MotorElement.from_nameplate(
+    n=0,
+    power_rated=Q_(25, "hp"),
+    voltage_rated=460 / np.sqrt(3),  # V (phase)
+    speed_rated=Q_(1724.6, "RPM"),
+    efficiency=0.83,
+    power_factor=0.90,
+    Ip_motor=0.1,  # kg·m²
+    current_rated=31.25,  # A (phase)
+    starting_current_ratio=4.6,
+    motor_category="N",  # N, H or D: splits the leakage reactance
+    method="asdp",  # "asdp", "kueck" or "lee"
+)
+
+motor = rs.MotorElement.from_catalog(
+    n=0,
+    power_rated=Q_(25, "hp"),
+    voltage_rated=460 / np.sqrt(3),
+    speed_rated=Q_(1724.6, "RPM"),
+    efficiency=0.83,
+    power_factor=0.90,
+    Ip_motor=0.1,
+    starting_torque_ratio=2.0,
+    maximum_torque_ratio=2.5,
+    method="haque2",  # "haque1", "natarajan_misra" or "haque2"
+)
+```
+
+- `haque1` also needs `efficiency_50` and `power_factor_50`; `natarajan_misra` needs `efficiency_75`, `power_factor_75`, `efficiency_50`, `power_factor_50` and both torque ratios.
+- Options of a method go in `method_options`, for example `{"known_stator_resistance": 2.44}` for `"kueck"`. Other `MotorElement` arguments (`tag`, `Ip_load`, `n_poles`, ...) are accepted as keywords.
+- A `UserWarning` is issued when the method does not converge; check the estimated values before using them.
+
 ## Motor-only analyses
 
 Each method takes the time array `t` (s) at which results are stored and returns a `MotorResponseResults`.

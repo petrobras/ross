@@ -5,6 +5,7 @@ simulated using a 4th-order Runge-Kutta method, considering magnetic fluxes and 
 """
 
 import base64
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -15,6 +16,7 @@ from plotly import graph_objects as go
 from ross.element import Element
 from ross.units import Q_, check_units
 
+from . import parameter_estimation
 from .motor_drive import SourceAC, InverterVF, InverterFOC
 from .results import MotorResponseResults
 from .utils import (
@@ -237,6 +239,349 @@ class MotorElement(Element):
         self.scale_factor = scale_factor
         self.color = color
         self.dof_global_index = None
+
+    @classmethod
+    @check_units
+    def from_nameplate(
+        cls,
+        n,
+        power_rated,
+        voltage_rated,
+        speed_rated,
+        efficiency,
+        power_factor,
+        Ip_motor,
+        current_rated=None,
+        starting_current_ratio=6.0,
+        motor_category="N",
+        method="kueck",
+        method_options=None,
+        frequency_rated=None,
+        n_poles=4,
+        **kwargs,
+    ):
+        """Create a motor estimating its equivalent circuit from nameplate data.
+
+        The stator and rotor resistances and reactances and the magnetizing
+        reactance are estimated from the rated data of the motor. The core loss
+        branch of the estimation methods is not represented in the motor model.
+
+        All electrical quantities refer to the per-phase star equivalent circuit.
+        For a star-connected motor the phase voltage is the line voltage divided
+        by :math:`\\sqrt{3}` and the phase current is the line current. For a
+        delta-connected motor, use the equivalent star values.
+
+        Parameters
+        ----------
+        n : int
+            Node at which the torque is applied to the shaft.
+        power_rated : float, pint.Quantity
+            Rated output power [W].
+        voltage_rated : float
+            Rated phase voltage [V].
+        speed_rated : float, pint.Quantity
+            Rated machine speed [rad/s].
+        efficiency : float
+            Rated efficiency, between zero and one.
+        power_factor : float
+            Rated power factor, between zero and one.
+        Ip_motor : float, pint.Quantity
+            Polar moment of inertia of the motor axis [kg.m²].
+        current_rated : float, optional
+            Rated phase current [A].
+            Default is None, which computes it from the input power.
+        starting_current_ratio : float, optional
+            Ratio between starting and rated current.
+            Default is 6.
+        motor_category : str, optional
+            Motor category, "N", "H" or "D", used to split the leakage reactance
+            between stator and rotor. They correspond approximately to NEMA
+            designs B, C and D.
+            Default is "N".
+        method : str, optional
+            Estimation method: "asdp", "kueck" or "lee".
+            Default is "kueck".
+        method_options : dict, optional
+            Options of the estimation method, such as ``{"known_stator_resistance": 2.44}``
+            for "kueck" (see :py:mod:`ross.motors.parameter_estimation`).
+        frequency_rated : float, optional, pint.Quantity
+            Rated frequency [rad/s].
+            Default is 60 Hz.
+        n_poles : int, optional
+            Number of machine's poles.
+            Default is 4.
+        **kwargs
+            Other arguments of :py:class:`MotorElement`, such as ``tag`` or
+            ``Ip_load``.
+
+        Returns
+        -------
+        motor : ross.MotorElement
+
+        Warns
+        -----
+        UserWarning
+            If the estimation method does not converge.
+
+        Notes
+        -----
+        "asdp" is the sequential nameplate adjustment [1]_, "kueck" is the NEQ
+        method [2]_ and "lee" is the method of Lee et al. [3]_.
+
+        References
+        ----------
+        .. [1] R. R. Bastos, "Aula 1 - Obtencao dos Parametros do Circuito
+           Equivalente", lecture notes, 2021.
+        .. [2] J. D. Kueck et al., Assessment of Methods for Estimating Motor
+           Efficiency and Load Under Field Conditions, ORNL/TM-13165, 1996.
+        .. [3] K. Lee et al., "Estimation of induction motor equivalent circuit
+           parameters from nameplate data", NAPS, 2012.
+
+        Examples
+        --------
+        >>> motor = MotorElement.from_nameplate(
+        ...     n=0,
+        ...     power_rated=Q_(25, "hp"),
+        ...     voltage_rated=460 / np.sqrt(3),
+        ...     speed_rated=Q_(1724.6, "RPM"),
+        ...     efficiency=0.83,
+        ...     power_factor=0.90,
+        ...     Ip_motor=0.1,
+        ...     current_rated=31.25,
+        ...     starting_current_ratio=4.6,
+        ...     method="kueck",
+        ... )
+        >>> motor.stator_resistance > 0
+        True
+        """
+        frequency_rated = cls._default_frequency(frequency_rated)
+        result = parameter_estimation.estimate_from_nameplate(
+            method,
+            power_rated=power_rated,
+            voltage_rated=voltage_rated,
+            speed_rated=speed_rated,
+            frequency_rated=frequency_rated,
+            n_poles=n_poles,
+            efficiency=efficiency,
+            power_factor=power_factor,
+            current_rated=current_rated,
+            starting_current_ratio=starting_current_ratio,
+            motor_category=motor_category,
+            method_options=method_options,
+        )
+        return cls._from_estimation(
+            result,
+            n=n,
+            power_rated=power_rated,
+            voltage_rated=voltage_rated,
+            speed_rated=speed_rated,
+            Ip_motor=Ip_motor,
+            frequency_rated=frequency_rated,
+            n_poles=n_poles,
+            **kwargs,
+        )
+
+    @classmethod
+    @check_units
+    def from_catalog(
+        cls,
+        n,
+        power_rated,
+        voltage_rated,
+        speed_rated,
+        efficiency,
+        power_factor,
+        Ip_motor,
+        starting_torque_ratio=None,
+        maximum_torque_ratio=None,
+        efficiency_75=None,
+        power_factor_75=None,
+        efficiency_50=None,
+        power_factor_50=None,
+        current_rated=None,
+        starting_current_ratio=6.0,
+        motor_category="N",
+        method="haque2",
+        method_options=None,
+        frequency_rated=None,
+        n_poles=4,
+        **kwargs,
+    ):
+        """Create a motor estimating its equivalent circuit from catalog data.
+
+        The stator and rotor resistances and reactances and the magnetizing
+        reactance are estimated from the rated data and from part-load and
+        torque data of the manufacturer catalog. The core loss branch of the
+        estimation methods is not represented in the motor model.
+
+        All electrical quantities refer to the per-phase star equivalent circuit,
+        as in :py:meth:`MotorElement.from_nameplate`.
+
+        Parameters
+        ----------
+        n : int
+            Node at which the torque is applied to the shaft.
+        power_rated : float, pint.Quantity
+            Rated output power [W].
+        voltage_rated : float
+            Rated phase voltage [V].
+        speed_rated : float, pint.Quantity
+            Rated machine speed [rad/s].
+        efficiency : float
+            Rated efficiency, between zero and one.
+        power_factor : float
+            Rated power factor, between zero and one.
+        Ip_motor : float, pint.Quantity
+            Polar moment of inertia of the motor axis [kg.m²].
+        starting_torque_ratio : float, optional
+            Ratio between starting and rated torque.
+        maximum_torque_ratio : float, optional
+            Ratio between maximum and rated torque.
+        efficiency_75, efficiency_50 : float, optional
+            Efficiency at 75 % and 50 % of the rated load.
+        power_factor_75, power_factor_50 : float, optional
+            Power factor at 75 % and 50 % of the rated load.
+        current_rated : float, optional
+            Rated phase current [A].
+            Default is None, which computes it from the input power.
+        starting_current_ratio : float, optional
+            Ratio between starting and rated current. Not used by "haque2" and
+            "natarajan_misra".
+            Default is 6.
+        motor_category : str, optional
+            Motor category, "N", "H" or "D", used to split the leakage reactance
+            between stator and rotor. Not used by "haque2".
+            Default is "N".
+        method : str, optional
+            Estimation method: "haque1", "natarajan_misra" or "haque2".
+            Default is "haque2".
+        method_options : dict, optional
+            Options of the estimation method (see
+            :py:mod:`ross.motors.parameter_estimation`).
+        frequency_rated : float, optional, pint.Quantity
+            Rated frequency [rad/s].
+            Default is 60 Hz.
+        n_poles : int, optional
+            Number of machine's poles.
+            Default is 4.
+        **kwargs
+            Other arguments of :py:class:`MotorElement`, such as ``tag`` or
+            ``Ip_load``.
+
+        Returns
+        -------
+        motor : ross.MotorElement
+
+        Raises
+        ------
+        ValueError
+            If the catalog data required by ``method`` is missing. "haque1"
+            requires ``starting_torque_ratio``, ``efficiency_50`` and
+            ``power_factor_50``. "natarajan_misra" requires
+            ``starting_torque_ratio``, ``maximum_torque_ratio`` and the 75 % and
+            50 % efficiencies and power factors. "haque2" requires
+            ``starting_torque_ratio`` and ``maximum_torque_ratio``.
+
+        Warns
+        -----
+        UserWarning
+            If the estimation method does not converge.
+
+        Notes
+        -----
+        "haque1" and "haque2" follow Haque [1]_ [2]_ and "natarajan_misra"
+        follows Natarajan and Misra [3]_, with the corrections of Wengerkievicz
+        et al. [4]_. "haque2" does not use the motor category and estimates the
+        leakage reactances independently. Its rotor parameters vary with slip
+        in the method, but the motor model uses the reference values.
+
+        References
+        ----------
+        .. [1] M. H. Haque, "Estimation of three-phase induction motor
+           parameters", Electric Power Systems Research, 26, 1993.
+        .. [2] M. H. Haque, "Determination of NEMA Design Induction Motor
+           Parameters From Manufacturer Data", IEEE Trans. Energy Conversion,
+           2008.
+        .. [3] Natarajan and Misra, "Parameter Estimation of Induction Motors
+           Using a Spreadsheet Program on a Personal Computer", Electric Power
+           Systems Research, 16, 1989.
+        .. [4] Wengerkievicz et al., "Assessment of Parameter Estimation Methods
+           for Nonintrusive Loss Estimation of Induction Motors", IET Electric
+           Power Applications, 2025.
+
+        Examples
+        --------
+        >>> motor = MotorElement.from_catalog(
+        ...     n=0,
+        ...     power_rated=Q_(25, "hp"),
+        ...     voltage_rated=460 / np.sqrt(3),
+        ...     speed_rated=Q_(1724.6, "RPM"),
+        ...     efficiency=0.83,
+        ...     power_factor=0.90,
+        ...     Ip_motor=0.1,
+        ...     starting_torque_ratio=1.5,
+        ...     maximum_torque_ratio=2.5,
+        ... )
+        >>> motor.rotor_resistance > 0
+        True
+        """
+        frequency_rated = cls._default_frequency(frequency_rated)
+        catalog = dict(
+            starting_torque_ratio=starting_torque_ratio,
+            maximum_torque_ratio=maximum_torque_ratio,
+            efficiency_75=efficiency_75,
+            power_factor_75=power_factor_75,
+            efficiency_50=efficiency_50,
+            power_factor_50=power_factor_50,
+        )
+        result = parameter_estimation.estimate_from_catalog(
+            method,
+            catalog,
+            power_rated=power_rated,
+            voltage_rated=voltage_rated,
+            speed_rated=speed_rated,
+            frequency_rated=frequency_rated,
+            n_poles=n_poles,
+            efficiency=efficiency,
+            power_factor=power_factor,
+            current_rated=current_rated,
+            starting_current_ratio=starting_current_ratio,
+            motor_category=motor_category,
+            method_options=method_options,
+        )
+        return cls._from_estimation(
+            result,
+            n=n,
+            power_rated=power_rated,
+            voltage_rated=voltage_rated,
+            speed_rated=speed_rated,
+            Ip_motor=Ip_motor,
+            frequency_rated=frequency_rated,
+            n_poles=n_poles,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _default_frequency(frequency_rated):
+        if frequency_rated is None:
+            return Q_(60.0, "Hz").to("rad/s").m
+        return frequency_rated
+
+    @classmethod
+    def _from_estimation(cls, result, **kwargs):
+        if not result.converged:
+            warnings.warn(
+                f"The {result.method} estimation did not converge. {result.warnings}",
+                stacklevel=4,
+            )
+        return cls(
+            stator_resistance=result.stator_resistance,
+            rotor_resistance=result.rotor_resistance,
+            stator_reactance=result.stator_reactance,
+            rotor_reactance=result.rotor_reactance,
+            mutual_reactance=result.mutual_reactance,
+            **kwargs,
+        )
 
     def __repr__(self):
         """Return a string representation of a motor element.
