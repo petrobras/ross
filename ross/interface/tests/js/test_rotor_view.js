@@ -10,6 +10,7 @@
 //
 // Node has no WebGL and no three.js, which is itself a case worth pinning: the
 // 3D view has to say so on screen instead of throwing.
+import fs from 'node:fs';
 import { clearDom, disk, node, registerSelector } from './fake_dom.js';
 
 // The 3D view logs why it could not draw; kept here to check it did.
@@ -192,6 +193,52 @@ state.projectData.shafts = [];
 buildRotorLive();
 await settle(700);
 check('and so is a project with no shaft yet', node('rotor-3d-message').textContent === t('addOneShaft'));
+
+// The 2D figure's place, empty: the line, and the button that opens the
+// shaft form (features/modeling.js, `addFirstShaft`).
+disk.content['ross-rotor-view'] = '2d';
+buttons = prepare();
+startRotorViewToggle();
+state.projectData.shafts = [];
+buildRotorLive();
+await settle(700);
+const emptyFigure = node('plot-rotor').innerHTML;
+check('an empty project\'s 2D place says so, with the button that adds the first shaft',
+    emptyFigure.includes(t('addOneShaft')) && emptyFigure.includes('data-action="add-first-shaft"')
+    && emptyFigure.includes(t('addFirstShaft')));
+
+// The bar over the figure: its 2D/3D buttons stay on screen with no shaft --
+// they are still the way between the two views -- and only what it reads of a
+// rotor waits for one (style.css, `.rotor-info:not(.has-readings)`).
+function classesOf(element) {
+    const names = new Set();
+    element.classList = {
+        add: name => names.add(name),
+        remove: name => names.delete(name),
+        contains: name => names.has(name),
+        toggle: (name, on) => ((on === undefined ? !names.has(name) : on) ? names.add(name) : names.delete(name)),
+    };
+    return names;
+}
+const bar = classesOf(node('rotor-info'));
+node('rotor-info').style.opacity = '';
+buildRotorLive();
+await settle(700);
+check('with no shaft, the bar reads nothing, and is not hidden whole',
+    !bar.has('has-readings') && node('rotor-info').style.opacity !== '0');
+state.projectData.shafts = [{ n: '0', L: '500', odl: '50' }];
+answer = () => ({ status: 'success', mass: 1, ip: 1, scene: { kind: 'rotor', nodes: [], shafts: [] } });
+buildRotorLive();
+await settle(700);
+check('a rotor built, it reads its mass and inertia', bar.has('has-readings'));
+answer = () => ({ status: 'error', message: 'no film' });
+buildRotorLive();
+await settle(700);
+check('a rotor ROSS refuses, it reads nothing again', !bar.has('has-readings'));
+const css = fs.readFileSync(new URL('../../frontend/style.css', import.meta.url), 'utf8');
+check('and its 2D/3D buttons are kept out of what is hidden',
+    /\.rotor-info:not\(\.has-readings\) > :not\(\.rotor-view\)/.test(css)
+    && !/\n\.rotor-info \{[^}]*opacity\s*:\s*0/.test(css));
 
 console.log('\n' + ok + ' checks ok, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

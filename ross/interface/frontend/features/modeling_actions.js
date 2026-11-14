@@ -12,7 +12,7 @@ import { fillDefault, handleUnitChange, toggleAdvanced } from '../components/for
 import { openSectionHelp } from '../components/help.js';
 import { pickShape } from '../components/shape_picker.js';
 import {
-    addElementFromNodeHub, closeForm, closeNodeHub, copyItem, copySelected, deleteItem,
+    addElementFromNodeHub, addFirstShaft, closeForm, closeNodeHub, copyItem, copySelected, deleteItem,
     deleteSelected, editItem, openForm, pickTab, saveItem, selectSubType, setRotorView,
     meshItems, setVerticalScale, splitItem, toggleSelectAll, toggleSelected,
 } from './modeling.js';
@@ -52,6 +52,7 @@ export const MODELING_ACTIONS = {
 
     // the form
     'add-element': () => openForm(true),
+    'add-first-shaft': () => addFirstShaft(),
     'save-element': () => saveItem(),
     'close-form': () => closeForm(),
     'pick-subtype': element => selectSubType(element.dataset.subtype),
