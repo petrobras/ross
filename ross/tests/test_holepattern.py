@@ -1518,3 +1518,201 @@ def test_real_gas_seal_that_expands_into_the_two_phase_region_is_refused(heos):
     for name in COEFFICIENTS + ("seal_leakage",):
         assert np.all(np.isnan(getattr(seal, name))), name
     assert seal.choked == [None]
+
+
+def _co2_low_pressure_seal():
+    """A CO2 seal below the triple-point pressure (0.518 MPa), not solved."""
+    return _unsolved(
+        **dict(CHILDS_WADE, **AIR, inlet_pressure=0.3e6),
+        radial_clearance=CLEARANCE_020,
+        outlet_pressure=0.2e6,
+        inlet_temperature=300.0,
+        preswirl=0.2,
+        speed=Q_([15000], "RPM"),
+    )
+
+
+def test_real_gas_below_the_triple_point_pressure(heos):
+    """Below the triple-point pressure a pure gas borders the solid.
+
+    The vapour-liquid line ends at the triple point, so the phase test uses
+    the triple-point temperature there; the sublimation temperature is lower,
+    so this is conservative. CO2 from 0.3 to 0.2 MPa at 300 K is a gas
+    (triple point 216.6 K, 0.518 MPa) and builds. The isentrope from 1 MPa,
+    300 K, 5 K colder, reaches the triple-point temperature near 0.28 MPa, so
+    the table floor is raised there; before, HEOS extrapolated the
+    vapour-liquid line and the cold edge reached 196.6 K at 0.195 MPa, below
+    the sublimation temperature.
+    """
+    from CoolProp.CoolProp import PropsSI
+
+    from ross.seals.gas_model import TabulatedGas
+
+    T_triple = PropsSI("Ttriple", "HEOS::CO2")
+    table = TabulatedGas.from_composition({"co2": 1.0}, 0.3e6, 300.0, 0.2e6)
+    assert table.floor_raised is False
+    assert table.p_min == 0.9 * 0.2e6
+
+    table = TabulatedGas.from_composition({"co2": 1.0}, 1e6, 300.0, 0.2e6)
+    assert table.floor_raised is True
+    s_in = PropsSI("S", "P", 1e6, "T", 300.0, "HEOS::CO2")
+    edge = PropsSI("T", "P", table.p_min, "S", s_in, "HEOS::CO2") - 5.0
+    # bisection resolution 200 Pa times the isentrope slope of about 1.5e-4 K/Pa
+    # is 0.03 K; observed +0.009 K
+    assert 0.0 <= edge - T_triple < 0.1, edge - T_triple
+    assert np.all(table.lower > T_triple)
+
+
+@pytest.mark.skipif(not REFPROP_AVAILABLE, reason="Requires REFPROP")
+def test_real_gas_below_the_triple_point_pressure_refprop():
+    """REFPROP builds and solves the CO2 seal below the triple-point pressure.
+
+    REFPROP's saturation flash raises below the triple-point pressure; that
+    used to count as not single phase and refused the inlet. Both backends
+    implement the same reference equation of state for CO2, so the seal
+    agrees with HEOS (observed 1e-9).
+    """
+    from ross.seals.gas_model import TabulatedGas
+
+    speed = _rad(15000)
+    results = []
+    for eos in ("REFPROP", "HEOS"):
+        seal = _co2_low_pressure_seal()
+        seal.solver.gas = TabulatedGas.from_composition(
+            {"co2": 1.0}, 0.3e6, 300.0, 0.2e6, eos=eos
+        )
+        results.append(seal.solver.solve(speed))
+    refprop, heos = results
+    for name in COEFFICIENTS + ("seal_leakage",):
+        assert np.isfinite(refprop[name]), name
+        assert_allclose(refprop[name], heos[name], rtol=1e-6, err_msg=name)
+
+
+@pytest.mark.skipif(not REFPROP_AVAILABLE, reason="Requires REFPROP")
+def test_real_gas_table_above_the_critical_pressure_holds_the_stable_root():
+    """Pure-fluid nodes above p_crit and below T_crit hold the stable density.
+
+    The floor of the ethane table for 20 to 4 MPa at 350 K is just above the
+    critical pressure (4.872 MPa), and its cold edge is below the critical
+    temperature (305.3 K). There REFPROP's root with the "supercritical_gas"
+    phase imposed is the vapour-like one (151 against 322 kg/m^3, 53 % off at
+    a node); the table fills pure fluids by free flash. HEOS implements the
+    same reference equation of state (observed 3e-15 at these nodes).
+    """
+    from CoolProp.CoolProp import PropsSI
+
+    from ross.seals.gas_model import TabulatedGas
+
+    T_crit = PropsSI("Tcrit", "HEOS::Ethane")
+    p_crit = PropsSI("Pcrit", "HEOS::Ethane")
+    table = TabulatedGas.from_composition(
+        {"ethane": 1.0}, 20e6, 350.0, 4e6, eos="REFPROP"
+    )
+    assert table.p_min >= p_crit
+    nodes = [
+        (float(p), float(lower + offset))
+        for p, lower in zip(table.pressure, table.lower, strict=True)
+        for offset in table.offset
+        if lower + offset < T_crit
+    ]
+    assert len(nodes) >= 2
+    for p, T in nodes:
+        reference = PropsSI("D", "P", p, "T", T, "HEOS::Ethane")
+        assert_allclose(table.point(p, T).rho, reference, rtol=1e-6, err_msg=(p, T))
+
+
+def test_trial_that_leaves_the_gas_range_inside_the_outlet_bracket_widens(
+    holepattern_manual, monkeypatch
+):
+    """A Brent trial that leaves the gas range widens the gas like any other.
+
+    The injected gas refuses every state (side "below") once the Brent search
+    of the outlet pressure starts, and widens to the plain perfect gas. The
+    retry must give exactly the result of the perfect gas; before, the
+    failure inside the bracket was a plain RuntimeError and the point NaN.
+    """
+    import ross.seals.holepattern_seal as module
+    from ross.seals.gas_model import GasRangeError, SutherlandGas
+
+    seal = holepattern_manual
+    speed = _rad(5000)
+    expected = seal.solver.solve(speed)
+
+    class RefusesInBracket(SutherlandGas):
+        active = False
+
+        def point(self, p, T):
+            if self.active:
+                raise GasRangeError(
+                    f"state p = {p:.6g} Pa, T = {T:.6g} K is outside the test gas",
+                    p,
+                    T,
+                    "below",
+                )
+            return super().point(p, T)
+
+        def widened(self, error):
+            return SutherlandGas(
+                self.gas_constant, self.gamma, self.sutherland_b, self.sutherland_s
+            )
+
+    gas = RefusesInBracket(
+        seal.gas.gas_constant,
+        seal.gas.gamma,
+        seal.gas.sutherland_b,
+        seal.gas.sutherland_s,
+    )
+    brentq = module.brentq
+
+    def outlet_bracket_activates(function, *args, **kwargs):
+        if function.__name__ == "residual":
+            gas.active = True
+        return brentq(function, *args, **kwargs)
+
+    monkeypatch.setattr(module, "brentq", outlet_bracket_activates)
+    seal.solver.gas = gas
+    found = seal.solver.solve(speed)
+    assert gas.active, "the outlet search did not reach its Brent bracket"
+    for name in COEFFICIENTS + ("kyy", "kyx", "cyy", "cyx", "mxx", "seal_leakage"):
+        assert found[name] == expected[name], name
+    assert np.array_equal(found["pressure"], expected["pressure"])
+
+
+def _failing_inputs(rpm):
+    """COMMON with a Sutherland pole above the inlet temperature: every speed fails."""
+    return dict(
+        COMMON_PARAMS, **dict(MANUAL_PARAMS, sutherland_s=-400.0), speed=Q_(rpm, "RPM")
+    )
+
+
+def test_failed_speeds_warn_and_a_pchip_table_refuses_them():
+    """A failed speed gives NaN with a warning; three or more speeds cannot hold NaN.
+
+    The pchip interpolation of a table of three or more speeds needs finite
+    values, so the element raises a ValueError that names the failed speeds
+    and the first error instead of a bare interpolation error.
+    """
+    with pytest.warns(UserWarning, match="no positive viscosity"):
+        seal = HolePatternSeal(**_failing_inputs([4000, 5000]))
+    assert np.all(np.isnan(seal.kxx)) and seal.choked == [None, None]
+
+    with pytest.warns(UserWarning, match="no positive viscosity"):
+        with pytest.raises(ValueError, match="failed speeds") as info:
+            HolePatternSeal(**_failing_inputs([3000, 4000, 5000]))
+    assert "no positive viscosity" in str(info.value)
+    assert f"{_rad(3000)!r}" in str(info.value)
+
+
+def test_failed_speeds_of_a_pool_run_warn_in_the_caller():
+    """Warnings raised in pool workers never reach the caller; the caller re-emits them."""
+    import warnings
+
+    seal = _unsolved(**_failing_inputs([5000]))
+    speeds = [_rad(4000), _rad(5000)]
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        rows = seal.solver.solve_grid(speeds, [_rad(5000)], parallel_threshold=1)
+    messages = [str(w.message) for w in caught if "hole-pattern" in str(w.message)]
+    assert len(messages) == len(speeds), messages
+    assert all("no positive viscosity" in message for message in messages)
+    assert all(np.isnan(row[0]["kxx"]) for row in rows)
