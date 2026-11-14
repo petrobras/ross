@@ -550,7 +550,7 @@ class SutherlandGas(StateGas):
         return math.exp((s + self.gas_constant * math.log(p)) / self.cp)
 
 
-def _is_single_phase(state, saturation, gas_composition, eos, pure, p_crit, p, T):
+def _is_single_phase(state, saturation, gas_composition, eos, pure, limits, p, T):
     """Return whether ``(p, T)`` is a single-phase state of the gas.
 
     Parameters
@@ -566,8 +566,9 @@ def _is_single_phase(state, saturation, gas_composition, eos, pure, p_crit, p, T
         Equation-of-state backend of ``ccp``.
     pure : bool
         Whether the gas is a pure fluid.
-    p_crit : float or None
-        Critical pressure of a pure fluid (Pa).
+    limits : tuple of float or None
+        Critical pressure (Pa), triple-point pressure (Pa) and triple-point
+        temperature (K) of a pure fluid.
     p : float
         Pressure (Pa).
     T : float
@@ -576,13 +577,20 @@ def _is_single_phase(state, saturation, gas_composition, eos, pure, p_crit, p, T
     Returns
     -------
     bool
-        For a pure fluid, ``p >= p_crit`` or ``T`` above the saturation
-        temperature at ``p``. For a mixture, the imposed root equals the free
-        flash, or the free flash is a spurious two-phase split.
+        For a pure fluid, ``p >= p_crit``; below the triple-point pressure,
+        ``T`` above the triple-point temperature; otherwise ``T`` above the
+        saturation temperature at ``p``. For a mixture, the imposed root equals
+        the free flash, or the free flash is a spurious two-phase split.
     """
     if pure:
+        p_crit, p_triple, T_triple = limits
         if p >= p_crit:
             return True
+        if p <= p_triple:
+            # below the triple point the gas borders the solid, whose sublimation
+            # temperature lies below T_triple; the saturation flash has no
+            # vapour-liquid line there (REFPROP raises, HEOS extrapolates it)
+            return T > T_triple
         try:
             coolprop.AbstractState.update(saturation, coolprop.PQ_INPUTS, p, 1.0)
             T_sat = coolprop.AbstractState.T(saturation)
@@ -661,6 +669,78 @@ def _temperature_on(state, p, kind, target, guess):
             )
         if abs(step) < 1e-10 * T:
             return T
+    raise RuntimeError(f"the temperature iteration at p = {p:.6g} Pa did not converge")
+
+
+def _isenthalp_at(state, p, h_target, T_cold):
+    """Return the temperature at ``p`` where the enthalpy is ``h_target``.
+
+    The root is bracketed above ``T_cold``, whose enthalpy is lower, and found by
+    Newton steps that fall back to bisection when they leave the bracket. A plain
+    Newton iteration oscillates across the peak of ``cp`` near the
+    pseudo-critical line of a dense fluid.
+
+    Parameters
+    ----------
+    state : ccp.State
+        State of the table; it is updated in place.
+    p : float
+        Pressure (Pa).
+    h_target : float
+        Target specific enthalpy (J/kg).
+    T_cold : float
+        Temperature at which the enthalpy is below ``h_target`` (K).
+
+    Returns
+    -------
+    float
+        Temperature (K).
+    """
+
+    def evaluate(T):
+        state.update(p=p, T=T)
+        cp = coolprop.AbstractState.cpmass(state)
+        h = coolprop.AbstractState.hmass(state)
+        if not (math.isfinite(cp) and cp > 0.0 and math.isfinite(h)):
+            raise RuntimeError(
+                f"the equation of state gives no stable state at p = {p:.6g} Pa, "
+                f"T = {T:.6g} K (cp = {cp:.6g} J/(kg K))"
+            )
+        return h, cp
+
+    low = high = T_cold
+    h, cp = evaluate(high)
+    if h > h_target:
+        raise RuntimeError(
+            f"the enthalpy at p = {p:.6g} Pa, T = {T_cold:.6g} K is above the target"
+        )
+    if h == h_target:
+        return T_cold
+    increment = 25.0
+    for _ in range(20):
+        if h >= h_target:
+            break
+        low, h_low, cp_low = high, h, cp
+        high += increment
+        increment *= 2.0
+        h, cp = evaluate(high)
+    else:
+        raise RuntimeError(
+            f"the temperature iteration at p = {p:.6g} Pa found no bracket"
+        )
+    T, h, cp = low, h_low, cp_low
+    for _ in range(100):
+        if h < h_target:
+            low = T
+        else:
+            high = T
+        candidate = T + (h_target - h) / cp
+        if not low < candidate < high:
+            candidate = 0.5 * (low + high)
+        if abs(candidate - T) < 1e-10 * T or high - low < 1e-10 * T:
+            return candidate
+        T = candidate
+        h, cp = evaluate(T)
     raise RuntimeError(f"the temperature iteration at p = {p:.6g} Pa did not converge")
 
 
@@ -854,11 +934,14 @@ class TabulatedGas(StateGas):
         outlet pressure, raised when needed (the floor) to the lowest pressure at
         which the cold edge is a single-phase gas. The inlet, the floor and the
         cold edge at every pressure node are checked to be single-phase: for a
-        pure fluid, a pressure above the critical one or a temperature above the
-        saturation temperature; for a mixture, the density of the table root
-        agrees with that of a free flash, or the free flash is a spurious
-        two-phase split. The nodes are filled with the ``"supercritical_gas"``
-        phase imposed.
+        pure fluid, a pressure above the critical one, a temperature above the
+        saturation temperature, or, below the triple-point pressure, a
+        temperature above the triple-point one; for a mixture, the density of
+        the table root agrees with that of a free flash, or the free flash is a
+        spurious two-phase split. The nodes of a mixture are filled with the
+        ``"supercritical_gas"`` phase imposed, those of a pure fluid by free flash
+        (above the critical pressure and below the critical temperature,
+        REFPROP's imposed root is the vapour-like one, not the stable one).
 
         Parameters
         ----------
@@ -910,9 +993,14 @@ class TabulatedGas(StateGas):
         critical point; such a state is refused although HEOS calls it single phase
         (the AGA-8 Ekofisk gas from 9 to 7 MPa at 324 K is refused at 8.06 MPa,
         310.6 K). For a pure fluid, a state above the critical pressure counts as
-        single phase also below the critical temperature; next to the critical
-        point the splines can lose thermodynamic stability, and a flow that reaches
-        such a state raises a ``ValueError`` from :class:`GasPoint`. The viscosity
+        single phase also below the critical temperature. Below the triple-point
+        pressure the gas borders the solid; the test uses the triple-point
+        temperature, which lies above the sublimation temperature, so it is
+        conservative there (CO2 below 0.518 MPa needs more than 216.6 K). Next to
+        the critical point the splines can lose thermodynamic stability, and a flow
+        that reaches such a state raises a ``ValueError`` from :class:`GasPoint`;
+        their interpolation error also grows there (bicubic splines across the
+        steep pseudo-critical change of the properties). The viscosity
         model of HEOS gives no value at some dense, cold states of natural-gas
         mixtures; such a table is refused (REFPROP builds it).
 
@@ -944,17 +1032,30 @@ class TabulatedGas(StateGas):
             h_in = inlet.h().m
             s_in = inlet.s().m
             pure = len(inlet.fluid) == 1
-            p_crit = inlet.p_critical().m if pure else None
-            state = ccp.State(
-                p=p_in, T=T_in, fluid=gas_composition, EOS=eos, phase=_TABLE_PHASE
-            )
+            if pure:
+                limits = (
+                    inlet.p_critical().m,
+                    coolprop.AbstractState.keyed_output(inlet, coolprop.iP_triple),
+                    coolprop.AbstractState.keyed_output(inlet, coolprop.iT_triple),
+                )
+                # a pure fluid is filled by free flash: above the critical
+                # pressure and below the critical temperature REFPROP's imposed
+                # "supercritical_gas" root is the wrong (vapour-like) one
+                state = ccp.State(
+                    p=p_in, T=T_in, fluid=gas_composition, EOS=eos, phase=False
+                )
+            else:
+                limits = None
+                state = ccp.State(
+                    p=p_in, T=T_in, fluid=gas_composition, EOS=eos, phase=_TABLE_PHASE
+                )
         except ValueError as err:
             raise ValueError(inlet_message) from err
         saturation = inlet
 
         def single_phase(p, T):
             return _is_single_phase(
-                state, saturation, gas_composition, eos, pure, p_crit, p, T
+                state, saturation, gas_composition, eos, pure, limits, p, T
             )
 
         if not single_phase(p_in, T_in):
@@ -1014,8 +1115,8 @@ class TabulatedGas(StateGas):
         lower = isentrope - m["t_below"]
 
         try:
-            T_isenthalpic = _temperature_on(
-                state, float(p_low), "h", h_in, lower[0] + m["t_below"]
+            T_isenthalpic = _isenthalp_at(
+                state, float(p_low), h_in, lower[0] + m["t_below"]
             )
         except (ValueError, RuntimeError) as err:
             raise ValueError(
