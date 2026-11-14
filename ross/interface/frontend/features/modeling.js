@@ -10,11 +10,11 @@ import { reapplyHelp } from '../components/help.js';
 import { openCustomAlert, openCustomConfirm } from '../components/modals.js';
 import { apiFetch, apiFetchLatest, wasCancelled, projectForServer } from '../core/api.js';
 import { busySpinner, escapeHtml } from '../core/dom.js';
-import { listContext, projectChanged, state, getActiveData, syncBackToLibrary, writeBackToLibrary } from '../core/state.js';
+import { listContext, projectChanged, state, getActiveData, otherLine, syncBackToLibrary, writeBackToLibrary } from '../core/state.js';
 import { clearSelection, pick, pickAll, picked } from '../core/selection.js';
 import { applySnapshot, canRedo, canUndo, redo, undo } from '../core/history.js';
 import { afterInsertion, afterRemoval } from '../core/editing.js';
-import { elementsUsing, renameMaterial, rossMaterialName } from '../core/material_names.js';
+import { elementsUsing, materialsOffered, renameMaterial, rossMaterialName } from '../core/material_names.js';
 import { themedLayout } from '../core/theme.js';
 import { applyLanguage, rememberLanguage, t } from '../core/i18n.js';
 import { formSubtypes, loadElementSchema, schemaReady } from '../core/schema.js';
@@ -442,7 +442,8 @@ export function selectSubType(type) {
     matSelects.forEach(sel => {
         sel.innerHTML = `<option value="Default (Steel)">${escapeHtml(t('defaultSteel'))}</option>`;
         
-        activeData.materials.forEach(m => {
+        // On a MultiRotor, the other half's materials too (core/material_names.js).
+        materialsOffered(activeData, otherLine(activeData)).forEach(m => {
             // Escaped: a material's name is whatever was typed into it.
             const mName = escapeHtml(m.name || 'MaterialCustom');
             sel.innerHTML += `<option value="${mName}">${mName}</option>`;
