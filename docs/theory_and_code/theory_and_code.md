@@ -22,4 +22,5 @@ These pages are aimed at:
 :maxdepth: 1
 :caption: Theory & Implementation
 labyrinth_seal
+holepattern_seal
 ```
