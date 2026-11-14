@@ -138,6 +138,34 @@ class IdealGas:
         """
         return area / (self.R * T)
 
+    def cg2(self, area, shaft_radius, p, T, rho):
+        """Return the swirl-velocity coefficient of the cavity continuity equation (touch point 9).
+
+        Linearizing the circumferential term ``d(rho V area) / (shaft_radius d theta)``
+        with respect to the swirl velocity ``V`` gives ``rho * area / shaft_radius``.
+        This backend returns the legacy perfect-gas form
+        ``(p / shaft_radius) * area / (R T)`` and does not use ``rho``.
+
+        Parameters
+        ----------
+        area : float
+            Cavity cross-section area (m**2).
+        shaft_radius : float
+            Shaft radius (m).
+        p : float
+            Cavity pressure (Pa).
+        T : float
+            Cavity temperature (deg K).
+        rho : float
+            Cavity density of the base flow (kg/m**3).
+
+        Returns
+        -------
+        float
+            Coefficient of the swirl-velocity perturbation (kg/m**2).
+        """
+        return (p / shaft_radius) * (area / (self.R * T))
+
 
 class RealGas(IdealGas):
     """Equation-of-state backed backend using a tabulated inlet isentrope.
@@ -298,3 +326,12 @@ class RealGas(IdealGas):
 
     def cg0(self, area, p, T):
         return area * np.interp(p, self.p_grid, self.drhodp_grid)
+
+    def cg2(self, area, shaft_radius, p, T, rho):
+        """Return the swirl-velocity coefficient ``rho * area / shaft_radius``.
+
+        Parameters and return value as in :meth:`IdealGas.cg2`. The perfect-gas
+        form ``(p / shaft_radius) * cg0`` is not used: with the real ``cg0`` it
+        carries the factor ``p * kappa_T``, which is 1 only for a perfect gas.
+        """
+        return rho * area / shaft_radius

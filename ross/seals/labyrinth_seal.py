@@ -519,7 +519,9 @@ class LabyrinthSolver:
 
             self.cg[0, i] = self.gas.cg0(area, self.p[i], self.t[i])
             self.cg[1, i] = (self.v[i] / self.shaft_radius) * self.cg[0, i]
-            self.cg[2, i] = (self.p[i] / self.shaft_radius) * self.cg[0, i]
+            self.cg[2, i] = self.gas.cg2(
+                area, self.shaft_radius, self.p[i], self.t[i], self.rho[i]
+            )
             self.cg[3, i] = (
                 self.mdot
                 * self.p[i]
