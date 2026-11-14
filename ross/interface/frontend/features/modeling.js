@@ -25,7 +25,7 @@ import { fillAnalysisTypes, redrawAnalyses } from './analysis.js';
 import { openRotorHub, renderRotorHub } from './hub.js';
 import { splitProject, splitProjectAt } from './split.js';
 import { meshProject } from './mesh.js';
-import { hideRotor3d, relabelRotor3d, showRotor3d } from './rotor3d.js';
+import { clearRotor3d, hideRotor3d, relabelRotor3d, showRotor3d, toolInUse } from './rotor3d.js';
 
 // How the rotor figure settles into the panel. This used to be done in the
 // backend (BE-12): margin, background, size and legend position assembled on top
@@ -907,14 +907,18 @@ async function _fetchRotorLive() {
     if (!state.projectData.isMultiRotor && (!state.projectData.shafts || state.projectData.shafts.length === 0)) {
         figureIsCurrent = false;
         lastScene = null;
+        // A sketch under way (features/sketch3d.js) is drawing the first shaft
+        // on this empty view: what the view says stays out of its way.
+        if (toolInUse()) return;
         hideRotor3d();
+        clearRotor3d();
         say3d(t('addOneShaft'));
-        showInsteadOfFigure(plotContainer,
-            `<div style="display: flex; height: 100%; min-height: 400px; align-items: center; justify-content: center;">`
-            + `<p class="placeholder-text">${escapeHtml(t('addOneShaft'))}</p></div>`);
-        if(infoContainer) infoContainer.style.opacity = '0';
+        showFirstShaftButton(true);
+        showInsteadOfFigure(plotContainer, emptyFigureHtml());
+        showReadings(infoContainer, false);
         return;
     }    
+    showFirstShaftButton(false);
     const in3d = rotorView === '3d';
     const run = startBuilding(in3d);
     // Whatever the figure on screen was, it is not the project being built.
@@ -942,7 +946,7 @@ async function _fetchRotorLive() {
             if(infoContainer) {
                 document.getElementById('info-mass').innerText = data.mass.toFixed(4);
                 document.getElementById('info-ip').innerText = data.ip.toFixed(4);
-                infoContainer.style.opacity = '1';
+                showReadings(infoContainer, true);
             }
         } else {
             // `data.message` is escaped like everything else: it quotes what the
@@ -953,7 +957,7 @@ async function _fetchRotorLive() {
             hideRotor3d();
             say3d(`${t('modelingError')} ${data.message || ''}`);
             showInsteadOfFigure(plotContainer, `<div class="analysis-error"><i class="fas fa-exclamation-triangle fa-2x"></i><br><b>${escapeHtml(t('modelingError'))}</b><br>${escapeHtml(data.message)}</div>`);
-            if(infoContainer) infoContainer.style.opacity = '0';
+            showReadings(infoContainer, false);
         }
     } catch (e) { 
         if (wasCancelled(e)) return;   // a newer build has taken over, and down what this one put up
@@ -961,8 +965,57 @@ async function _fetchRotorLive() {
         say3d(t('serverConnectionError'));
         showInsteadOfFigure(plotContainer, `<p class="analysis-error analysis-error-tall">`
             + `${escapeHtml(t('serverConnectionError'))}</p>`);
-        if(infoContainer) infoContainer.style.opacity = '0';
+        showReadings(infoContainer, false);
     }
+}
+
+// The bar over the figure: its mass and inertia (and the vertical scale) only
+// for a rotor that was built; its 2D/3D buttons always (style.css).
+function showReadings(bar, on) {
+    if (bar) bar.classList.toggle('has-readings', on);
+}
+
+// What the 2D figure's place shows with no shaft yet: the line saying so, and
+// a button that opens the shaft form, as the list's "+" does -- the 2D view's
+// counterpart of the 3D view's "sketch the first shaft". It shows when the
+// pointer comes over the figure's box (style.css), and it is only ever drawn
+// here, so it goes as soon as the first shaft makes a figure.
+function emptyFigureHtml() {
+    return `<div class="figure-empty">`
+        + `<p class="placeholder-text">${escapeHtml(t('addOneShaft'))}</p>`
+        + `<button type="button" class="btn-primary figure-first-shaft" data-action="add-first-shaft">`
+        + `<i class="fas fa-plus"></i> ${escapeHtml(t('addFirstShaft'))}</button></div>`;
+}
+
+// The button: the shafts tab, with the list open, and a new shaft's form.
+export function addFirstShaft() {
+    showListPanel(true);
+    if (state.currentTab !== 'shafts') openTab('shafts');
+    return openForm(true);
+}
+
+// The empty 3D view's button (features/sketch3d.js): the first shaft of a
+// rotor, drawn instead of typed. A MultiRotor's halves are rotors of their own.
+function showFirstShaftButton(on) {
+    const button = document.getElementById('rotor-3d-first-shaft');
+    if (button) button.hidden = !on;
+}
+
+// The view again, after a sketch that made nothing.
+export function refreshRotorFigure() {
+    _fetchRotorLive();
+}
+
+// The shaft the sketch made (features/sketch3d.js), added as the form adds
+// one: to the end of the list, recorded for undo, and the rotor rebuilt.
+export function addShaftFromSketch(row) {
+    const data = getActiveData();
+    if (!Array.isArray(data.shafts)) data.shafts = [];
+    data.shafts.push(row);
+    syncBackToLibrary();
+    if (state.currentTab === 'shafts') renderList();
+    else openTab('shafts');
+    buildRotorLive();
 }
 
 // Function to save the active rotor

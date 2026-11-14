@@ -32,6 +32,7 @@ import { SHELL_ACTIONS } from './features/shell_actions.js';
 import { MODELING_ACTIONS } from './features/modeling_actions.js';
 import { ANALYSIS_ACTIONS } from './features/analysis_actions.js';
 import { DIALOG_ACTIONS } from './features/dialog_actions.js';
+import { SKETCH_ACTIONS } from './features/sketch3d.js';
 
 // --- Wiring between layers -------------------------------------------------
 //
@@ -59,6 +60,7 @@ defineActions(SHELL_ACTIONS);
 defineActions(MODELING_ACTIONS);
 defineActions(ANALYSIS_ACTIONS);
 defineActions(DIALOG_ACTIONS);
+defineActions(SKETCH_ACTIONS);
 
 // The schema is loaded once at startup; openForm waits for it.
 document.addEventListener('DOMContentLoaded', () => {
