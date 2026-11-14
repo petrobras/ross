@@ -78,6 +78,8 @@ holep = rs.HolePatternSeal(
   ccp (needs `gas_composition`). It refuses an inlet or an expansion that reaches
   the two-phase region (`ValueError`, or NaN with a warning for a speed whose flow
   needs it)
+- A speed that fails gets NaN and a warning; with three or more speeds the pchip
+  table cannot hold NaN, so the element raises a `ValueError` naming the failed speeds
 - `holep.choked`: one flag per speed; a choked seal returns the choke-limit flow
 - `cell_depth` is the only cell input: for a hole pattern use hole depth times
   hole-area ratio; `cell_length` and `cell_width` are not used by the model
