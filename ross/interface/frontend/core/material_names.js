@@ -57,3 +57,51 @@ export function renameMaterial(project, oldName, newName) {
     });
     return moved;
 }
+
+// A MultiRotor is two rotors, and each keeps its own list of materials: ROSS
+// builds each half on its own, and the server checks each one against its own
+// list (domain/material_names.py, half by half). A material made on the
+// Materials tab while one half was being edited went into that half's list
+// only, and the form of an element of the other half -- and the sketch, which
+// read the MultiRotor's own list, empty -- had nothing to offer but the default
+// steel (Leonardo, on a MultiRotor).
+//
+// So an element of either half is offered the materials of both: its own
+// first, then the other's that it does not have by name (`materialKey`). The
+// first one of a name wins, so a half's own material is never shadowed.
+export function materialsOffered(line, other) {
+    const offered = [];
+    const seen = new Set();
+    [line, other].forEach(source => {
+        ((source && source.materials) || []).forEach(material => {
+            const key = materialKey((material && material.name) || '');
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            offered.push(material);
+        });
+    });
+    return offered;
+}
+
+// And one that an element of `line` names, from the other half's list, is
+// copied into `line`'s, so the half builds on its own -- and is still there
+// in the library rotor the half came from. Answers the names copied.
+export function adoptMaterials(line, other) {
+    if (!line || !other) return [];
+    const own = new Set((line.materials || []).map(m => materialKey((m && m.name) || '')));
+    const theirs = new Map(((other.materials) || []).map(m => [materialKey((m && m.name) || ''), m]));
+    const copied = [];
+    Object.keys(line).forEach(category => {
+        if (category === 'materials' || !Array.isArray(line[category])) return;
+        line[category].forEach(element => {
+            if (!element || element.material === undefined || element.material === null) return;
+            const key = materialKey(element.material);
+            if (!key || own.has(key) || !theirs.has(key)) return;
+            if (!Array.isArray(line.materials)) line.materials = [];
+            line.materials.push(JSON.parse(JSON.stringify(theirs.get(key))));
+            own.add(key);
+            copied.push(theirs.get(key).name);
+        });
+    });
+    return copied;
+}
