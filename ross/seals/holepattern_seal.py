@@ -1,6 +1,6 @@
 import math
 from functools import partial
-from warnings import warn
+from warnings import catch_warnings, simplefilter, warn
 
 import numpy as np
 from scipy.optimize import brentq, curve_fit
@@ -45,6 +45,18 @@ _FIRST_STEP_FLOOR = 1.0e-8
 _TABLE_ATTEMPTS = 5
 _ZERO_FREQUENCY_STEP = 1.0e-9
 _BISECTION_RESOLUTION = 4.0e-16
+
+
+def _without_warnings(solve, argument):
+    """Call ``solve(argument)`` with warnings silenced (pool workers).
+
+    A failed point carries its message in the ``"error"`` key of its result, and
+    the parent process warns with it: warnings raised in a worker never reach the
+    filters of the parent.
+    """
+    with catch_warnings():
+        simplefilter("ignore")
+        return solve(argument)
 
 
 class _Overshoot(Exception):
@@ -342,11 +354,28 @@ class HolePatternSolver:
         ``speeds[i]`` and ``frequencies[j]``. Speeds are solved in parallel
         when there are more than ``parallel_threshold`` of them.
         """
-        return solve_frequencies(
+        return self._solve_speeds(
             partial(self.solve_row, frequencies=frequencies),
             speeds,
-            parallel_threshold=parallel_threshold,
+            parallel_threshold,
         )
+
+    def _solve_speeds(self, solve, speeds, parallel_threshold):
+        """Apply ``solve`` to every speed, in a process pool above the threshold.
+
+        In a pool the workers do not warn; the parent warns for every failed
+        point instead, so that warning filters and ``pytest.warns`` see it.
+        """
+        if len(speeds) <= parallel_threshold:
+            return solve_frequencies(solve, speeds, parallel_threshold)
+        results = solve_frequencies(
+            partial(_without_warnings, solve), speeds, parallel_threshold
+        )
+        for result in results:
+            for point in result if isinstance(result, list) else [result]:
+                if point.get("error") is not None:
+                    warn(point["error"])
+        return results
 
     def base_state(self, speed):
         """Base state at the rotor ``speed`` (rad/s).
@@ -417,15 +446,20 @@ class HolePatternSolver:
                 gas = gas.widened(error)
 
     def _failed_result(self, speed, frequency, error):
-        """Warn about a failed solve and return NaN coefficients."""
-        warn(
+        """Warn about a failed solve and return NaN coefficients.
+
+        The result also holds the warning text under ``"error"``.
+        """
+        message = (
             f"Could not calculate the hole-pattern seal at speed {speed} rad/s "
             f"and whirl frequency {frequency} rad/s; the coefficients for this "
             f"point are set to NaN. Original error: {error}"
         )
+        warn(message)
         failed = dict.fromkeys(self.FAILED_COEFFICIENTS, np.nan)
         failed["pressure"] = np.full(self.nz + 4, np.nan)
         failed["choked"] = None
+        failed["error"] = message
         return failed
 
 
@@ -948,6 +982,11 @@ class _HolePatternFlow:
 
             def residual(p2):
                 seen[p2] = trial(p2)
+                if seen[p2]["status"] == "range":
+                    raise self._table_limit(
+                        "a trial inside the bracket of the outlet pressure leaves the "
+                        "range of the gas properties"
+                    )
                 if seen[p2]["status"] != "ok":
                     raise RuntimeError(
                         "a trial inside the bracket of the outlet pressure failed"
@@ -1435,10 +1474,15 @@ class HolePatternSeal(SealElement):
     state of ``ccp``; the cold edge of the table follows the inlet isentrope.
     The seal must stay a single-phase gas down to the table floor: an inlet
     that is not one is refused at construction with a ``ValueError``, and a
-    speed whose flow needs states below the floor gives NaN with a warning;
-    states outside the table are not extrapolated. Mixtures with many
-    components are slow under the HEOS backend (seconds to minutes per
-    table; REFPROP is much faster).
+    speed whose flow needs states below the floor fails; states outside the
+    table are not extrapolated. Mixtures with many components are slow under
+    the HEOS backend (seconds to minutes per table; REFPROP is much faster).
+
+    A speed (or whirl frequency) that cannot be solved warns and gets NaN
+    coefficients. A table of one or two speeds holds them. The ``"pchip"``
+    interpolation of three or more points needs finite values, so such a
+    table raises a ``ValueError`` that lists the failed speeds and the first
+    error.
 
     See the theory page ``docs/theory_and_code/holepattern_seal.ipynb``.
 
@@ -1771,8 +1815,8 @@ class HolePatternSeal(SealElement):
         if solve:
             speed = np.atleast_1d(np.asarray(speed, dtype=float))
             if frequency is None:
-                results = solve_frequencies(
-                    self.solver.solve, speed, parallel_threshold=PARALLEL_THRESHOLD
+                results = self.solver._solve_speeds(
+                    self.solver.solve, speed, PARALLEL_THRESHOLD
                 )
                 rows = [[r] for r in results]
                 coefficients_dict = {
@@ -1788,11 +1832,31 @@ class HolePatternSeal(SealElement):
             self.p = [row[0]["pressure"] for row in rows]
             self.choked = [row[0]["choked"] for row in rows]
             coefficients_dict["seal_leakage"] = [row[0]["seal_leakage"] for row in rows]
+            failures = [
+                (s, point["error"])
+                for s, row in zip(speed, rows, strict=True)
+                for point in row
+                if point.get("error") is not None
+            ]
+        else:
+            failures = []
 
-        super().__init__(
-            self.n,
-            speed=speed,
-            frequency=frequency,
-            **coefficients_dict,
-            **kwargs,
-        )
+        try:
+            super().__init__(
+                self.n,
+                speed=speed,
+                frequency=frequency,
+                **coefficients_dict,
+                **kwargs,
+            )
+        except ValueError as error:
+            if not failures:
+                raise
+            failed_speeds = sorted({float(s) for s, _ in failures})
+            raise ValueError(
+                "the coefficient table of the hole-pattern seal holds NaN at the "
+                f"failed speeds {failed_speeds} rad/s, and its interpolation over "
+                f"three or more points needs finite values ({error}); leave these "
+                "speeds out. First failure: "
+                f"{failures[0][1]}"
+            ) from error
