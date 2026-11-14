@@ -295,9 +295,8 @@ class RealGas(IdealGas):
         isentropic throat velocity ``sqrt(vnu w_prev**2 + 2 (h(p_prev) - h(p_t)))``
         equals the local sound speed ``a(p_t)``, then returns ``p_t / p_prev``.
 
-        The critical ratio is nearly pressure-independent, so when the upstream
-        pressure is not yet known (e.g. the pre-loop lower-bracket estimate, where
-        ``p_prev`` is still zero) it is evaluated at the inlet reference instead.
+        The critical ratio is nearly pressure-independent, so when ``p_prev`` lies
+        outside the table it is evaluated at the inlet reference instead.
         """
         if not (self.p_min < p_prev <= self.p_grid[-1]):
             p_prev = self.p_grid[-1]

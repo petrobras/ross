@@ -17,6 +17,9 @@ __all__ = ["LabyrinthSeal"]
 BLASIUS_FRICTION_COEFFICIENT = 0.079
 BLASIUS_FRICTION_EXPONENT = -0.25
 JENNY_KANKI_MOMENTUM_FACTOR = {"stator": 0.15, "rotor": 0.35, "inter": 0.90}
+# A bisection bracket [0, 5 mdot] closes to adjacent floating-point numbers in
+# about 55 halvings, so this allows the first bracket and two restarts.
+MAX_LEAKAGE_ITERATIONS = 200
 
 PERTURBATION_DOFS = 8
 CONTINUITY_ROWS = (0, 1, 2, 3)
@@ -320,64 +323,91 @@ class LabyrinthSolver:
             warn(f"Pressure Convergence Error at Station {i}")
         return pressure_ratio
 
+    def _critical_pr(self, station):
+        """Return the critical pressure ratio of the throttle at ``station``.
+
+        It is evaluated from the state upstream of the throttle, so during the
+        march it belongs to the current mass flux.
+        """
+        i = station
+        return self.gas.critical_pr(
+            self.p[i - 1], self.w[i - 1], self.carryover_factor, self.t[i - 1]
+        )
+
     def _outlet_critical_pr(self):
         """Return the critical pressure ratio at the last throttle."""
-        i = self.n_teeth - 1
-        return self.gas.critical_pr(
-            self.p[i], self.w[i], self.carryover_factor, self.t[i]
-        )
+        return self._critical_pr(self.n_teeth)
+
+    def _march(self):
+        """March through the teeth at the current mass flux ``mdot``.
+
+        Solves the pressure ratio that passes ``mdot`` across each tooth,
+        bracketed by the tooth's own critical ratio, and updates the
+        isentropic state (pressure, throat velocity, density, temperature)
+        cavity by cavity. The march depends on ``mdot`` alone.
+
+        Returns
+        -------
+        int or None
+            The station of the first throttle that cannot pass ``mdot`` at its
+            critical pressure ratio, or None if every throttle passes it.
+        """
+        for i in range(1, self.n_teeth + 1):
+            pressure_ratio = self._throttle_pressure_ratio(i, self._critical_pr(i))
+            if pressure_ratio is None:
+                return i
+            self.pr[i - 1] = pressure_ratio
+            self.p[i] = pressure_ratio * self.p[i - 1]
+            self.w[i] = self.gas.throat_velocity(
+                self.mdot,
+                self.discharge_coefficient,
+                self.radial_clearance,
+                self.p[i - 1],
+                pressure_ratio,
+                self.t[i - 1],
+            )
+            self.rho[i] = self.gas.density_isentropic(
+                self.p[i - 1], pressure_ratio, self.rho[i - 1]
+            )
+            self.t[i] = self.gas.temperature_isentropic(
+                self.p[i - 1], pressure_ratio, self.t[i - 1]
+            )
+        return None
 
     def _solve_pressure_distribution(self):
         """Solve the cavity pressures and the leakage mass flux.
 
-        Outer loop: bisection on the mass flux ``mdot`` until the pressure at
-        the outlet station matches the outlet pressure, or the last throttle
-        chokes. Inner loop: march through the teeth solving the pressure ratio
-        that passes ``mdot`` across each one, updating the isentropic state
-        (pressure, throat velocity, density, temperature) cavity by cavity.
+        Bisection on the mass flux ``mdot``, with one march through the teeth
+        (:meth:`_march`) per iterate. It stops when the pressure at the outlet
+        station matches the outlet pressure, or when the last throttle chokes
+        with the outlet station above the outlet pressure: either the last
+        throttle comes within ``tol_choked`` of its critical pressure ratio,
+        or the bracket closes on the mass flux above which the last throttle
+        cannot pass ``mdot``. In the latter case the march at the lower end of
+        the bracket, the largest mass flux the seal passes, is the choked
+        solution.
+
+        Raises
+        ------
+        RuntimeError
+            If no test is met within ``MAX_LEAKAGE_ITERATIONS`` bisection
+            steps.
         """
         tol_outlet_pressure = 1e-5
         tol_choked = 0.005
 
+        self.w[0] = 0.0
+        self.p[0] = self.inlet_pressure
+        self.rho[0] = self.gas.inlet_density(self.p[0], self.t[0])
+
         mdot_low, mdot_high = 0.0, self.mdot * 5
-        refresh_bracket = False
-        frozen_inlet_state = False
+        last_throttle_chokes_at_high = False
+        choke_onset = False
         error_outlet_pressure = 0.0
 
-        while True:
-            if refresh_bracket:
-                mdot_low, mdot_high = 0.0, self.mdot * 5
-                refresh_bracket = False
-            if not frozen_inlet_state:
-                self.w[0] = 0.0
-                self.p[0] = self.inlet_pressure
-                self.rho[0] = self.gas.inlet_density(self.p[0], self.t[0])
-                critical_pr = self._outlet_critical_pr()
-
-            choked_mid_seal = False
-            for i in range(1, self.n_teeth + 1):
-                pressure_ratio = self._throttle_pressure_ratio(i, critical_pr)
-                if pressure_ratio is None:
-                    choked_mid_seal = True
-                    break
-                self.pr[i - 1] = pressure_ratio
-                self.p[i] = pressure_ratio * self.p[i - 1]
-                self.w[i] = self.gas.throat_velocity(
-                    self.mdot,
-                    self.discharge_coefficient,
-                    self.radial_clearance,
-                    self.p[i - 1],
-                    pressure_ratio,
-                    self.t[i - 1],
-                )
-                self.rho[i] = self.gas.density_isentropic(
-                    self.p[i - 1], pressure_ratio, self.rho[i - 1]
-                )
-                self.t[i] = self.gas.temperature_isentropic(
-                    self.p[i - 1], pressure_ratio, self.t[i - 1]
-                )
-
-            if not choked_mid_seal:
+        for _ in range(MAX_LEAKAGE_ITERATIONS):
+            choked_station = self._march()
+            if choked_station is None:
                 outlet_critical_pr = self._outlet_critical_pr()
                 error_outlet_pressure = (
                     self.p[self.n_teeth] - self.outlet_pressure
@@ -387,25 +417,45 @@ class LabyrinthSolver:
                     / outlet_critical_pr
                     <= tol_choked
                 )
-                if abs(error_outlet_pressure) < tol_outlet_pressure or near_choked:
+                if abs(error_outlet_pressure) < tol_outlet_pressure or (
+                    near_choked and error_outlet_pressure > 0
+                ):
                     break
 
             mdot_old = self.mdot
-            if choked_mid_seal or error_outlet_pressure < 0:
+            if choked_station is not None or error_outlet_pressure < 0:
                 self.mdot = (mdot_low + self.mdot) / 2
                 mdot_high = mdot_old
+                last_throttle_chokes_at_high = choked_station == self.n_teeth
             else:
                 self.mdot = (mdot_high + self.mdot) / 2
                 mdot_low = mdot_old
             if self.mdot == mdot_old:
-                # The bisection stagnated; restart it around the current flux
-                # and keep the current inlet state and critical ratio.
+                if last_throttle_chokes_at_high and mdot_low > 0:
+                    # The real-gas critical ratio can lie below the maximum of
+                    # the interpolated throttle flux. The last pressure ratio
+                    # then stays outside tol_choked up to the choke onset.
+                    self.mdot = mdot_low
+                    self._march()
+                    choke_onset = True
+                    break
+                # The bracket closed without meeting a test. Restart it from
+                # the current flux, which widens it when the leakage lies
+                # above its upper bound.
                 if self.print_results:
                     print("Reset iteration")
-                frozen_inlet_state = True
-                refresh_bracket = True
+                mdot_low, mdot_high = 0.0, self.mdot * 5
+                last_throttle_chokes_at_high = False
+        else:
+            raise RuntimeError(
+                "The labyrinth leakage iteration did not converge in "
+                f"{MAX_LEAKAGE_ITERATIONS} bisection steps (last leakage "
+                f"{self._circumferential_leakage(self.mdot):.6e} kg/s): the "
+                "outlet pressure was not matched within a relative "
+                f"{tol_outlet_pressure:g}, and the last throttle did not choke."
+            )
 
-        if (
+        if choke_onset or (
             abs(self.pr[self.n_teeth - 1] - self._outlet_critical_pr())
             / self._outlet_critical_pr()
             <= tol_choked
