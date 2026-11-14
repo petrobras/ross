@@ -76,6 +76,11 @@ class HolePatternBaseState:
     choked : bool
         True when the outlet pressure cannot be reached: the state is the
         flow at the choke limit.
+    choke_location : str or None
+        Where the flow chokes: ``"land"`` (the axial Mach number reaches
+        the limit in the land), ``"entrance"`` (no subsonic entrance
+        state), ``"exit"`` (the exit relation reaches its sonic flux), or
+        None when unchoked.
     p2 : float
         Static pressure after the isentropic entrance acceleration (Pa).
     p5 : float
@@ -98,6 +103,7 @@ class HolePatternBaseState:
         "w",
         "mach2",
         "choked",
+        "choke_location",
         "p2",
         "p5",
         "iterations",
@@ -120,6 +126,7 @@ class HolePatternBaseState:
         p5,
         iterations,
         gas,
+        choke_location=None,
     ):
         self.mass_flux = mass_flux
         self.leakage = leakage
@@ -131,6 +138,7 @@ class HolePatternBaseState:
         self.w = w
         self.mach2 = mach2
         self.choked = choked
+        self.choke_location = choke_location
         self.p2 = p2
         self.p5 = p5
         self.iterations = iterations
@@ -358,7 +366,7 @@ class HolePatternSolver:
         return self._solve_base(speed)[1]
 
     def shear(self, clearance, rho, mu, u, w, surface_speed):
-        """Wall shear on the fluid per unit wetted area (Pa).
+        """Shear stress that the fluid exerts on the walls, resisting the flow (Pa).
 
         Moody's law with the hydraulic diameter ``2 H``: the rotor with the
         roughness ``relative_roughness``, the stator as a smooth wall with
@@ -454,7 +462,7 @@ class _HolePatternFlow:
             clearance, rho, point.mu, u, w, surface_speed
         )
         u2 = u * u
-        mach2 = u2 * (point.rho_p - T * point.rho_T**2 / (rho * rho * point.cp))
+        mach2 = u2 * point.rho_p_s
         dw = -tau_t / (clearance * mass_flux)
         heat = -surface_speed * tau_rt / (clearance * mass_flux)
         a11 = 1.0 - u2 * point.rho_p
@@ -685,6 +693,26 @@ class _HolePatternFlow:
         p5 : float or None
             None when there is no subsonic state.
         """
+        exit_state = self._exit_stagnation(p4, T4, u4)
+        if exit_state is None:
+            return None
+        rho4, h40, p40, p50, s5 = exit_state
+        found = self._isentropic_flux_pressure(
+            rho4 * u4, h40, s5, p4 - (p40 - p50), T4, p50
+        )
+        return None if found is None else found[0]
+
+    def _exit_stagnation(self, p4, T4, u4):
+        """Stagnation and loss construction of the exit relation.
+
+        Returns
+        -------
+        exit_state : tuple or None
+            ``(rho4, h40, p40, p50, s5)``: density of the last station, local
+            total enthalpy, stagnation pressure before and after the exit
+            loss, and entropy behind the loss. None when the loss leaves no
+            positive pressure.
+        """
         gas = self.gas
         point = gas.point(p4, T4)
         h40 = point.h + 0.5 * u4 * u4
@@ -702,10 +730,74 @@ class _HolePatternFlow:
             return None
         T50 = gas.temperature_ph(p50, h40, T40)
         s5 = gas.entropy(p50, T50)
-        found = self._isentropic_flux_pressure(
-            point.rho * u4, h40, s5, p4 - (p40 - p50), T4, p50
+        return point.rho, h40, p40, p50, s5
+
+    def exit_flux_ratio(self, p4, T4, u4, guess=None):
+        """Mass flux of the last station over the sonic flux of the exit relation.
+
+        The sonic flux is that of the isentrope behind the exit loss at the
+        local total enthalpy. The exit relation chokes when the ratio
+        reaches 1.
+
+        Parameters
+        ----------
+        p4, T4, u4 : float
+            Pressure (Pa), temperature (K) and axial velocity (m/s) of the
+            last station.
+        guess : float, optional
+            Estimate of the sonic pressure (Pa). The bracket of the sonic
+            point is widened from it in small steps, so the search stays near
+            the states the base flow visited. Default is a search down from
+            the stagnation pressure.
+
+        Returns
+        -------
+        ratio : float
+        """
+        exit_state = self._exit_stagnation(p4, T4, u4)
+        if exit_state is None:
+            raise RuntimeError("the exit loss leaves no positive pressure")
+        rho4, h40, _, p50, s5 = exit_state
+        gas = self.gas
+        temperature = [T4]
+
+        def state(q):
+            T = gas.temperature_ps(q, s5, temperature[0])
+            temperature[0] = T
+            point = gas.point(q, T)
+            return point, h40 - point.h
+
+        def mach_excess(q):
+            point, head = state(q)
+            return 2.0 * max(head, 0.0) / point.sound_speed**2 - 1.0
+
+        if guess is None:
+            high, low = p50, p50
+            for _ in range(600):
+                high, low = low, 0.97 * low
+                if mach_excess(low) >= 0.0:
+                    break
+            else:
+                raise RuntimeError("no sonic state was found on the isentrope")
+        else:
+            low = high = min(guess, p50)
+            for k in range(60):
+                if mach_excess(low) >= 0.0:
+                    break
+                high, low = low, low * (1.0 - 1.0e-4 * 2.0**k)
+            else:
+                raise RuntimeError("no sonic state was found on the isentrope")
+            for k in range(60):
+                if high >= p50 or mach_excess(high) < 0.0:
+                    break
+                low, high = high, min(high * (1.0 + 1.0e-4 * 2.0**k), p50)
+            else:
+                raise RuntimeError("no sonic state was found on the isentrope")
+        sonic = brentq(
+            mach_excess, low, high, xtol=1.0e-14 * p50, rtol=8.9e-16, maxiter=200
         )
-        return None if found is None else found[0]
+        point, head = state(sonic)
+        return rho4 * u4 / (point.rho * math.sqrt(2.0 * max(head, 0.0)))
 
     def _trial(self, p2, surface_speed):
         """One trial of the outlet-pressure search at the entrance pressure ``p2``."""
@@ -715,13 +807,13 @@ class _HolePatternFlow:
             self._range_error = error
             return {"status": "range", "error": error}
         if entrance is None:
-            return {"status": "choked"}
+            return {"status": "choked", "where": "entrance"}
         mass_flux, start, _ = entrance
         status, profile = self._integrate(mass_flux, surface_speed, start)
         if status == "range":
             return {"status": "range", "error": self._range_error}
         if status != "ok":
-            return {"status": status}
+            return {"status": status, "where": "land"}
         p4, T4 = profile[-1, 0], profile[-1, 1]
         try:
             u4 = mass_flux / self.gas.point(p4, T4).rho
@@ -730,7 +822,7 @@ class _HolePatternFlow:
             self._range_error = error
             return {"status": "range", "error": error}
         if p5 is None:
-            return {"status": "choked"}
+            return {"status": "choked", "where": "exit"}
         return {
             "status": "ok",
             "p2": p2,
@@ -797,7 +889,7 @@ class _HolePatternFlow:
                 low, low_p2, limiting = (
                     None,
                     p_in * (1.0 - fraction),
-                    candidate["status"],
+                    candidate.get("where", candidate["status"]),
                 )
             fraction /= 10.0
             if fraction < _FIRST_STEP_FLOOR:
@@ -821,7 +913,8 @@ class _HolePatternFlow:
                 fraction = min(fraction * 2.0, 0.999)
                 candidate = trial(p_in * (1.0 - fraction))
                 if candidate["status"] != "ok":
-                    low_p2, limiting = p_in * (1.0 - fraction), candidate["status"]
+                    low_p2 = p_in * (1.0 - fraction)
+                    limiting = candidate.get("where", candidate["status"])
                     break
                 if candidate["residual"] > 0.0:
                     high = candidate
@@ -844,7 +937,8 @@ class _HolePatternFlow:
                 break
             candidate = trial(middle)
             if candidate["status"] != "ok":
-                low_p2, limiting = middle, candidate["status"]
+                low_p2 = middle
+                limiting = candidate.get("where", candidate["status"])
             elif candidate["residual"] > 0.0:
                 high = candidate
             else:
@@ -883,6 +977,7 @@ class _HolePatternFlow:
             solution["p2"],
             solution["p5"],
             count,
+            limiting if choked else None,
         )
 
     def _table_limit(self, message):
@@ -897,7 +992,9 @@ class _HolePatternFlow:
             getattr(last, "side", None),
         )
 
-    def _assemble(self, mass_flux, profile, choked, p2, p5, iterations):
+    def _assemble(
+        self, mass_flux, profile, choked, p2, p5, iterations, choke_location=None
+    ):
         """Build a :class:`HolePatternBaseState` from a ``(p, T, w)`` profile."""
         solver = self.solver
         p, T, w = profile[:, 0].copy(), profile[:, 1].copy(), profile[:, 2].copy()
@@ -922,6 +1019,7 @@ class _HolePatternFlow:
             p5=p5,
             iterations=iterations,
             gas=self.gas,
+            choke_location=choke_location,
         )
 
     def _station_tables(self, base):
@@ -1156,9 +1254,14 @@ class _HolePatternFlow:
         entrance : ndarray, shape (4,)
             ``(d rho3/d u3, d T3/d u3, 1, d w3/d u3)`` of the entrance model.
         exit_row : ndarray, shape (3,)
-            Row ``e`` with ``e . (rho1, T1, u1) = 0`` at station nz: the
-            pressure behind the exit is unchanged or, when choked, the axial
-            Mach number is.
+            Row ``e`` with ``e . (rho1, T1, u1) = 0`` at station nz. Unchoked,
+            the pressure behind the exit is unchanged. Choked in the land (or
+            at the entrance), the axial Mach number of the last station is
+            unchanged. Choked in the exit relation, the exit stays at its
+            sonic flux (:meth:`exit_flux_ratio` is unchanged); this row is
+            also used when the exit is so close to sonic that a perturbed
+            state of the central difference has no subsonic exit, since the
+            row of the pressure tends to it there.
         """
         gas = self.gas
         step = 1.0e-5 * (self.solver.inlet_pressure - base.p2)
@@ -1182,24 +1285,32 @@ class _HolePatternFlow:
 
         p4, T4, u4 = float(base.p[-1]), float(base.T[-1]), float(base.u[-1])
         point = gas.point(p4, T4)
-        if base.choked:
-
-            def measure(p, T, u):
-                return u / gas.point(p, T).sound_speed
-
-        else:
-
-            def measure(p, T, u):
-                found = self.exit_pressure(p, T, u)
-                if found is None:
-                    raise RuntimeError("the exit relation could not be linearised")
-                return found
-
         dp, dt, du = 1.0e-6 * p4, 1.0e-6 * T4, 1.0e-6 * u4
-        m_p = (measure(p4 + dp, T4, u4) - measure(p4 - dp, T4, u4)) / (2.0 * dp)
-        m_t = (measure(p4, T4 + dt, u4) - measure(p4, T4 - dt, u4)) / (2.0 * dt)
-        m_u = (measure(p4, T4, u4 + du) - measure(p4, T4, u4 - du)) / (2.0 * du)
-        exit_row = np.array([m_p * point.p_rho, m_p * point.p_t + m_t, m_u])
+
+        def row(measure):
+            values = [
+                measure(p4 + dp, T4, u4),
+                measure(p4 - dp, T4, u4),
+                measure(p4, T4 + dt, u4),
+                measure(p4, T4 - dt, u4),
+                measure(p4, T4, u4 + du),
+                measure(p4, T4, u4 - du),
+            ]
+            if any(value is None for value in values):
+                return None
+            m_p = (values[0] - values[1]) / (2.0 * dp)
+            m_t = (values[2] - values[3]) / (2.0 * dt)
+            m_u = (values[4] - values[5]) / (2.0 * du)
+            return np.array([m_p * point.p_rho, m_p * point.p_t + m_t, m_u])
+
+        if base.choked and base.choke_location != "exit":
+            exit_row = row(lambda p, T, u: u / gas.point(p, T).sound_speed)
+        else:
+            exit_row = None if base.choked else row(self.exit_pressure)
+            if exit_row is None:
+                exit_row = row(
+                    lambda p, T, u: self.exit_flux_ratio(p, T, u, guess=base.p5)
+                )
         return entrance, exit_row
 
     def forces(self, base, speed, omega):
