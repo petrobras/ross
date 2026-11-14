@@ -753,9 +753,10 @@ def test_nearly_choked_exit_gives_the_choke_limit_coefficients():
     # the leakage depends on the outlet pressure like a square root near the
     # choke, (1e-4)^2 here
     assert_allclose(near.seal_leakage, choked.seal_leakage, rtol=1e-6)
-    # the unchoked coefficients approach the choked ones linearly in the
-    # outlet pressure, with a slope of about 0.3 (measured between 1e-2 and
-    # 1.5e-3 above the choke), so 1e-4 above it they agree to about 3e-5
+    # 1e-4 above the choke lies inside the band where the sonic-exit row is
+    # used (_boundary_relations), so the coefficients differ only through the
+    # base state (observed 1e-8). The band edge, near 1e-3, is not sampled:
+    # the coefficients jump there by up to 5e-3
     for name in COEFFICIENTS:
         assert_allclose(
             getattr(near, name), getattr(choked, name), rtol=1e-4, err_msg=name
