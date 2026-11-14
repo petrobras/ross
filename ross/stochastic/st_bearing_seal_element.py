@@ -48,6 +48,45 @@ class ST_BearingElement:
     cyx: float, 1-D array, 2-D array, optional
         Cross coupled damping in the y direction.
         (defaults to 0)
+    kr_xx: float, array, optional
+        Torque about x per rotation about x (N*m/rad).
+        (defaults to 0)
+    kr_xy: float, array, optional
+        Torque about x per rotation about y (N*m/rad).
+        (defaults to 0)
+    kr_yx: float, array, optional
+        Torque about y per rotation about x (N*m/rad).
+        (defaults to 0)
+    kr_yy: float, array, optional
+        Torque about y per rotation about y (N*m/rad).
+        (defaults to 0)
+    kr_zz: float, array, optional
+        Torque about z per rotation about z (N*m/rad).
+        (defaults to 0)
+    cr_xx: float, array, optional
+        Torque about x per angular velocity about x (N*m*s/rad).
+        (defaults to 0)
+    cr_xy: float, array, optional
+        Torque about x per angular velocity about y (N*m*s/rad).
+        (defaults to 0)
+    cr_yx: float, array, optional
+        Torque about y per angular velocity about x (N*m*s/rad).
+        (defaults to 0)
+    cr_yy: float, array, optional
+        Torque about y per angular velocity about y (N*m*s/rad).
+        (defaults to 0)
+    cr_zz: float, array, optional
+        Torque about z per angular velocity about z (N*m*s/rad).
+        (defaults to 0)
+    Ixx: float, array, optional
+        Mass moment of inertia about x (kg*m**2).
+        (defaults to 0)
+    Iyy: float, array, optional
+        Mass moment of inertia about y (kg*m**2).
+        (defaults to 0)
+    Izz: float, array, optional
+        Mass moment of inertia about z (kg*m**2).
+        (defaults to 0)
     frequency: array, optional
         Array with the frequencies (rad/s).
     tag: str, optional
@@ -122,6 +161,20 @@ class ST_BearingElement:
         myy=None,
         mxy=0,
         myx=0,
+        mzz=0,
+        kr_xx=0,
+        kr_xy=0,
+        kr_yx=0,
+        kr_yy=0,
+        kr_zz=0,
+        cr_xx=0,
+        cr_xy=0,
+        cr_yx=0,
+        cr_yy=0,
+        cr_zz=0,
+        Ixx=0,
+        Iyy=0,
+        Izz=0,
         speed=None,
         tag=None,
         n_link=None,
@@ -163,6 +216,20 @@ class ST_BearingElement:
             myy=myy,
             mxy=mxy,
             myx=myx,
+            mzz=mzz,
+            kr_xx=kr_xx,
+            kr_xy=kr_xy,
+            kr_yx=kr_yx,
+            kr_yy=kr_yy,
+            kr_zz=kr_zz,
+            cr_xx=cr_xx,
+            cr_xy=cr_xy,
+            cr_yx=cr_yx,
+            cr_yy=cr_yy,
+            cr_zz=cr_zz,
+            Ixx=Ixx,
+            Iyy=Iyy,
+            Izz=Izz,
             speed=speed,
             tag=tag,
             n_link=n_link,
@@ -351,6 +418,19 @@ class ST_BearingElement:
             mxy="Mxy",
             myx="Myx",
             myy="Myy",
+            kr_xx="Krrxx",
+            kr_xy="Krrxy",
+            kr_yx="Krryx",
+            kr_yy="Krryy",
+            kr_zz="Krrzz",
+            cr_xx="Crrxx",
+            cr_xy="Crrxy",
+            cr_yx="Crryx",
+            cr_yy="Crryy",
+            cr_zz="Crrzz",
+            Ixx="Ixx",
+            Iyy="Iyy",
+            Izz="Izz",
         )
         if var_list is None:
             var_list = self.is_random

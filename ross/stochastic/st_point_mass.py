@@ -29,6 +29,18 @@ class ST_PointMass:
     my: float, optional
         Mass for the element on the y direction.
         Input a list to make it random.
+    mz: float, list, optional
+        Mass in the z direction (kg).
+        Default is None.
+    Ixx: float, list, optional
+        Mass moment of inertia about x (kg*m**2).
+        Default is None.
+    Iyy: float, list, optional
+        Mass moment of inertia about y (kg*m**2).
+        Default is None.
+    Izz: float, list, optional
+        Mass moment of inertia about z (kg*m**2).
+        Default is None.
     tag : str, optional
         A tag to name the element
         Default is None
@@ -65,6 +77,10 @@ class ST_PointMass:
         m=None,
         mx=None,
         my=None,
+        mz=None,
+        Ixx=None,
+        Iyy=None,
+        Izz=None,
         tag=None,
         color="DarkSalmon",
         is_random=None,
@@ -74,6 +90,10 @@ class ST_PointMass:
             m=m,
             mx=mx,
             my=my,
+            mz=mz,
+            Ixx=Ixx,
+            Iyy=Iyy,
+            Izz=Izz,
             tag=tag,
             color=color,
         )
@@ -236,7 +256,11 @@ class ST_PointMass:
         label = dict(
             mx="Mass on the X direction",
             my="Mass on the Y direction",
+            mz="Mass on the Z direction",
             m="Mass",
+            Ixx="Rotational inertia Ixx",
+            Iyy="Rotational inertia Iyy",
+            Izz="Rotational inertia Izz",
         )
         if var_list is None:
             var_list = self.is_random

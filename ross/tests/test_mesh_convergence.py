@@ -108,7 +108,8 @@ def test_run_mesh_convergence_bisection_rejects_a_mesh():
 
 
 def test_run_mesh_convergence_keeps_couplings():
-    stiffness = {f"k{kind}_{axis}": 1e6 for kind in "tr" for axis in "xyz"}
+    stiffness = {f"k_{axis}": 1e6 for axis in "xyz"}
+    stiffness.update({f"kr_{axis}": 1e6 for axis in "xyz"})
     coupling = CouplingElement(m_l=10, m_r=10, Ip_l=0.1, Ip_r=0.1, **stiffness)
     shaft_elements = [
         ShaftElement(L=0.25, idl=0, odl=0.05, material=steel),

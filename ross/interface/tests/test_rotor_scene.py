@@ -102,9 +102,9 @@ def test_a_coupling_spans_its_two_nodes():
                 "m_r": "1",
                 "Ip_l": "0.01",
                 "Ip_r": "0.01",
-                "kt_x": "1e6",
-                "kt_y": "1e6",
-                "kt_z": "1e5",
+                "k_x": "1e6",
+                "k_y": "1e6",
+                "k_z": "1e5",
                 "kr_x": "1e3",
                 "kr_y": "1e3",
                 "kr_z": "1e3",
@@ -150,7 +150,16 @@ def test_every_part_carries_the_position_of_its_row():
                 "tag": "B_start",
             },
         ],
-        pointmasses=[{"n": "2", "m": "1", "tag": "P"}],
+        pointmasses=[
+            {
+                "n": "2",
+                "m": "1",
+                "Ixx": "0",
+                "Iyy": "0",
+                "Izz": "0",
+                "tag": "P",
+            }
+        ],
     )
     for i, row in enumerate(built["shafts"]):
         row["tag"] = "S%d" % i
