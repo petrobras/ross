@@ -109,6 +109,16 @@ _FLOOR_BISECTIONS = 12
 _ISENTROPE_SUBSTEPS = 8
 
 
+def _unstable_state_error(p, T):
+    """Return the error for a state that is not thermodynamically stable."""
+    return ValueError(
+        f"the gas state p = {p:.6g} Pa, T = {T:.6g} K is not thermodynamically "
+        "stable (cp, (d rho / d p)_T or (d rho / d p)_s is not positive); near the "
+        "critical point the property table of the hole-pattern seal cannot "
+        "represent the gas, and the single-phase model does not support it"
+    )
+
+
 class GasRangeError(ValueError):
     """Signal a state outside the domain of a gas object.
 
@@ -217,18 +227,27 @@ class GasPoint:
         return f"GasPoint({fields})"
 
     @property
+    def rho_p_s(self):
+        """``(d rho / d p)_s = rho_p - T rho_T^2 / (rho^2 cp) = 1 / a^2`` (s^2/m^2).
+
+        Raises ``ValueError`` naming the state when it is not thermodynamically
+        stable (``cp``, ``rho_p`` or this derivative not positive), which a
+        table can give near the critical point.
+        """
+        value = self.rho_p - self.T * self.rho_T**2 / (self.rho**2 * self.cp)
+        if not (value > 0.0 and self.cp > 0.0 and self.rho_p > 0.0):
+            raise _unstable_state_error(self.p, self.T)
+        return value
+
+    @property
     def sound_speed(self):
         """Speed of sound (m/s), from ``a^-2 = rho_p - T rho_T^2 / (rho^2 cp)``."""
-        return 1.0 / math.sqrt(
-            self.rho_p - self.T * self.rho_T**2 / (self.rho**2 * self.cp)
-        )
+        return 1.0 / math.sqrt(self.rho_p_s)
 
     @property
     def kappa_s(self):
         """Isentropic compressibility ``1 / (rho a^2)`` (1/Pa)."""
-        return (
-            self.rho_p - self.T * self.rho_T**2 / (self.rho**2 * self.cp)
-        ) / self.rho
+        return self.rho_p_s / self.rho
 
     @property
     def p_rho(self):
@@ -619,10 +638,21 @@ def _temperature_on(state, p, kind, target, guess):
     T = guess
     for _ in range(50):
         state.update(p=p, T=T)
+        # the AbstractState methods: ccp's cp() calls REFPROP directly when cp < 0
+        cp = coolprop.AbstractState.cpmass(state)
         if kind == "s":
-            step = (target - state.s().m) * T / state.cp().m
+            value = coolprop.AbstractState.smass(state)
         else:
-            step = (target - state.h().m) / state.cp().m
+            value = coolprop.AbstractState.hmass(state)
+        if not (math.isfinite(cp) and cp > 0.0 and math.isfinite(value)):
+            raise RuntimeError(
+                f"the equation of state gives no stable state at p = {p:.6g} Pa, "
+                f"T = {T:.6g} K (cp = {cp:.6g} J/(kg K))"
+            )
+        if kind == "s":
+            step = (target - value) * T / cp
+        else:
+            step = (target - value) / cp
         T += step
         if not (math.isfinite(T) and T > 0.0):
             raise RuntimeError(
@@ -865,7 +895,8 @@ class TabulatedGas(StateGas):
         ValueError
             The inlet is not a single-phase gas, no pressure of the seal keeps the
             cold edge single-phase, the cold edge reaches a liquid or two-phase
-            state, or the equation of state fails at a node.
+            state, or the equation of state fails or gives a non-finite value
+            (including the viscosity) at a node.
 
         Notes
         -----
@@ -873,9 +904,17 @@ class TabulatedGas(StateGas):
         isentrope at the same pressure, so a seal can be refused although its flow
         would stay a gas. For a mixture, the cold edge is checked at the pressure
         nodes only; a narrow two-phase band between nodes, or between the edge and
-        the isentrope near the mixture critical point, is not detected.
-        Near-critical states may be refused, where the free flash differs from the
-        imposed root.
+        the isentrope near the mixture critical point, is not detected. Under
+        REFPROP, a free flash can report a spurious two-phase split whose saturated
+        densities differ by more than ccp's criterion (1e-2), also far from the
+        critical point; such a state is refused although HEOS calls it single phase
+        (the AGA-8 Ekofisk gas from 9 to 7 MPa at 324 K is refused at 8.06 MPa,
+        310.6 K). For a pure fluid, a state above the critical pressure counts as
+        single phase also below the critical temperature; next to the critical
+        point the splines can lose thermodynamic stability, and a flow that reaches
+        such a state raises a ``ValueError`` from :class:`GasPoint`. The viscosity
+        model of HEOS gives no value at some dense, cold states of natural-gas
+        mixtures; such a table is refused (REFPROP builds it).
 
         Examples
         --------
@@ -950,18 +989,28 @@ class TabulatedGas(StateGas):
 
         pressure = np.linspace(p_low, m["p_high"] * p_in, int(n_pressure))
         isentrope = np.empty(pressure.size)
-        T = T_in
+        p_from, isentrope_from, T = p_in, T_in, T_in
         for i in range(pressure.size - 1, -1, -1):
             p = float(pressure[i])
-            try:
-                T = _temperature_on(state, p, "s", s_in, T)
-            except (ValueError, RuntimeError) as err:
-                raise ValueError(
-                    f"the equation of state failed at p = {p:.6g} Pa on the inlet "
-                    f"isentrope ({err}); the property table of the hole-pattern seal "
-                    "must lie in the single-phase gas region"
-                ) from err
+            if i == 0 and floor_raised:
+                # the isentrope at the floor is known from the floor search
+                T = T_high
+            else:
+                try:
+                    T = _temperature_on(state, p, "s", s_in, T)
+                except (ValueError, RuntimeError):
+                    # continuation in substeps, as in the floor search; a single
+                    # Newton iteration can diverge near the critical point
+                    try:
+                        T = _isentrope_at(state, s_in, p_from, isentrope_from, p)
+                    except (ValueError, RuntimeError) as err:
+                        raise ValueError(
+                            f"the equation of state failed at p = {p:.6g} Pa on the "
+                            f"inlet isentrope ({err}); the property table of the "
+                            "hole-pattern seal must lie in the single-phase gas region"
+                        ) from err
             isentrope[i] = T
+            p_from, isentrope_from = p, T
         lower = isentrope - m["t_below"]
 
         try:
@@ -993,11 +1042,10 @@ class TabulatedGas(StateGas):
                 p, T = float(pressure[i]), float(lower[i] + offset[j])
                 try:
                     state.update(p=p, T=T)
-                    values[i, j] = (
-                        state.rho().m,
-                        state.h().m,
-                        state.s().m,
-                        state.viscosity().m,
+                    values[i, j, :3] = (
+                        coolprop.AbstractState.rhomass(state),
+                        coolprop.AbstractState.hmass(state),
+                        coolprop.AbstractState.smass(state),
                     )
                 except (ValueError, RuntimeError) as err:
                     raise ValueError(
@@ -1005,6 +1053,25 @@ class TabulatedGas(StateGas):
                         f"T = {T:.6g} K ({err}); the property table of the "
                         "hole-pattern seal must lie in the single-phase gas region"
                     ) from err
+                if not np.all(np.isfinite(values[i, j, :3])):
+                    raise ValueError(
+                        f"the equation of state failed at p = {p:.6g} Pa, "
+                        f"T = {T:.6g} K (non-finite density, enthalpy or entropy); "
+                        "the property table of the hole-pattern seal must lie in "
+                        "the single-phase gas region"
+                    )
+                try:
+                    values[i, j, 3] = coolprop.AbstractState.viscosity(state)
+                except ValueError:
+                    values[i, j, 3] = math.nan
+                if not math.isfinite(values[i, j, 3]):
+                    raise ValueError(
+                        f"the viscosity model of the {eos} backend gives no value at "
+                        f"p = {p:.6g} Pa, T = {T:.6g} K (HEOS fails for some "
+                        "natural-gas mixtures at dense, cold states); the property "
+                        "table of the hole-pattern seal needs the viscosity over its whole "
+                        "single-phase gas region"
+                    )
 
         table = cls(
             pressure,
