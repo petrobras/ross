@@ -29,7 +29,12 @@ class HybridSeal(SealElement):
     2. **Combined Rotordynamic Coefficients**:
        - Direct and cross-coupled stiffness (K) and damping (C) coefficients
        - Series combination: forces from both seals are added
-       - Frequency-dependent coefficients for each operating speed
+       - Both stages store K and C at the whirl frequency, with zero mass
+         terms. With ``frequency``, both are taken at each of its entries and
+         the sum is the hybrid K and C there. For a 1-D table the labyrinth
+         stage is at synchronous whirl and the hole-pattern stage at
+         ``excitation_ratio * speed`` (1.0 by default, so the sum is the
+         hybrid K and C at synchronous whirl)
 
     Parameters
     ----------
@@ -88,7 +93,10 @@ class HybridSeal(SealElement):
         - gas_model : str, optional
             "ideal" (perfect gas with the Sutherland viscosity) or "real"
             (properties tabulated from the equation of state of ccp; requires
-            gas_composition). Default is "ideal".
+            gas_composition). Default is "ideal". With "real", the property
+            table of the hole-pattern stage is rebuilt at every step of the
+            interface-pressure search, which takes minutes for a
+            multi-component natural gas under HEOS.
         - sutherland_b : float, optional
             b coefficient for the Sutherland viscosity model.
             Required if gas_composition is None. Default is None.
