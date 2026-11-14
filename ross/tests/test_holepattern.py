@@ -580,6 +580,7 @@ def _static_stiffness_error(inputs, speed, nz, gas=None):
         ("van_der_waals", 0.0, 0.0),
         ("van_der_waals", 110.0, 0.3),
         ("methane", 110.0, 0.2),
+        ("methane_exit_choke", 110.0, 0.3),
     ],
 )
 def test_static_stiffness_is_the_clearance_derivative_of_the_base_state(
@@ -593,6 +594,11 @@ def test_static_stiffness_is_the_clearance_derivative_of_the_base_state(
     the continuity, momentum and linearised energy equations, the friction
     derivatives, the entrance and exit relations and the state derivatives
     together. A frozen energy perturbation (#1475 M3) misses by 3.7 % to 18 %.
+
+    ``methane_exit_choke`` is choked in the exit relation. The exit row must
+    then be the linearised choke condition, a sonic exit; a constant exit
+    Mach number, which is the same condition only for a perfect gas, misses
+    by 7 % at every nz.
     """
     radius = 1e5
     gas = None
@@ -601,15 +607,32 @@ def test_static_stiffness_is_the_clearance_derivative_of_the_base_state(
     elif gas_name == "van_der_waals":
         inputs = dict(VDW_SEAL)
         gas = _van_der_waals()
-    else:
+    elif gas_name == "methane":
         inputs = dict(METHANE, gas_model="real")
+    else:
+        from ross.seals.gas_model import TabulatedGas
+
+        inputs = dict(
+            METHANE,
+            inlet_pressure=10e6,
+            outlet_pressure=3e6,
+            inlet_temperature=350.0,
+            gas_model="real",
+        )
+        gas = TabulatedGas.from_composition({"methane": 1.0}, 10e6, 350.0, 3e6)
     speed = surface_speed / radius
     inputs.update(shaft_diameter=2 * radius, preswirl=preswirl, speed=[speed])
 
+    if gas_name == "methane_exit_choke":
+        seal = _unsolved(**inputs)
+        seal.solver.gas = gas
+        base = seal.solver.base_state(speed)
+        assert base.choked and base.choke_location == "exit"
+
     error = {nz: _static_stiffness_error(inputs, speed, nz, gas) for nz in (40, 80)}
-    # discretisation error of the second-order march (observed 7e-5 to 1.8e-4)
+    # discretisation error of the second-order march (observed 7e-5 to 5.6e-4)
     assert error[80] < 1e-3, error
-    # second-order convergence: the ratio is 0.25 (observed 0.254-0.255)
+    # second-order convergence: the ratio is 0.25 (observed 0.254-0.258)
     assert error[80] < 0.4 * error[40], error
 
 
@@ -707,6 +730,38 @@ def test_choked_flow_does_not_depend_on_the_outlet_pressure(exit_loss):
             assert mach2 < 0.6
 
 
+def test_nearly_choked_exit_gives_the_choke_limit_coefficients():
+    """An outlet pressure just above the exit choke gives the choke-limit coefficients.
+
+    Close to the sonic exit the pressure behind the exit depends on the state
+    of the last station like a square root, and a perturbed state of the
+    linearisation has no subsonic exit. The exit row then tends to the
+    sonic-exit row of the choked flow.
+    """
+    inputs = {
+        **CHILDS_WADE,
+        **AIR,
+        "radial_clearance": CLEARANCE_020,
+        "inlet_temperature": 290.0,
+        "preswirl": 0.3,
+        "speed": Q_([15000], "RPM"),
+    }
+    choked = HolePatternSeal(**inputs, outlet_pressure=0.1 * 70e5)
+    assert choked.choked == [True]
+    near = HolePatternSeal(**inputs, outlet_pressure=choked.p[0][-1] * (1 + 1e-4))
+    assert near.choked == [False]
+    # the leakage depends on the outlet pressure like a square root near the
+    # choke, (1e-4)^2 here
+    assert_allclose(near.seal_leakage, choked.seal_leakage, rtol=1e-6)
+    # the unchoked coefficients approach the choked ones linearly in the
+    # outlet pressure, with a slope of about 0.3 (measured between 1e-2 and
+    # 1.5e-3 above the choke), so 1e-4 above it they agree to about 3e-5
+    for name in COEFFICIENTS:
+        assert_allclose(
+            getattr(near, name), getattr(choked, name), rtol=1e-4, err_msg=name
+        )
+
+
 def test_reversed_rotation_mirrors_the_coefficients():
     """Reversed rotation and swirl: same direct terms, opposite cross-coupled terms."""
     seal = HolePatternSeal(**FIG4)
@@ -758,15 +813,17 @@ def test_childs_wade_frequency_dependence(inputs, damping, table_5_leakage):
     kxx, kxy, cxx = (np.array(getattr(seal, name))[0] for name in ("kxx", "kxy", "cxx"))
 
     ratio = cxx[np.searchsorted(frequency_hz, read_hz)] / read_damping
-    # observed 1.11-1.70; the factor of 2 holds the stator friction (M4)
-    assert np.all((0.5 < ratio) & (ratio < 2.0)), ratio
+    # the quarter-wall stator friction (M4) can only raise the damping, so the
+    # ratio is above 1; the factor of 2 bounds that offset (observed 1.11-1.70)
+    assert np.all((1.0 < ratio) & (ratio < 2.0)), ratio
 
     on_grid = np.isin(frequency_hz, grid_hz)
     assert np.all(np.diff(kxx[on_grid]) > 0), kxx[on_grid]
     assert np.all(np.diff(cxx[on_grid]) < 0), cxx[on_grid]
     assert np.all(np.diff(kxy[on_grid]) < 0), kxy[on_grid]
 
-    # effective damping crosses zero inside the band (paper: 85 to 95 Hz)
+    # effective damping crosses zero inside the band (paper, Table 6: 95 Hz for
+    # the Fig. 4 seal; no value for the 0.10 mm seal; observed 186 and 131 Hz)
     effective = cxx - kxy / (2 * np.pi * frequency_hz)
     assert effective[0] < 0 < effective[-1], effective
 
@@ -907,7 +964,7 @@ def test_real_gas_tends_to_the_ideal_gas_at_low_pressure(heos):
             _relative(getattr(real, name), getattr(ideal, name))
             for name in ("seal_leakage", "kxx", "kxy", "cxx")
         )
-    # observed 0.072 and 0.0034: linear in pressure
+    # observed 0.047 and 0.0030: linear in pressure
     assert deviation[0.01] < 1e-2, deviation
     assert deviation[0.01] < 0.2 * deviation[0.1], deviation
 
@@ -980,7 +1037,7 @@ def test_table_reproduces_its_closed_form_gas():
     vdw_table = TabulatedGas.from_function(
         vdw.functions, np.linspace(13e6, 30.1e6, 61), np.linspace(300.0, 440.0, 61)
     )
-    # interpolation error of each table (observed 4e-6 for (a), 2.4e-7 for (b))
+    # interpolation error of each table (observed 3.0e-6 for (a), 2.2e-7 for (b))
     cases = [
         (air_seal, air, air_table, _rad(8000), 2e-5),
         (VDW_SEAL, vdw, vdw_table, _rad(15200), 1e-5),
@@ -1148,10 +1205,42 @@ def test_flow_that_leaves_the_gas_range_is_retried_or_reported(holepattern_manua
         assert np.isnan(failed[name]), name
 
 
+def test_table_widening_rules(heos):
+    """A table rebuilt for a state outside it contains that state.
+
+    The rules: a state below the pressure range lowers ``p_low`` by 0.9, one
+    above it triples the excess of ``p_high`` over 1, a hotter state triples
+    ``t_above``, a colder one ``t_below``, and an error without a state triples
+    both temperature margins.
+    """
+    from ross.seals.gas_model import GasRangeError, TabulatedGas
+
+    table = TabulatedGas.from_composition({"methane": 1.0}, 20e6, 300.0, 10e6)
+    margins = table.margins
+    p_band = 18e6
+    cases = [
+        (0.95 * table.p_min, 290.0, {"p_low": 0.9 * margins["p_low"]}),
+        (1.0005 * table.p_max, 300.0, {"p_high": 1 + 3 * (margins["p_high"] - 1)}),
+        (p_band, table.upper_temperature(p_band) + 10.0, {"t_above": 75.0}),
+        (p_band, table.lower_temperature(p_band) - 3.0, {"t_below": 15.0}),
+    ]
+    for p, T, changed in cases:
+        with pytest.raises(GasRangeError) as info:
+            table.point(p, T)
+        wide = table.widened(info.value)
+        assert wide.margins == dict(margins, **changed), (p, T, wide.margins)
+        assert wide.p_min <= p <= wide.p_max
+        assert wide.lower_temperature(p) <= T <= wide.upper_temperature(p)
+        wide.point(p, T)
+
+    wide = table.widened(GasRangeError("no state"))
+    assert wide.margins == dict(margins, t_above=75.0, t_below=15.0)
+
+
 @pytest.mark.parametrize("outlet_pressure", [3e6, 4.5e6])
 def test_real_gas_refuses_a_liquid_inlet(heos, outlet_pressure):
     """CO2 at 6 MPa and 280 K is a liquid (T_sat = 295 K, p below p_crit 7.38 MPa)."""
-    with pytest.raises(ValueError, match="single-phase gas"):
+    with pytest.raises(ValueError, match="the inlet state .* not a single-phase gas"):
         HolePatternSeal(
             **dict(CHILDS_WADE, inlet_pressure=6e6),
             radial_clearance=CLEARANCE_020,
@@ -1164,6 +1253,19 @@ def test_real_gas_refuses_a_liquid_inlet(heos, outlet_pressure):
 
 
 AIR_COMPOSITION = {"nitrogen": 0.7812, "oxygen": 0.2096, "argon": 0.0092}
+
+# AGA Report No. 8, Ekofisk gas (mole fractions)
+EKOFISK = {
+    "methane": 0.859,
+    "nitrogen": 0.010,
+    "co2": 0.015,
+    "ethane": 0.085,
+    "propane": 0.023,
+    "isobutane": 0.0035,
+    "butane": 0.0035,
+    "isopentane": 0.0005,
+    "pentane": 0.0005,
+}
 
 
 @pytest.mark.skipif(not REFPROP_AVAILABLE, reason="Requires REFPROP")
@@ -1197,6 +1299,99 @@ def test_real_gas_accepts_refprop_spurious_split():
     rho = table.point(5e6, 290.0).rho
     assert_allclose(rho, heos.rho().m, rtol=1e-4)
     assert abs(rho / free.rho().m - 1) > 2e-4
+
+
+@pytest.mark.skipif(not REFPROP_AVAILABLE, reason="Requires REFPROP")
+def test_real_gas_refprop_refuses_an_ekofisk_split_that_heos_accepts():
+    """A known limitation: REFPROP splits whose saturated densities differ by over 1 %.
+
+    The cold edge of the Ekofisk table for 9 to 7 MPa at 324 K passes
+    (8.06 MPa, 310.6 K), about 60 K above the cricondentherm. REFPROP's free
+    flash reports a two-phase state there whose saturated densities differ by
+    more than ccp's spurious-split criterion (1e-2), so the guard refuses the
+    seal; HEOS calls the state single phase and builds the table.
+    """
+    from ross.seals.gas_model import TabulatedGas
+
+    with pytest.raises(ValueError, match="reaches a liquid or two-phase state"):
+        TabulatedGas.from_composition(EKOFISK, 9e6, 324.0, 7e6, eos="REFPROP")
+    table = TabulatedGas.from_composition(EKOFISK, 9e6, 324.0, 7e6, eos="HEOS")
+    assert table.floor_raised is False
+
+
+def test_real_gas_table_floor_at_the_critical_pressure(heos):
+    """Pure fluids whose isentrope passes the critical point build and solve.
+
+    The floor of these tables sits at the critical pressure. A choked seal
+    does not see its outlet pressure, so it gives the same result as a seal
+    choked at a higher outlet pressure, whose table lies far from the critical
+    point (same bounds and sources as the choked pair of N21).
+    """
+    from CoolProp.CoolProp import PropsSI
+
+    cases = [
+        ({"methane": 1.0}, "Methane", 50e6, 300.0, (5e6, 11e6)),
+        ({"nitrogen": 1.0}, "Nitrogen", 30e6, 200.0, (3e6, 7e6)),
+    ]
+    for composition, name, inlet, temperature, outlets in cases:
+        seals = [
+            HolePatternSeal(
+                **dict(CHILDS_WADE, inlet_pressure=inlet),
+                radial_clearance=CLEARANCE_020,
+                gas_model="real",
+                gas_composition=composition,
+                inlet_temperature=temperature,
+                outlet_pressure=outlet,
+                preswirl=0.2,
+                speed=Q_([15200], "RPM"),
+            )
+            for outlet in outlets
+        ]
+        critical, far = seals
+        p_crit = PropsSI("Pcrit", f"HEOS::{name}")
+        # 12 bisections of [0.9 p_out, p_in]
+        resolution = (inlet - 0.9 * outlets[0]) / 2**12
+        assert p_crit <= critical.gas.p_min <= p_crit + resolution, name
+        assert far.gas.floor_raised is False
+        assert critical.choked == [True] and far.choked == [True]
+        assert_allclose(critical.seal_leakage, far.seal_leakage, rtol=1e-6)
+        for coefficient in ("kxx", "kxy", "cxx"):
+            assert_allclose(
+                getattr(critical, coefficient),
+                getattr(far, coefficient),
+                rtol=1e-4,
+                err_msg=f"{name} {coefficient}",
+            )
+
+
+def test_real_gas_table_refusals_name_the_state(heos):
+    """Refusals near the phase boundary are ValueErrors or NaN with a message.
+
+    CO2 at 5 MPa and 288 K is a vapour 0.6 K above saturation, so its
+    isentrope, 5 K colder, is not a gas at any pressure of the seal; the
+    equation of state has metastable roots with cp < 0 there. CO2 from 8 to
+    7.6 MPa at 310 K stays just above the critical pressure, where the spline
+    table is not thermodynamically stable at some states of the flow.
+    """
+    from ross.seals.gas_model import TabulatedGas
+
+    with pytest.raises(ValueError, match="single-phase"):
+        TabulatedGas.from_composition({"co2": 1.0}, 5e6, 288.0, 2.5e6)
+
+    with pytest.warns(UserWarning, match="not thermodynamically stable"):
+        seal = HolePatternSeal(
+            **dict(CHILDS_WADE, inlet_pressure=8e6),
+            radial_clearance=CLEARANCE_020,
+            gas_model="real",
+            gas_composition={"co2": 1.0},
+            outlet_pressure=7.6e6,
+            inlet_temperature=310.0,
+            preswirl=0.2,
+            speed=Q_([15200], "RPM"),
+        )
+    for name in COEFFICIENTS + ("seal_leakage",):
+        assert np.all(np.isnan(getattr(seal, name))), name
+    assert seal.choked == [None]
 
 
 def test_holepattern_save_load_round_trip(tmp_path, heos, methane):
@@ -1281,11 +1476,14 @@ def test_real_gas_table_floor_keeps_the_inlet_isentrope_single_phase(heos):
     assert low.choked == [True] and high.choked == [True]
     assert low.gas.floor_raised is True
     assert high.gas.floor_raised is False
-    # interpolation error of two different tables (prototype: 3.9e-9 and 6e-5)
+    # interpolation error of two different tables: the leakage depends on the
+    # tabulated values (observed 3.7e-8), the coefficients also on cp and the
+    # sound speed, which N12 bounds at 1e-4 (observed 3.8e-6; a constant-Mach
+    # exit row instead of the sonic-exit row gives 1.8e-4)
     assert_allclose(low.seal_leakage, high.seal_leakage, rtol=1e-6)
     for name in ("kxx", "kxy", "cxx"):
         assert_allclose(
-            getattr(low, name), getattr(high, name), rtol=5e-4, err_msg=name
+            getattr(low, name), getattr(high, name), rtol=1e-4, err_msg=name
         )
 
 
