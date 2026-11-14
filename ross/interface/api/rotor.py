@@ -6,9 +6,11 @@ import json
 from flask import Blueprint, jsonify, request
 
 from ross.interface.domain.concatenation import concatenated_project
+from ross.interface.domain.inserting import insert_shaft
 from ross.interface.domain.meshing import BAD_METHOD, mesh_by_convergence, mesh_shafts
 from ross.interface.domain.requests import (
     CONCATENATE_REQUEST,
+    INSERT_REQUEST,
     MESH_REQUEST,
     ROSS_FILE_REQUEST,
     ROTOR_REQUEST,
@@ -165,6 +167,26 @@ def split_shaft_route():
             "status": "success",
             "projectData": split_shaft(
                 payload["project"], payload["index"], payload["offset"]
+            ),
+        }
+    )
+
+
+@rotor_api.route("/api/rotor/insert_shaft", methods=["POST"])
+def insert_shaft_route():
+    """Add a shaft on a face of another and answer the project of the result.
+
+    The sketch's extrusion (frontend/features/sketch3d.js). A project in and a
+    project out, like the split, and in Python for the same reason: the nodes
+    past the face move as ROSS numbers them, and `tests/test_inserting.py`
+    checks the result against the rotor ROSS builds.
+    """
+    payload = INSERT_REQUEST.read(request.get_json(silent=True))
+    return jsonify(
+        {
+            "status": "success",
+            "projectData": insert_shaft(
+                payload["project"], payload["index"], payload["side"], payload["row"]
             ),
         }
     )

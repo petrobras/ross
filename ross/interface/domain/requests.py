@@ -207,6 +207,14 @@ MESH_REQUEST = Envelope(
     Field("indexes", list, default=[]),
 )
 
+INSERT_REQUEST = Envelope(
+    "/api/rotor/insert_shaft",
+    Field("project", dict, required=True),
+    Field("index", int, required=True),
+    Field("side", str, required=True),
+    Field("row", dict, required=True),
+)
+
 SPLIT_REQUEST = Envelope(
     "/api/rotor/split_shaft",
     Field("project", dict, required=True),

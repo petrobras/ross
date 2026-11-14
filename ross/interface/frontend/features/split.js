@@ -13,8 +13,11 @@
 // by construction. The second one survives
 // (0 and L are still nodes), and the server names it.
 import { openCustomAlert, openCustomPrompt } from '../components/modals.js';
+import { getEffectiveNodes } from '../components/list.js';
 import { apiFetch } from '../core/api.js';
+import { followCoupling } from '../core/coupled_nodes.js';
 import { t } from '../core/i18n.js';
+import { state } from '../core/state.js';
 
 // `%1`, `%2`, ... are filled here rather than in `t`. The dictionary is a flat
 // table of strings and the two places that need a number are both in this file;
@@ -106,11 +109,26 @@ export async function splitProjectAt(data, index, typed) {
 // update. What comes back is the project that went up with its element lists
 // rewritten, so "every array" is exactly the right set, and `name`, `uid` and
 // `savedAnalyses` are not arrays.
+//
+// When `target` is a half of the open MultiRotor, its coupled node follows the
+// gear that was on it (core/coupled_nodes.js): this is where every cut, mesh
+// and insertion of a half lands, and where its nodes change.
 export function applyProject(target, answered) {
+    const before = getEffectiveNodes((target && target.gears) || []);
     Object.keys(answered || {}).forEach(key => {
         if (Array.isArray(answered[key])) target[key] = answered[key];
     });
+    keepCoupling(target, before);
     return target;
+}
+
+function keepCoupling(half, before) {
+    const project = state.projectData;
+    if (!project || !project.isMultiRotor || !project.multi_params) return;
+    const position = [project.driving_rotor, project.driven_rotor].indexOf(half);
+    if (position < 0) return;
+    project.multi_params.coupled_nodes = followCoupling(
+        project.multi_params.coupled_nodes, position, before, getEffectiveNodes(half.gears || []));
 }
 
 // The saved analyses do not go up: they are the heavy half of the project and

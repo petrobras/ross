@@ -72,7 +72,8 @@ check('once ours is closed, the browser\'s menu is the page\'s again', asked() =
 // --- where a split lands ------------------------------------------------------------------
 console.log('\nSplit here: the distance from the pointer');
 
-const shaftPart = { kind: 'shaft', category: 'shafts', index: 0, half: null, z0: 0.25, z1: 0.5, offset: { x: 0, y: 0, z: 0 } };
+const shaftPart = { kind: 'shaft', category: 'shafts', index: 0, half: null, z0: 0.25, z1: 0.5, offset: { x: 0, y: 0, z: 0 },
+    entry: { n: 1 }, profile: { odl: 0.05, odr: 0.05, idl: 0, idr: 0 } };
 const at = z => [0, 0, z];
 check('50 mm from the left face, in the mm the length is typed in', JSON.stringify(cutHere(shaftPart, at(0.3), { L: '250' })) === JSON.stringify({ shown: '50.0 mm', value: '50' }));
 check('in metres, when the length is typed in metres', cutHere(shaftPart, at(0.3), { L: '0.25', L_unit: 'm' }).value === '0.05');
@@ -103,15 +104,28 @@ state.editingIndex = -1;
 
 const labels = entries => entries.filter(Boolean).map(e => e.header || e.label);
 const onShaft = menuEntries({ part: shaftPart, point: at(0.3) });
-check('a shaft: its name, the three cuts, then edit, copy, hide, delete', JSON.stringify(labels(onShaft)) === JSON.stringify([
-    `${t('catShaft')} #1 · Inlet`, t('ctxSplitHere').replace('%1', '50.0 mm'), t('ctxSplitAsk'), t('ctxMesh'),
-    t('ctxEdit'), t('ctxCopy'), t('rotor3dHideElement'), t('ctxDelete')]));
+check('a shaft: its name, the three cuts, a sketch on each face (the nearer first), then edit, copy, hide, delete',
+    JSON.stringify(labels(onShaft)) === JSON.stringify([
+        `${t('catShaft')} #1 · Inlet`, t('ctxSplitHere').replace('%1', '50.0 mm'), t('ctxSplitAsk'), t('ctxMesh'),
+        t('ctxSketchStart').replace('%1', '1'), t('ctxSketchEnd').replace('%1', '2'),
+        t('ctxEdit'), t('ctxCopy'), t('rotor3dHideElement'), t('ctxDelete')]));
+const nearEnd = labels(menuEntries({ part: shaftPart, point: at(0.45) }));
+check('nearer the end face, its sketch comes first', nearEnd.indexOf(t('ctxSketchEnd').replace('%1', '2'))
+    < nearEnd.indexOf(t('ctxSketchStart').replace('%1', '1')));
+// The driven rotor of a MultiRotor, drawn 1 m further along: the pointer is
+// near the end face of its shaft by that rotor's own axis.
+const drivenShaft = { ...shaftPart, half: 'driven', offset: { x: 0, y: 0.3, z: 1.0 } };
+const onDriven = menuEntries({ part: drivenShaft, point: at(1.45) }).filter(e => e && e.icon === 'fa-drafting-compass');
+check('a MultiRotor\'s driven rotor offers its sketches too, the nearer face by its own axis first',
+    onDriven.length === 2 && onDriven[0].label === t('ctxSketchEnd').replace('%1', '2'));
 check('delete is the last, and marked', onShaft[onShaft.length - 1].danger === true);
 const nearNode = menuEntries({ part: shaftPart, point: at(0.25001) });
 check('too close to a node, "split here" is offered disabled and says why', nearNode[1].disabled === true && nearNode[1].label === t('ctxSplitHereNo'));
 const diskPart = { kind: 'disk', category: 'disks', index: 0, half: null, z0: 0.24, z1: 0.26, offset: { x: 0, y: 0, z: 0 } };
 check('a disk: no cut to offer', !labels(menuEntries({ part: diskPart, point: at(0.25) })).some(l => l.includes(t('ctxMesh'))));
-check('the empty view: the rotor as a whole', JSON.stringify(labels(menuEntries(null))) === JSON.stringify([t('ctxMeshAll'), t('ctxMeasure'), t('rotor3dFrame')]));
+check('the empty view: the rotor as a whole, then the standard views', JSON.stringify(labels(menuEntries(null))) === JSON.stringify([
+    t('ctxMeshAll'), t('ctxMeasure'), t('rotor3dFrame'), t('rotor3dViewsTitle'),
+    t('rotor3dViewHome'), t('rotor3dViewIso'), t('rotor3dViewFront'), t('rotor3dViewSide'), t('rotor3dViewTop')]));
 
 sent = [];
 const splitHere = onShaft[1];
