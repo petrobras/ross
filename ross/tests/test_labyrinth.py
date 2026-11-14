@@ -3,6 +3,7 @@ import pytest
 
 from numpy.testing import assert_allclose, assert_almost_equal
 
+from ross.seals.gas_model import R_UNIVERSAL
 from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.units import Q_
 
@@ -338,6 +339,29 @@ DENSE_GAS_PARAMS = {
 }
 DENSE_GAS = {"Methane": 1.0}
 
+# Methane at 350 K has its minimum of Z(p) near 16 MPa, so across these inlet
+# pressures p * kappa_T = 1 - (p / Z) (dZ/dp)_T spans 1.05 (10 MPa) to 0.62
+# (40 MPa). Nitrogen at the state of COMMON_PARAMS is the near-ideal case
+# (p * kappa_T = 1.001); it stands in for air, whose isentrope table is slow to
+# build under HEOS.
+SWIRL_TERM_TEMPERATURE = 350.0
+SWIRL_TERM_PRESSURES = [5e6, 10e6, 20e6, 30e6, 40e6]
+SWIRL_TERM_CASES = {
+    "nitrogen": (COMMON_PARAMS, {"Nitrogen": 1.0}),
+    **{
+        f"methane-{p / 1e6:g}MPa": (
+            dict(
+                DENSE_GAS_PARAMS,
+                inlet_pressure=p,
+                outlet_pressure=0.8 * p,
+                inlet_temperature=SWIRL_TERM_TEMPERATURE,
+            ),
+            DENSE_GAS,
+        )
+        for p in SWIRL_TERM_PRESSURES
+    },
+}
+
 
 def test_labyrinth_gas_model_default_is_ideal(labyrinth_manual):
     """The default backend is the perfect-gas model."""
@@ -412,6 +436,112 @@ def test_labyrinth_real_gas_dense_gas_leakage():
     assert real.seal_leakage[0] > ideal.seal_leakage[0]
     # Density correction at this state (Z ~ 0.88) lifts leakage by a few percent.
     assert_allclose(real.seal_leakage[0], ideal.seal_leakage[0], rtol=0.15)
+
+
+@pytest.mark.parametrize("gas_model", ["ideal", "real"])
+@pytest.mark.parametrize("case", list(SWIRL_TERM_CASES))
+def test_labyrinth_swirl_term_is_cavity_density(case, gas_model):
+    """The swirl-velocity coefficient of the cavity continuity equation is rho A / Rs.
+
+    Linearizing the circumferential term ``d(rho V A) / (Rs d theta)`` of the
+    cavity continuity equation gives ``rho A / Rs`` as the coefficient of the
+    swirl-velocity perturbation, with ``rho`` the cavity density of the base
+    flow, for any equation of state. One speed is solved serially, so the base
+    flow and the gradient table ``cg`` stay on ``seal.solver``.
+    """
+    params, gas_composition = SWIRL_TERM_CASES[case]
+    original_eos = ccp.config.EOS
+    try:
+        ccp.config.EOS = "HEOS"
+        seal = LabyrinthSeal(
+            **params, gas_composition=gas_composition, gas_model=gas_model
+        )
+    finally:
+        ccp.config.EOS = original_eos
+
+    solver = seal.solver
+    cavities = np.arange(1, solver.n_teeth)
+    area = (solver.radial_clearance + solver.tooth_height) * solver.pitch
+    expected = solver.rho[cavities] * area / solver.shaft_radius
+    # Round-off only: the ideal closure writes rho as p / (R T), while the base
+    # flow marches rho and T separately along the isentrope.
+    assert_allclose(solver.cg[2, cavities], expected, rtol=1e-12)
+
+
+@pytest.mark.parametrize("preswirl", [0.0, 0.5])
+@pytest.mark.parametrize("inlet_pressure", SWIRL_TERM_PRESSURES)
+def test_labyrinth_real_gas_low_speed_limit(inlet_pressure, preswirl):
+    """At low speed the real closure matches the perfect gas of the same density.
+
+    The isothermal compressibility enters the linearized cavity continuity
+    equation only through the storage terms ``(omega +- V / Rs) A (d rho / d p)_T``.
+    At a rotor speed and whirl frequency of 1 rad/s they are about 1e-5 of the
+    leakage terms, while the swirl term ``(rho A / Rs) d V1 / d theta`` keeps
+    its weight. The coefficients then depend on the gas only through its
+    density along the isentrope and its viscosity in the wall shear, so they
+    must match the ideal closure for the perfect gas with the inlet density
+    (molar mass ``R_u rho T / p``) and the isentropic exponent ``rho a**2 / p``
+    of the real gas, given the same viscosity. The two isentropes reach outlet
+    temperatures up to 7 K apart (40 MPa), so each seal gets the viscosity law
+    through the real-gas viscosities at the inlet and at the isentropic outlet
+    state, placed at its own isentrope temperatures. With preswirl 0 the rotor
+    drag drives the swirl; with 0.5 the rotor and stator shear of this inter
+    seal balance. Written as ``(p / Rs) A (d rho / d p)_T``, the swirl term
+    would carry the factor ``p kappa_T`` and move the coefficients by 4 %
+    (5 MPa) to 60 % (40 MPa).
+    """
+    outlet_pressure = 0.95 * inlet_pressure
+    params = dict(
+        DENSE_GAS_PARAMS,
+        inlet_pressure=inlet_pressure,
+        outlet_pressure=outlet_pressure,
+        inlet_temperature=SWIRL_TERM_TEMPERATURE,
+        preswirl=preswirl,
+        speed=[1.0],
+    )
+    original_eos = ccp.config.EOS
+    try:
+        ccp.config.EOS = "HEOS"
+        inlet = ccp.State(p=inlet_pressure, T=SWIRL_TERM_TEMPERATURE, fluid=DENSE_GAS)
+        outlet = ccp.State(p=outlet_pressure, s=inlet.s(), fluid=DENSE_GAS)
+        density = inlet.rho().m
+        gamma = density * inlet.speed_sound().m ** 2 / inlet_pressure
+        viscosities = [inlet.viscosity().m, outlet.viscosity().m]
+        real = LabyrinthSeal(
+            **params,
+            gas_composition=DENSE_GAS,
+            gas_model="real",
+            reference_temperatures=[SWIRL_TERM_TEMPERATURE, outlet.T().m],
+            reference_viscosities=viscosities,
+        )
+    finally:
+        ccp.config.EOS = original_eos
+
+    perfect_outlet_temperature = SWIRL_TERM_TEMPERATURE * (
+        outlet_pressure / inlet_pressure
+    ) ** ((gamma - 1) / gamma)
+    perfect_gas = LabyrinthSeal(
+        **params,
+        molar_mass=R_UNIVERSAL * density * SWIRL_TERM_TEMPERATURE / inlet_pressure,
+        gamma=gamma,
+        reference_temperatures=[SWIRL_TERM_TEMPERATURE, perfect_outlet_temperature],
+        reference_viscosities=viscosities,
+    )
+
+    # The leakage iteration matches the outlet pressure to 1e-5, which is 2e-4
+    # of the 5 % pressure drop; the two isentropes and the two viscosity laws
+    # differ at second order in the pressure drop (2e-4 in density at the
+    # outlet). Without preswirl cxy is about 4e-5 of cxx, and its relative
+    # difference reaches 6.4e-4.
+    rtol = 2e-3
+    assert_allclose(real.seal_leakage[0], perfect_gas.seal_leakage[0], rtol=rtol)
+    for name in ("kxx", "kxy", "cxx", "cxy"):
+        assert_allclose(
+            getattr(real, name)[0],
+            getattr(perfect_gas, name)[0],
+            rtol=rtol,
+            err_msg=name,
+        )
 
 
 def test_labyrinth_whirl_frequency_grid():
