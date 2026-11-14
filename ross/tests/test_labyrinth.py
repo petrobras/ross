@@ -3,6 +3,8 @@ import pytest
 
 from numpy.testing import assert_allclose, assert_almost_equal
 
+from ross.seals.gas_model import R_UNIVERSAL
+from ross.seals import labyrinth_seal
 from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.units import Q_
 
@@ -338,6 +340,29 @@ DENSE_GAS_PARAMS = {
 }
 DENSE_GAS = {"Methane": 1.0}
 
+# Methane at 350 K has its minimum of Z(p) near 16 MPa, so across these inlet
+# pressures p * kappa_T = 1 - (p / Z) (dZ/dp)_T spans 1.05 (10 MPa) to 0.62
+# (40 MPa). Nitrogen at the state of COMMON_PARAMS is the near-ideal case
+# (p * kappa_T = 1.001); it stands in for air, whose isentrope table is slow to
+# build under HEOS.
+SWIRL_TERM_TEMPERATURE = 350.0
+SWIRL_TERM_PRESSURES = [5e6, 10e6, 20e6, 30e6, 40e6]
+SWIRL_TERM_CASES = {
+    "nitrogen": (COMMON_PARAMS, {"Nitrogen": 1.0}),
+    **{
+        f"methane-{p / 1e6:g}MPa": (
+            dict(
+                DENSE_GAS_PARAMS,
+                inlet_pressure=p,
+                outlet_pressure=0.8 * p,
+                inlet_temperature=SWIRL_TERM_TEMPERATURE,
+            ),
+            DENSE_GAS,
+        )
+        for p in SWIRL_TERM_PRESSURES
+    },
+}
+
 
 def test_labyrinth_gas_model_default_is_ideal(labyrinth_manual):
     """The default backend is the perfect-gas model."""
@@ -412,6 +437,567 @@ def test_labyrinth_real_gas_dense_gas_leakage():
     assert real.seal_leakage[0] > ideal.seal_leakage[0]
     # Density correction at this state (Z ~ 0.88) lifts leakage by a few percent.
     assert_allclose(real.seal_leakage[0], ideal.seal_leakage[0], rtol=0.15)
+
+
+@pytest.mark.parametrize("gas_model", ["ideal", "real"])
+@pytest.mark.parametrize("case", list(SWIRL_TERM_CASES))
+def test_labyrinth_swirl_term_is_cavity_density(case, gas_model):
+    """The swirl-velocity coefficient of the cavity continuity equation is rho A / Rs.
+
+    Linearizing the circumferential term ``d(rho V A) / (Rs d theta)`` of the
+    cavity continuity equation gives ``rho A / Rs`` as the coefficient of the
+    swirl-velocity perturbation, with ``rho`` the cavity density of the base
+    flow, for any equation of state. One speed is solved serially, so the base
+    flow and the gradient table ``cg`` stay on ``seal.solver``.
+    """
+    params, gas_composition = SWIRL_TERM_CASES[case]
+    original_eos = ccp.config.EOS
+    try:
+        ccp.config.EOS = "HEOS"
+        seal = LabyrinthSeal(
+            **params, gas_composition=gas_composition, gas_model=gas_model
+        )
+    finally:
+        ccp.config.EOS = original_eos
+
+    solver = seal.solver
+    cavities = np.arange(1, solver.n_teeth)
+    area = (solver.radial_clearance + solver.tooth_height) * solver.pitch
+    expected = solver.rho[cavities] * area / solver.shaft_radius
+    # Round-off only: the ideal closure writes rho as p / (R T), while the base
+    # flow marches rho and T separately along the isentrope.
+    assert_allclose(solver.cg[2, cavities], expected, rtol=1e-12)
+
+
+@pytest.mark.parametrize("preswirl", [0.0, 0.5])
+@pytest.mark.parametrize("inlet_pressure", SWIRL_TERM_PRESSURES)
+def test_labyrinth_real_gas_low_speed_limit(inlet_pressure, preswirl):
+    """At low speed the real closure matches the perfect gas of the same density.
+
+    The isothermal compressibility enters the linearized cavity continuity
+    equation only through the storage terms ``(omega +- V / Rs) A (d rho / d p)_T``.
+    At a rotor speed and whirl frequency of 1 rad/s they are about 1e-5 of the
+    leakage terms, while the swirl term ``(rho A / Rs) d V1 / d theta`` keeps
+    its weight. The coefficients then depend on the gas only through its
+    density along the isentrope and its viscosity in the wall shear, so they
+    must match the ideal closure for the perfect gas with the inlet density
+    (molar mass ``R_u rho T / p``) and the isentropic exponent ``rho a**2 / p``
+    of the real gas, given the same viscosity. The two isentropes reach outlet
+    temperatures up to 7 K apart (40 MPa), so each seal gets the viscosity law
+    through the real-gas viscosities at the inlet and at the isentropic outlet
+    state, placed at its own isentrope temperatures. With preswirl 0 the rotor
+    drag drives the swirl; with 0.5 the rotor and stator shear of this inter
+    seal balance. Written as ``(p / Rs) A (d rho / d p)_T``, the swirl term
+    would carry the factor ``p kappa_T`` and move the coefficients by 4 %
+    (5 MPa) to 60 % (40 MPa).
+    """
+    outlet_pressure = 0.95 * inlet_pressure
+    params = dict(
+        DENSE_GAS_PARAMS,
+        inlet_pressure=inlet_pressure,
+        outlet_pressure=outlet_pressure,
+        inlet_temperature=SWIRL_TERM_TEMPERATURE,
+        preswirl=preswirl,
+        speed=[1.0],
+    )
+    original_eos = ccp.config.EOS
+    try:
+        ccp.config.EOS = "HEOS"
+        inlet = ccp.State(p=inlet_pressure, T=SWIRL_TERM_TEMPERATURE, fluid=DENSE_GAS)
+        outlet = ccp.State(p=outlet_pressure, s=inlet.s(), fluid=DENSE_GAS)
+        density = inlet.rho().m
+        gamma = density * inlet.speed_sound().m ** 2 / inlet_pressure
+        viscosities = [inlet.viscosity().m, outlet.viscosity().m]
+        real = LabyrinthSeal(
+            **params,
+            gas_composition=DENSE_GAS,
+            gas_model="real",
+            reference_temperatures=[SWIRL_TERM_TEMPERATURE, outlet.T().m],
+            reference_viscosities=viscosities,
+        )
+    finally:
+        ccp.config.EOS = original_eos
+
+    perfect_outlet_temperature = SWIRL_TERM_TEMPERATURE * (
+        outlet_pressure / inlet_pressure
+    ) ** ((gamma - 1) / gamma)
+    perfect_gas = LabyrinthSeal(
+        **params,
+        molar_mass=R_UNIVERSAL * density * SWIRL_TERM_TEMPERATURE / inlet_pressure,
+        gamma=gamma,
+        reference_temperatures=[SWIRL_TERM_TEMPERATURE, perfect_outlet_temperature],
+        reference_viscosities=viscosities,
+    )
+
+    # The leakage iteration matches the outlet pressure to 1e-5, which is 2e-4
+    # of the 5 % pressure drop; the two isentropes and the two viscosity laws
+    # differ at second order in the pressure drop (2e-4 in density at the
+    # outlet). Without preswirl cxy is about 4e-5 of cxx, and its relative
+    # difference reaches 6.4e-4.
+    rtol = 2e-3
+    assert_allclose(real.seal_leakage[0], perfect_gas.seal_leakage[0], rtol=rtol)
+    for name in ("kxx", "kxy", "cxx", "cxy"):
+        assert_allclose(
+            getattr(real, name)[0],
+            getattr(perfect_gas, name)[0],
+            rtol=rtol,
+            err_msg=name,
+        )
+
+
+# Published AGA-8 / ISO 12213-2 "Ekofisk" reference gas, mole percent.
+EKOFISK_GAS = {
+    "methane": 85.9063,
+    "ethane": 8.4919,
+    "propane": 2.3015,
+    "isobutane": 0.3486,
+    "n-butane": 0.3506,
+    "isopentane": 0.0509,
+    "n-pentane": 0.0480,
+    "nitrogen": 1.0068,
+    "carbon dioxide": 1.4954,
+}
+
+LEAKAGE_BISECTION_BASE = {
+    "n": 0,
+    "shaft_diameter": 0.2,
+    "tooth_height": 3e-3,
+    "speed": [1000.0],
+    "preswirl": 0.5,
+}
+
+PERFECT_GAS_VISCOSITY = {
+    "reference_temperatures": [300.0, 290.0],
+    "reference_viscosities": [1.8e-5, 1.75e-5],
+}
+
+
+def _throttle_flux(solver, station, pressure_ratio):
+    """Return the mass flux through the throttle at ``station`` at a pressure ratio."""
+    i = station
+    return solver.gas.throttle_mass_flux(
+        solver.discharge_coefficient,
+        solver.radial_clearance,
+        solver.p[i - 1],
+        pressure_ratio,
+        solver.rho[i - 1],
+        solver.t[i - 1],
+        solver.w[i - 1],
+        solver.carryover_factor,
+    )
+
+
+def _critical_ratios(solver):
+    """Return the critical pressure ratio of every throttle from its upstream state."""
+    return np.array(
+        [
+            solver.gas.critical_pr(
+                solver.p[i - 1],
+                solver.w[i - 1],
+                solver.carryover_factor,
+                solver.t[i - 1],
+            )
+            for i in range(1, solver.n_teeth + 1)
+        ]
+    )
+
+
+def _assert_base_flow_converged(seal, choked):
+    """Check the base flow left on the solver against the equations it solves.
+
+    The mass flux through every throttle, recomputed with the gas model from
+    the throttle state, must equal the leakage mass flux, and no throttle may
+    expand below its critical pressure ratio. An unchoked seal must meet the
+    outlet pressure within the solver tolerance; a choked one ends at the
+    critical pressure ratio of the last throttle, within the choke tolerance,
+    with a throat pressure above the outlet pressure.
+    """
+    solver = seal.solver
+    flux = [
+        _throttle_flux(solver, i, solver.pr[i - 1])
+        for i in range(1, solver.n_teeth + 1)
+    ]
+    critical_pr = _critical_ratios(solver)
+    # brentq solves each pressure ratio to xtol=1e-14.
+    assert_allclose(flux, solver.mdot, rtol=1e-9)
+    assert np.all(solver.pr >= critical_pr)
+    if choked:
+        # Choke test of the solver: within 0.5 % of the critical ratio.
+        assert_allclose(solver.pr[-1], critical_pr[-1], rtol=0.005)
+        assert solver.p[-1] > solver.outlet_pressure
+    else:
+        # Outlet test of the solver: relative pressure error below 1e-5.
+        assert_allclose(solver.p[-1], solver.outlet_pressure, rtol=1e-5)
+
+
+@pytest.mark.parametrize(
+    "eos, gas, params",
+    [
+        pytest.param(
+            "HEOS",
+            {"methane": 1.0},
+            {
+                "seal_type": "rotor",
+                "n_teeth": 13,
+                "radial_clearance": 0.125e-3,
+                "pitch": 5.3e-3,
+                "tooth_width": 0.34e-3,
+                "inlet_pressure": 0.328e6,
+                "outlet_pressure": 0.204e6,
+                "inlet_temperature": 305.0,
+            },
+            id="methane-rotor-13-teeth",
+        ),
+        pytest.param(
+            "HEOS",
+            {"carbon dioxide": 1.0},
+            {
+                "seal_type": "rotor",
+                "n_teeth": 4,
+                "radial_clearance": 0.114e-3,
+                "pitch": 4.8e-3,
+                "tooth_width": 0.345e-3,
+                "inlet_pressure": 39.0e6,
+                "outlet_pressure": 35.3e6,
+                "inlet_temperature": 366.0,
+            },
+            id="co2-rotor-4-teeth",
+        ),
+        pytest.param(
+            "HEOS",
+            {"nitrogen": 1.0},
+            {
+                "seal_type": "rotor",
+                "n_teeth": 20,
+                "radial_clearance": 0.196e-3,
+                "pitch": 5.53e-3,
+                "tooth_width": 0.255e-3,
+                "inlet_pressure": 1.2e6,
+                "outlet_pressure": 0.512e6,
+                "inlet_temperature": 304.0,
+            },
+            id="nitrogen-rotor-20-teeth",
+        ),
+        pytest.param(
+            "HEOS",
+            {"ethane": 1.0},
+            {
+                "seal_type": "stator",
+                "n_teeth": 17,
+                "radial_clearance": 0.115e-3,
+                "pitch": 5.5e-3,
+                "tooth_width": 0.4e-3,
+                "inlet_pressure": 5.04e6,
+                "outlet_pressure": 3.63e6,
+                "inlet_temperature": 370.0,
+            },
+            id="ethane-stator-17-teeth",
+        ),
+        pytest.param(
+            "REFPROP",
+            EKOFISK_GAS,
+            {
+                "seal_type": "stator",
+                "n_teeth": 4,
+                "radial_clearance": 0.3e-3,
+                "pitch": 5e-3,
+                "tooth_width": 0.2e-3,
+                "inlet_pressure": 20.0e6,
+                "outlet_pressure": 19.0e6,
+                "inlet_temperature": 340.0,
+            },
+            id="ekofisk-stator-4-teeth",
+            marks=pytest.mark.skipif(not REFPROP_AVAILABLE, reason="Requires REFPROP"),
+        ),
+    ],
+)
+def test_labyrinth_real_gas_leakage_bisection_converges(eos, gas, params):
+    """The real-gas leakage bisection converges where it used to cycle forever.
+
+    Every tooth used to be bracketed, and judged choked, with the critical
+    pressure ratio of the last tooth in the previous iterate, frozen at the
+    first bracket restart. After an iterate at a higher flux, which marched
+    most teeth before it choked, that ratio was close to 1, fluxes near the
+    solution were reported as choked, and the bisection never met its tests.
+    """
+    original_eos = ccp.config.EOS
+    try:
+        ccp.config.EOS = eos
+        seal = LabyrinthSeal(
+            **LEAKAGE_BISECTION_BASE, **params, gas_composition=gas, gas_model="real"
+        )
+    finally:
+        ccp.config.EOS = original_eos
+
+    _assert_base_flow_converged(seal, choked=False)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        pytest.param(
+            {
+                "seal_type": "rotor",
+                "n_teeth": 11,
+                "radial_clearance": 0.45e-3,
+                "pitch": 4e-3,
+                "tooth_width": 0.2e-3,
+            },
+            id="rotor-11-teeth",
+        ),
+        pytest.param(
+            {
+                "seal_type": "stator",
+                "n_teeth": 12,
+                "radial_clearance": 0.45e-3,
+                "pitch": 4e-3,
+                "tooth_width": 0.3e-3,
+            },
+            id="stator-12-teeth",
+        ),
+    ],
+)
+def test_labyrinth_choked_leakage_bisection_converges(params):
+    """The perfect-gas leakage bisection converges where it used to cycle forever.
+
+    These seals are choked. As in the real-gas case, a ratio left by an
+    iterate at a higher flux reported a flux below the choked one as choked,
+    and the ratio frozen at the bracket restart then kept the last throttle
+    out of the choke tolerance. The ratio of specific heats is the inlet
+    value ``gas_composition`` gives for natural gas at 20 MPa and 300 K
+    (cp / cv = 1.98 for the AGA-8 Ekofisk gas).
+    """
+    seal = LabyrinthSeal(
+        **LEAKAGE_BISECTION_BASE,
+        **params,
+        **PERFECT_GAS_VISCOSITY,
+        inlet_pressure=20.0e6,
+        outlet_pressure=2.0e6,
+        inlet_temperature=300.0,
+        molar_mass=19.0,
+        gamma=2.0,
+    )
+
+    _assert_base_flow_converged(seal, choked=True)
+
+
+@pytest.mark.parametrize(
+    "gamma, molar_mass, params",
+    [
+        pytest.param(1.4, 19.0, {"n_teeth": 4}, id="gamma-1.4"),
+        pytest.param(2.5, 19.0, {"n_teeth": 4}, id="gamma-2.5"),
+        pytest.param(4.0, 19.0, {"n_teeth": 4}, id="gamma-4"),
+        pytest.param(6.0, 19.0, {"n_teeth": 4}, id="gamma-6"),
+        pytest.param(4.0, 19.0, {"n_teeth": 16}, id="gamma-4-16-teeth"),
+        pytest.param(
+            8.34,
+            44.01,
+            {
+                "n_teeth": 8,
+                "radial_clearance": 0.45e-3,
+                "inlet_pressure": 8.0e6,
+                "outlet_pressure": 1.2e6,
+                "inlet_temperature": 310.0,
+            },
+            id="gamma-8.34-carbon-dioxide",
+        ),
+    ],
+)
+def test_labyrinth_choked_throttles_stay_above_critical_ratio(
+    gamma, molar_mass, params
+):
+    """Every throttle is bracketed by its own critical pressure ratio.
+
+    With carry-over, the perfect-gas critical ratio lies above the maximum of
+    the throttle flux, the more so the larger the ratio of specific heats. A
+    lower bracket, such as the ratio of the first tooth, which has no
+    carry-over, lets a throttle expand below its critical ratio. The last
+    case uses the inlet cp / cv of carbon dioxide at 8 MPa and 310 K: there
+    the loop used to return an outlet match with the last throttle 11 %
+    below its critical ratio.
+    """
+    seal = LabyrinthSeal(
+        **{
+            **LEAKAGE_BISECTION_BASE,
+            "seal_type": "rotor",
+            "radial_clearance": 0.2e-3,
+            "pitch": 3.175e-3,
+            "tooth_width": 0.1524e-3,
+            "inlet_pressure": 10.0e6,
+            "outlet_pressure": 0.5e6,
+            "inlet_temperature": 300.0,
+            **params,
+        },
+        **PERFECT_GAS_VISCOSITY,
+        molar_mass=molar_mass,
+        gamma=gamma,
+    )
+
+    _assert_base_flow_converged(seal, choked=True)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        pytest.param(
+            {
+                "seal_type": "rotor",
+                "n_teeth": 9,
+                "radial_clearance": 0.31e-3,
+                "pitch": 4.3e-3,
+                "tooth_width": 0.18e-3,
+                "inlet_pressure": 14.6e6,
+                "outlet_pressure": 2.97e6,
+                "inlet_temperature": 433.0,
+                "molar_mass": 53.0,
+                "gamma": 2.52,
+            },
+            id="rotor-9-teeth",
+        ),
+        pytest.param(
+            {
+                "seal_type": "rotor",
+                "n_teeth": 13,
+                "radial_clearance": 0.28e-3,
+                "pitch": 4.6e-3,
+                "tooth_width": 0.35e-3,
+                "inlet_pressure": 1.44e6,
+                "outlet_pressure": 0.326e6,
+                "inlet_temperature": 271.5,
+                "molar_mass": 21.55,
+                "gamma": 1.43,
+            },
+            id="rotor-13-teeth",
+        ),
+    ],
+)
+def test_labyrinth_near_choked_overshoot_is_rejected(params):
+    """A march near the choke is a solution only above the outlet pressure.
+
+    The last throttle of these unchoked seals comes within the choke
+    tolerance of its critical ratio at a mass flux above the leakage, with
+    the outlet station below the outlet pressure. The loop used to stop
+    there, 11 % and 0.8 % below the outlet pressure; the bisection must go
+    on to the outlet match.
+    """
+    seal = LabyrinthSeal(**LEAKAGE_BISECTION_BASE, **params, **PERFECT_GAS_VISCOSITY)
+
+    _assert_base_flow_converged(seal, choked=False)
+
+
+@pytest.mark.parametrize(
+    "gas, params",
+    [
+        pytest.param(
+            {"methane": 1.0},
+            {
+                "seal_type": "inter",
+                "n_teeth": 3,
+                "radial_clearance": 0.146e-3,
+                "pitch": 4.5e-3,
+                "tooth_width": 0.186e-3,
+                "inlet_pressure": 4.14e6,
+                "outlet_pressure": 0.416e6,
+                "inlet_temperature": 363.0,
+            },
+            id="methane-inter-3-teeth",
+        ),
+        pytest.param(
+            {"ethane": 1.0},
+            {
+                "seal_type": "inter",
+                "n_teeth": 5,
+                "radial_clearance": 0.21e-3,
+                "pitch": 6e-3,
+                "tooth_width": 0.19e-3,
+                "inlet_pressure": 2.0e6,
+                "outlet_pressure": 0.086e6,
+                "inlet_temperature": 350.0,
+            },
+            id="ethane-inter-5-teeth",
+        ),
+        pytest.param(
+            {"ethane": 1.0},
+            {
+                "seal_type": "stator",
+                "n_teeth": 5,
+                "radial_clearance": 0.39e-3,
+                "pitch": 3.55e-3,
+                "tooth_width": 0.19e-3,
+                "inlet_pressure": 0.295e6,
+                "outlet_pressure": 0.0304e6,
+                "inlet_temperature": 342.0,
+            },
+            id="ethane-stator-5-teeth",
+        ),
+        pytest.param(
+            {"ethane": 1.0},
+            {
+                "seal_type": "rotor",
+                "n_teeth": 16,
+                "radial_clearance": 0.37e-3,
+                "pitch": 4.55e-3,
+                "tooth_width": 0.17e-3,
+                "inlet_pressure": 1.07e6,
+                "outlet_pressure": 0.118e6,
+                "inlet_temperature": 374.0,
+            },
+            id="ethane-rotor-16-teeth",
+        ),
+    ],
+)
+def test_labyrinth_real_gas_choke_onset(gas, params):
+    """A choked real-gas seal converges at the choke onset of its last throttle.
+
+    The critical ratio of the tabulated gas, its sonic point, lies slightly
+    below the maximum of the interpolated throttle flux. As the mass flux
+    rises, the last pressure ratio then stays 0.5 to 1 % above the critical
+    ratio until the throttle chokes, and never enters the choke tolerance.
+    The loop used to cycle forever on three of these seals, and stopped on
+    the stator seal only because rounding put its last pressure ratio on the
+    critical ratio. The choked leakage is the flux of the last throttle at
+    its critical ratio, and the maximum of its flux within the interpolation
+    error of the table.
+    """
+    original_eos = ccp.config.EOS
+    try:
+        ccp.config.EOS = "HEOS"
+        with pytest.warns(UserWarning, match="Flow choked in the last throttle"):
+            seal = LabyrinthSeal(
+                **LEAKAGE_BISECTION_BASE,
+                **params,
+                gas_composition=gas,
+                gas_model="real",
+            )
+    finally:
+        ccp.config.EOS = original_eos
+
+    solver = seal.solver
+    last = solver.n_teeth
+    flux = [_throttle_flux(solver, i, solver.pr[i - 1]) for i in range(1, last + 1)]
+    critical_pr = _critical_ratios(solver)
+    # brentq solves each pressure ratio to xtol=1e-14.
+    assert_allclose(flux, solver.mdot, rtol=1e-9)
+    assert np.all(solver.pr >= critical_pr)
+    assert solver.p[-1] > solver.outlet_pressure
+    # The bisection closes on adjacent floating-point mass fluxes.
+    assert_allclose(
+        _throttle_flux(solver, last, critical_pr[-1]), solver.mdot, rtol=1e-12
+    )
+    # The sonic ratio of the 120-point table lies within 0.4 % of the flux
+    # maximum, where the flux is flat to about 2e-5.
+    subsonic_flux = [
+        _throttle_flux(solver, last, pressure_ratio)
+        for pressure_ratio in np.linspace(critical_pr[-1], 1.0, 2001)
+    ]
+    assert_allclose(max(subsonic_flux), solver.mdot, rtol=1e-4)
+
+
+def test_labyrinth_leakage_bisection_is_bounded(monkeypatch):
+    """The leakage bisection raises instead of running without end."""
+    monkeypatch.setattr(labyrinth_seal, "MAX_LEAKAGE_ITERATIONS", 3)
+    with pytest.raises(RuntimeError, match="did not converge in 3 bisection steps"):
+        LabyrinthSeal(**COMMON_PARAMS, **MANUAL_PARAMS)
 
 
 def test_labyrinth_whirl_frequency_grid():
