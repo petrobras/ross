@@ -1,6 +1,6 @@
 # Seals
 
-Source: `docs/user_guide/tutorial_seals.ipynb`, `docs/theory_and_code/labyrinth_seal.ipynb`
+Source: `docs/user_guide/tutorial_seals.ipynb`, `docs/theory_and_code/labyrinth_seal.ipynb`, `docs/theory_and_code/holepattern_seal.ipynb`
 
 Three physics-based seal models are available, all `SealElement` subclasses that
 drop straight into `Rotor`: `LabyrinthSeal` (multi-tooth throttling seal),
@@ -68,10 +68,21 @@ holep = rs.HolePatternSeal(
 )
 ```
 
-- Also returns mass coefficients (`mxx`, `mxy`, ...) from the fluid inertia
+- `kxx`, `kxy`, `cxx`, `cxy` are the coefficients at the whirl frequency
+  `excitation_ratio * speed`; the mass terms are zero. Use `frequency=` for
+  frequency-dependent analyses
 - `excitation_ratio` (default 1): whirl-to-speed ratio used for the 1-D table,
   i.e. the coefficients are evaluated at the whirl frequency `excitation_ratio * speed`
 - Without `gas_composition`, pass `molar_mass`, `gamma`, `sutherland_b`, `sutherland_s`
+- `gas_model="real"` tabulates the gas over (p, T) with the equation of state of
+  ccp (needs `gas_composition`). It refuses an inlet or an expansion that reaches
+  the two-phase region (`ValueError`, or NaN with a warning for a speed whose flow
+  needs it)
+- A speed that fails gets NaN and a warning; with three or more speeds the pchip
+  table cannot hold NaN, so the element raises a `ValueError` naming the failed speeds
+- `holep.choked`: one flag per speed; a choked seal returns the choke-limit flow
+- `cell_depth` is the only cell input: for a hole pattern use hole depth times
+  hole-area ratio; `cell_length` and `cell_width` are not used by the model
 
 ## Hybrid Seal
 
