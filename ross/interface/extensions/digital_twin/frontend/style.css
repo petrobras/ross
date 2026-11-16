@@ -1,0 +1,204 @@
+/* What the Digital Twin screens add to the ROSS interface's style.css. The
+   topbars, sidebars, cards, forms, buttons and modals come from the interface
+   itself; this file only styles what it does not have: the step panels, the
+   data tables and the result lists. Every colour is a token of the ROSS design
+   system, so both themes reach these screens. The page loads this file on
+   every screen, so every rule is scoped to the Digital Twin screens. */
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .panel-title {
+    color: var(--text-main);
+    margin-bottom: 15px;
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 5px;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .panel-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin: 15px 0 6px 0;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .panel-section-title:first-child {
+    margin-top: 0;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .panel-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin-bottom: 10px;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .panel-status {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .panel-status.ok i {
+    color: var(--accent-success);
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .panel-status.busy i {
+    color: var(--accent-primary);
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .table-scroll {
+    width: 100%;
+    overflow-x: auto;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .data-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12px;
+    color: var(--text-main);
+    background: var(--bg-card);
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .data-table th {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    padding: 5px 6px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .data-table td {
+    border: 1px solid var(--border-color);
+    padding: 3px 6px;
+    font-family: var(--font-mono, monospace);
+    white-space: nowrap;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .data-table td:first-child {
+    font-family: inherit;
+    font-weight: 600;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .data-table tr.total td {
+    background: var(--bg-panel);
+    font-weight: 700;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .data-table td.missing {
+    color: var(--accent-danger);
+    font-weight: 700;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .form-box .data-table input {
+    width: 64px;
+    min-width: 64px;
+    padding: 4px 6px;
+    text-align: right;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .form-box textarea {
+    display: block;
+    width: 100%;
+    min-height: 120px;
+    padding: 7px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-ui);
+    font-size: 13px;
+    background: var(--bg-panel);
+    color: var(--text-main);
+    outline: none;
+    resize: vertical;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .form-box textarea:focus {
+    border-color: var(--accent-primary);
+    background: var(--bg-card);
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .form-box button.btn-primary,
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .form-box button.btn-secondary {
+    width: 100%;
+    margin-top: 5px;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .result-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .result-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    padding: 6px 10px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--accent-primary);
+    border-radius: var(--radius-ui);
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .result-list li span:last-child {
+    font-family: var(--font-mono, monospace);
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .result-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .result-grid h4 {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .analysis-card pre {
+    font-family: var(--font-mono, monospace);
+    font-size: 12px;
+    white-space: pre-wrap;
+    color: var(--text-main);
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .plot-panel .analysis-card .data-table {
+    margin: 0;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .plot-panel .live-plot-area + .analysis-card,
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .plot-panel .analysis-card + .analysis-card {
+    margin-top: 20px;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .plot-panel .analysis-card + .live-plot-area {
+    height: auto;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) .campbell-hint i {
+    font-size: 26px;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+:is(#screen-dt, #screen-dt-analysis, #screen-balance, #screen-cfd) button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

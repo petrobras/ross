@@ -21,7 +21,8 @@ sys.path.insert(0, ROOT)
 from ross.interface.tests import structure
 from ross.interface.api import BLUEPRINTS, create_app
 
-APP = create_app()
+# No extensions: what is installed next to ROSS must not change these checks.
+APP = create_app(extensions=[])
 
 
 @pytest.mark.parametrize("folder", ["domain", "services"])
@@ -74,7 +75,9 @@ def test_every_blueprint_is_registered():
         for rule in APP.url_map.iter_rules()
         if "." in rule.endpoint
     }
-    assert {bp.name for bp in BLUEPRINTS} == registered
+    # `extensions` serves the files of installed extensions, and is registered
+    # with or without any.
+    assert {bp.name for bp in BLUEPRINTS} | {"extensions"} == registered
 
 
 def test_create_app_builds_independent_applications():

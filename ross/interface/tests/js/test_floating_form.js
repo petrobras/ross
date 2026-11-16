@@ -137,7 +137,7 @@ function tabButton(category, key) {
     b.dataset.i18n = key;
     return b;
 }
-registerSelector('.tab-btn', [tabButton('disks', 'catDisk'), tabButton('gears', 'catGear')]);
+registerSelector('#screen-modeling .tab-btn', [tabButton('disks', 'catDisk'), tabButton('gears', 'catGear')]);
 
 function line(name) {
     return { name, materials: [], shafts: [{ n: '0', L: '250' }, { n: '1', L: '250' }],

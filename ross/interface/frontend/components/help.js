@@ -381,6 +381,15 @@ const HelpContent = {
 };
 
 
+// Help an extension brings, as `{ key: { title: { en, pt }, body: { en, pt } } }`,
+// opened with `openSectionHelp(key)`. A key that already exists is refused.
+export function addHelp(entries) {
+    Object.keys(entries).forEach(key => {
+        if (key in HelpContent) throw new Error('help "' + key + '" is defined twice');
+        HelpContent[key] = entries[key];
+    });
+}
+
 // The helpEntry in the current language. A helpEntry that does not exist gives
 // back a title built from the category name, as before.
 function helpEntry(key) {

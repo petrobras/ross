@@ -22,8 +22,11 @@ from flask import jsonify, request
 SESSION_TOKEN = secrets.token_urlsafe(32)
 
 # What may be fetched without a token. `static` covers the frontend files
-# (css, js, fonts), which Flask serves with static_url_path="".
-PUBLIC_ENDPOINTS = frozenset({"static", "system.index", "system.plotly_bundle"})
+# (css, js, fonts), which Flask serves with static_url_path="", and
+# `extensions.static_file` the frontend files of the installed extensions.
+PUBLIC_ENDPOINTS = frozenset(
+    {"static", "system.index", "system.plotly_bundle", "extensions.static_file"}
+)
 
 
 def register_guard(app, host, port):

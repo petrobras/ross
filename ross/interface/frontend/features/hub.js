@@ -154,7 +154,7 @@ export function openRotorWorkspace(index, targetScreen) {
     // Filters are the last rotor's: its materials and fields, not this one's.
     forgetFilters();
     document.getElementById('element-list').innerHTML = '';
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#screen-modeling .tab-btn').forEach(b => b.classList.remove('active'));
     
     if (targetScreen === 'screen-modeling') {
         state.multiRotorEditTarget = 'driving';

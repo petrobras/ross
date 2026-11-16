@@ -13,7 +13,8 @@ import { startFormWindow } from './components/floating_form.js';
 import { startContextMenu } from './components/context_menu.js';
 import { onNumbersNeeded } from './core/list_filter.js';
 import { readNumbers } from './features/list_filter.js';
-import { applyLanguage } from './core/i18n.js';
+import { announceLanguageChanged, applyLanguage, onLanguageChanged } from './core/i18n.js';
+import { reapplyHelp } from './components/help.js';
 import { startPersistence, restoreState } from './core/persistence.js';
 import { schemaReady } from './core/schema.js';
 import { onProjectChanged } from './core/state.js';
@@ -53,6 +54,11 @@ onThemeChanged(restyleRotor3d);
 // list asks, and the feature that talks to the server answers.
 onNumbersNeeded(readNumbers);
 
+// An open help panel follows the language. The texts that features write are
+// redrawn by `changeLanguage` (features/modeling.js); extensions subscribe to
+// the same hook for their own screens.
+onLanguageChanged(reapplyHelp);
+
 // What the buttons mean, by name (core/actions.js). One table per area of the
 // page.
 defineActions(SHELL_ACTIONS);
@@ -90,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // The analysis screen offers the model's probes as they are when it opens.
     startProbeChoices();
     schemaReady()
-        .then(() => { applyLanguage(); fillAnalysisTypes(); })
+        .then(() => { applyLanguage(); fillAnalysisTypes(); announceLanguageChanged(); })
         .catch(error => console.error('schema:', error));
 
     const rotors = restoreState();

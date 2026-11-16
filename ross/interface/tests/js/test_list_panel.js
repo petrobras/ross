@@ -32,7 +32,7 @@ function tabButton(category, key) {
     b.dataset.i18n = key;
     return b;
 }
-registerSelector('.tab-btn', [tabButton('shafts', 'catShaft'), tabButton('disks', 'catDisk')]);
+registerSelector('#screen-modeling .tab-btn', [tabButton('shafts', 'catShaft'), tabButton('disks', 'catDisk')]);
 
 // What the figure hears. Plotly follows the window, so a panel that changes
 // width without a `resize` leaves the figure the width it was.

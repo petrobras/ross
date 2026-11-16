@@ -6,10 +6,11 @@ import re
 import threading
 import time
 
-from flask import Blueprint, Response, jsonify, request, send_file
+from flask import Blueprint, Response, current_app, jsonify, request, send_file
 
 from ross.interface.version import ross_version
 
+from .extensions import insert_into_page, installed
 from .paths import FRONTEND_DIR, PLOTLY_BUNDLE
 from .security import SESSION_TOKEN
 
@@ -78,7 +79,7 @@ def index():
     with open(os.path.join(FRONTEND_DIR, "index.html"), encoding="utf-8") as handle:
         html = handle.read()
 
-    html = stamp_versions(html)
+    html = stamp_versions(insert_into_page(html, installed(current_app)))
 
     script = (
         '<script>window.ROSS_TOKEN = "%s"; window.ROSS_VERSION = "%s";</script>'
