@@ -15,7 +15,7 @@ from ross.bearing_seal_element import *
 from ross.coupling_element import CouplingElement
 from ross.disk_element import *
 from ross.materials import Material, steel
-from ross.motors.motor_element import ElectricMotor, motor_example
+from ross.motors.electric_motor import ElectricMotor, motor_example
 from ross.coupling_element import CouplingElement
 from ross.bearings.magnetic.amb_models import rotor_example_amb_simple
 from ross.multi_rotor.multi_rotor import two_shaft_rotor_example

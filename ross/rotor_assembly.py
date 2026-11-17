@@ -48,7 +48,7 @@ from ross.materials import Material, steel
 from ross.model_reduction import ModelReduction
 from ross.plotly_theme import axes_indicator_2d, color_shades
 from ross.point_mass import PointMass
-from ross.motors.motor_element import ElectricMotor
+from ross.motors.electric_motor import ElectricMotor
 from ross.probe import Probe
 from ross.results import (
     CampbellResults,

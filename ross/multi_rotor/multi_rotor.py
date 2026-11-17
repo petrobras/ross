@@ -13,7 +13,7 @@ from copy import deepcopy as copy
 
 import ross as rs
 from ross.element import Element
-from ross.motors.motor_element import ElectricMotor
+from ross.motors.electric_motor import ElectricMotor
 from ross.rotor_assembly import Rotor
 from ross.units import Q_, check_units
 from ross.utils import make_speed_array

@@ -33,7 +33,7 @@ from copy import deepcopy
 
 from ross.bearing_seal_element import BearingElement
 from ross.disk_element import DiskElement
-from ross.motors.motor_element import ElectricMotor, motor_example
+from ross.motors.electric_motor import ElectricMotor, motor_example
 from ross.motors.results import MotorResponseResults
 from ross.materials import steel
 from ross.rotor_assembly import Rotor, rotor_example

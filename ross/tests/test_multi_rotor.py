@@ -4,7 +4,7 @@ from copy import deepcopy
 from numpy.testing import assert_allclose
 
 import ross as rs
-from ross.motors.motor_element import motor_example
+from ross.motors.electric_motor import motor_example
 from ross.multi_rotor.mesh import Mesh
 from ross.utils import convert_6dof_to_4dof
 
