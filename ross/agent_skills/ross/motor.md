@@ -7,7 +7,7 @@ Source: `docs/user_guide/tutorial_motor.ipynb`
 | Model | Arguments | What `Rotor.add_motor` adds to the rotor | `motor.n_torque` |
 |-------|-----------|------------------------------------------|------------------|
 | Lumped | `m`, `Ip` and, optionally, `Id` | A disk with the mass and the inertias of the motor, at node `n` | `n` |
-| Finite element | `shaft_elements` and, optionally, `disk_elements` and `bearing_elements` | The rotor of the motor, concatenated to the rotor of the load | Node shared by the two rotors |
+| Finite element | `shaft_elements` and, optionally, `disk_elements`, `bearing_elements` and `point_mass_elements` | The rotor of the motor, concatenated to the rotor of the load | Node shared by the two rotors |
 
 `Rotor.run_with_motor` applies the motor torque to the torsional DOF (`theta`) of node `motor.n_torque`. Use the lumped model when the motor is stiff compared to the rest of the machine; the finite element model adds the flexibility of the motor shaft and bearings and allows a coupling between the motor and the load.
 
@@ -80,7 +80,7 @@ fig = campbell.plot()
 ```
 
 - With `shaft_elements`, the attributes of the motor (`m`, `Ip`, `tag`, `save()`...) and the arguments of `ElectricMotor` are not forwarded to the rotor: use `motor_fem.mechanical_model.shaft_elements`, for example. The lumped motor has no rotor and forwards nothing.
-- Either `m` and `Ip` (lumped model) or `shaft_elements` (finite element model) is required. Without `shaft_elements`, a missing `m` or `Ip`, or any `disk_elements` or `bearing_elements`, raises `ValueError`; with `shaft_elements`, `m`, `Ip` and `Id` raise `ValueError`. The motor-only simulations use only `Ip + Ip_load`.
+- Either `m` and `Ip` (lumped model) or `shaft_elements` (finite element model) is required. Without `shaft_elements`, a missing `m` or `Ip`, or any `disk_elements`, `bearing_elements` or `point_mass_elements`, raises `ValueError`; with `shaft_elements`, `m`, `Ip` and `Id` raise `ValueError`. The motor-only simulations use only `Ip + Ip_load`.
 - The direct-on-line supply voltage and frequency are the `voltage_net` and `frequency_net` arguments of `run_direct_on_line`, which default to the rated values. The `ElectricMotor` arguments of the same name do not reach the supply: `voltage_net` only sets the network short-circuit impedance and `frequency_net` is not used. `run_with_motor` does not pass a supply voltage or frequency, so its `"DOL"` mode always runs at the rated values. The inverters set the voltage and frequency themselves.
 - Speeds and frequencies are rad/s internally; pass `Q_(..., "RPM")` or `Q_(..., "Hz")` to convert.
 

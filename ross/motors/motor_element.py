@@ -77,6 +77,8 @@ class ElectricMotor:
         Disk elements of the motor rotor. Only with ``shaft_elements``.
     bearing_elements : list of ross.BearingElement, optional
         Bearing elements of the motor rotor. Only with ``shaft_elements``.
+    point_mass_elements : list of ross.PointMass, optional
+        Point mass elements of the motor rotor. Only with ``shaft_elements``.
     frequency_rated : float, optional, pint.Quantity
         Rated frequency [rad/s].
         Default is 60 Hz.
@@ -189,6 +191,7 @@ class ElectricMotor:
         shaft_elements=None,
         disk_elements=None,
         bearing_elements=None,
+        point_mass_elements=None,
         frequency_rated=None,
         n_poles=4,
         viscosity_coeff=0.0,
@@ -215,10 +218,14 @@ class ElectricMotor:
         self.mutual_reactance = float(mutual_reactance)
 
         if shaft_elements is None:
-            if disk_elements is not None or bearing_elements is not None:
+            if (
+                disk_elements is not None
+                or bearing_elements is not None
+                or point_mass_elements is not None
+            ):
                 raise ValueError(
-                    "'disk_elements' and 'bearing_elements' are only used with "
-                    "'shaft_elements'."
+                    "'disk_elements', 'bearing_elements' and 'point_mass_elements' "
+                    "are only used with 'shaft_elements'."
                 )
             if m is None or Ip is None:
                 raise ValueError(
@@ -242,7 +249,11 @@ class ElectricMotor:
 
             self._mechanical_model_type = "fem"
             self.mechanical_model = Rotor(
-                shaft_elements, disk_elements, bearing_elements, tag=tag
+                shaft_elements,
+                disk_elements,
+                bearing_elements,
+                point_mass_elements,
+                tag=tag,
             )
             self.m = float(self.mechanical_model.m)
             self.Ip = float(self.mechanical_model.Ip)
