@@ -1,7 +1,7 @@
 """Base classes of the surrogate models.
 
-``CoefficientSurrogate`` holds the metamodel training, ``save``/``load``, ``predict`` and
-``benchmark`` logic shared by every bearing and seal surrogate.
+``CoefficientSurrogate`` holds the metamodel training, ``save``/``load`` and ``predict``
+logic shared by every bearing surrogate.
 """
 
 import sys
@@ -24,17 +24,9 @@ from json_tricks import dumps, loads
 from ross.surrogates.safe_pickle import loads as pickle_loads
 import zipfile
 import shutil
-import plotly.graph_objects as go
-from ross.bearing_seal_element import SealElement
 import pandas as pd
 import csv
 import ast
-try:
-    import ccp
-except Exception as e:
-    import warnings
-    warnings.warn(f"Could not load ccp: {e}. Some functionality may be unavailable.")
-    ccp = None
 
 
 class GaussianProcessSurrogate:
@@ -139,8 +131,7 @@ class CoefficientSurrogate:
     Find the minimum number of samples;
     Save template;
     Load model;
-    Predict coefficients;
-    Benchmarks between samples.
+    Predict coefficients.
     """
 
     # Coefficients handled by the metamodels. Subclasses with a different set of
@@ -203,7 +194,7 @@ class CoefficientSurrogate:
     @staticmethod
     def _build_training_inputs(inputs, coefs):
         """Assembles the training design matrix (frequency + input variables
-        [+ gas composition derived properties]) shared by every metamodel
+        shared by every metamodel
         backend, and returns the indices of invalid (``None``) samples.
 
         Args:
@@ -217,14 +208,6 @@ class CoefficientSurrogate:
         xinput = np.array(inputs["frequency"])
         for i in range(len(inputs["input_variable"])):
             xinput = np.vstack((xinput, inputs[inputs["input_variable"][i]]))
-
-        if "gas_composition" in inputs and isinstance(inputs["gas_composition"], list):
-            xinput = np.vstack((xinput, coefs["gas_constant"]))
-            xinput = np.vstack((xinput, coefs["ratio_specific_heats"]))
-            xinput = np.vstack((xinput, coefs["tz1"]))
-            xinput = np.vstack((xinput, coefs["muz1"]))
-            xinput = np.vstack((xinput, coefs["tz2"]))
-            xinput = np.vstack((xinput, coefs["muz2"]))
 
         xinput = xinput.T.astype(float)
 
@@ -554,188 +537,83 @@ class CoefficientSurrogate:
         name="example",
         print_result=False,
         print_prediction=False,
-        check_min_samples=True,
         frequency=None,
         verify_limits=False,
         **kwargs,
     ):
-        """Predict coefficients of bearing with surrogate model.
+        """Predict the bearing coefficients with the trained metamodels.
 
-        Parameters:
-        -----------
-        verify_limits: bool, optional
-            Verify if the input variables are within the training range. Defaults to False.
-        name: str, optional
-            Name bearning of model. Defaults to "example".
-        print_result: bool, optional
-            Print results in cmd. Defaults to False.
-        print_prediction: bool, optional
-            Print prediction in cmd. Defaults to False.
-        frequency: array, pint.Quantity
-            Frequency trained in the metamodel
-        kwargs:
-            arg1 : Changed argument for template creation.
-            arg2 : Changed argument for template creation.
+        Parameters
+        ----------
+        name : str, optional
+            Name of the model, used only in the printed output.
+        print_result : bool, optional
+            If True, print the resulting element and the prediction time.
+        print_prediction : bool, optional
+            If True, print the raw prediction of each metamodel.
+        frequency : array, pint.Quantity
+            Rotational speeds at which the coefficients are predicted. Default
+            unit is rad/s.
+        verify_limits : bool, optional
+            If True, warn when an input is outside the training range.
+        **kwargs
+            Value of each variable listed in ``input_variable`` of the model.
 
-        Example
+        Returns
         -------
-
-        >>> import ross.surrogates as sg
-        >>> _radial_clearance = 2.05e-4
-        >>> _reference_temperature = 30
-        >>> bearing = sg.CoefficientSurrogate()
-        >>> result = bearing.predict(
-        ...             name="example1",
-        ...             frequency=Q_(1000, "RPM"),
-        ...             radial_clearance=_radial_clearance,
-        ...             reference_temperature=_reference_temperature)
+        ross.BearingElement
+            Bearing element holding the predicted coefficients. Thrust bearings
+            return only ``kzz`` and ``czz``.
         """
-
-        _coefs = self._get_coef_names()
-
-        for coef in _coefs:
+        coef_names = self._get_coef_names()
+        for coef in coef_names:
             setattr(self, f"prediction_{coef}", [])
 
-        time_prediction = 0
-        _aux_time = time.time()
+        start_time = time.time()
 
-        if check_min_samples == True:
-            # self.load(name)  # load model
-            for i in range(len(frequency)):
-                _inputs = np.array([frequency[i]])
+        for speed in frequency:
+            inputs = np.array([speed])
+            for variable in self.inputs_model["input_variable"]:
+                inputs = np.append(inputs, kwargs[variable])
+            inputs = np.vstack(inputs).T
 
-                for i in range(len(self.inputs_model["input_variable"])):
-                    _inputs = np.append(
-                        _inputs, kwargs[self.inputs_model["input_variable"][i]]
-                    )
-
-                if "gas_composition" in kwargs:
-                    inlet_pressure = kwargs["inlet_pressure"]
-                    outlet_pressure = kwargs["outlet_pressure"]
-                    inlet_temperature = kwargs["inlet_temperature"]
-                    gas_composition = kwargs["gas_composition"]
-
-                    state_in = ccp.State.define(
-                        p=inlet_pressure, T=inlet_temperature, fluid=gas_composition
-                    )
-                    state_out = ccp.State.define(
-                        p=outlet_pressure, h=state_in.h(), fluid=gas_composition
-                    )
-
-                    gas_constant = (state_in.gas_constant() / state_in.molar_mass()).m
-                    _inputs = np.append(_inputs, gas_constant)
-                    ratio_specific_heats = (state_in.cp() / state_in.cv()).m
-                    _inputs = np.append(_inputs, ratio_specific_heats)
-                    tz1 = state_in.T().m
-                    _inputs = np.append(_inputs, tz1)
-                    muz1 = state_in.viscosity().m
-                    _inputs = np.append(_inputs, muz1)
-                    tz2 = state_out.T().m
-                    _inputs = np.append(_inputs, tz2)
-                    muz2 = state_out.viscosity().m
-                    _inputs = np.append(_inputs, muz2)
-
-                _inputs = np.vstack(_inputs).T
-                for coef in _coefs:
-                    getattr(self, f"sm_{coef}").options["print_prediction"] = (
-                        print_prediction
-                    )
-                    getattr(self, f"prediction_{coef}").append(
-                        getattr(self, f"sm_{coef}").predict_values(_inputs)
-                    )
-
-            if self.inputs_model["model"] in ("maxbrg", "tiltingpad", "thrustpad"):
-                _node = self.inputs_model["n"]
-            elif self.inputs_model["model"] == "ross":
-                _node = self.inputs_model["node"]
-            elif self.inputs_model["model"] == "laby3":
-                _node = self.inputs_model["n"]
-            elif self.inputs_model["model"] == "hcomb":
-                _node = self.inputs_model["n"]
-            elif self.inputs_model["model"] == "labyrinthseal":
-                _node = self.inputs_model["n"]
-
-            if (
-                self.inputs_model["model"] in "laby3"
-                or self.inputs_model["model"] in "hcomb"
-                or self.inputs_model["model"] in "labyrinthseal"
-            ):
-                result = SealElement(
-                    n=_node,
-                    kxx=[a.item() for a in self.prediction_kxx],
-                    cxx=[a.item() for a in self.prediction_cxx],
-                    kyy=[a.item() for a in self.prediction_kyy],
-                    kxy=[a.item() for a in self.prediction_kxy],
-                    kyx=[a.item() for a in self.prediction_kyx],
-                    cyy=[a.item() for a in self.prediction_cyy],
-                    cxy=[a.item() for a in self.prediction_cxy],
-                    cyx=[a.item() for a in self.prediction_cyx],
-                    frequency=frequency,
-                )
-            elif self.inputs_model["model"] == "thrustpad":
-                result = BearingElement(
-                    n=_node,
-                    kxx=0,
-                    cxx=0,
-                    kzz=[a.item() for a in self.prediction_kzz],
-                    czz=[a.item() for a in self.prediction_czz],
-                    frequency=frequency,
-                )
-            else:
-                result = BearingElement(
-                    n=_node,
-                    kxx=[a.item() for a in self.prediction_kxx],
-                    cxx=[a.item() for a in self.prediction_cxx],
-                    kyy=[a.item() for a in self.prediction_kyy],
-                    kxy=[a.item() for a in self.prediction_kxy],
-                    kyx=[a.item() for a in self.prediction_kyx],
-                    cyy=[a.item() for a in self.prediction_cyy],
-                    cxy=[a.item() for a in self.prediction_cxy],
-                    cyx=[a.item() for a in self.prediction_cyx],
-                    frequency=frequency,
+            for coef in coef_names:
+                metamodel = getattr(self, f"sm_{coef}")
+                metamodel.options["print_prediction"] = print_prediction
+                getattr(self, f"prediction_{coef}").append(
+                    metamodel.predict_values(inputs)
                 )
 
+        model = self.inputs_model["model"]
+        if model == "ross":
+            node = self.inputs_model["node"]
         else:
-            arg1 = np.array(kwargs["arg1"])
-            arg2 = np.array(kwargs["arg2"])
-            _inputs = np.array([arg1, arg2, frequency])
+            node = self.inputs_model["n"]
 
-            for i in range(_inputs[0].size):
-                for coef in _coefs:
-                    getattr(self, f"prediction_{coef}").append(
-                        getattr(self, f"sm_{coef}").predict_values(
-                            np.array(
-                                [
-                                    [_inputs[0, i], _inputs[1, i], _inputs[2, i]],
-                                    [_inputs[0, i], _inputs[1, i], _inputs[2, i]],
-                                ]
-                            )
-                        )[0]
-                    )
+        coefficients = {
+            coef: [a.item() for a in getattr(self, f"prediction_{coef}")]
+            for coef in coef_names
+        }
 
-            result = {
-                "coefs": {
-                    "kxx": self.prediction_kxx,
-                    "kxy": self.prediction_kxy,
-                    "kyx": self.prediction_kyx,
-                    "kyy": self.prediction_kyy,
-                    "cxx": self.prediction_cxx,
-                    "cxy": self.prediction_cxy,
-                    "cyx": self.prediction_cyx,
-                    "cyy": self.prediction_cyy,
-                },
-            }
-
-        time_prediction += time.time() - _aux_time
+        if model == "thrustpad":
+            result = BearingElement(
+                n=node,
+                kxx=0,
+                cxx=0,
+                kzz=coefficients["kzz"],
+                czz=coefficients["czz"],
+                frequency=frequency,
+            )
+        else:
+            result = BearingElement(n=node, frequency=frequency, **coefficients)
 
         if print_result:
-            _model = self.inputs_model["metamodel"]
-            print(f"Metamodel used: {_model}")
+            print(f"Metamodel used: {self.inputs_model['metamodel']}")
             print(result)
-            print(f"Time {name}: {time_prediction * 1000:.2f} ms")
+            print(f"Time {name}: {(time.time() - start_time) * 1000:.2f} ms")
 
         if verify_limits:
-            _, _, _ = self.verify_limits_predict(frequency, kwargs)
+            self.verify_limits_predict(frequency, kwargs)
 
         return result
 
@@ -751,42 +629,19 @@ class CoefficientSurrogate:
             arg1 : Changed argument for template creation.
             arg2 : Changed argument for template creation.
 
-        Returns:
-        --------
-        frequency: array
-            Frequencies outside the training range.
-        inputs: dict
-            Input variables outside the training range.
-        gas_index: dict
-            Gas composition outside the training range.
-
-        Example
+        Returns
         -------
+        tuple
+            Frequencies and input variables outside the training range.
 
+        Examples
+        --------
         >>> import ross.surrogates as sg
-        >>> _radial_clearance = 2.05e-4
-        >>> _reference_temperature = 30
-        >>> bearing = sg.CoefficientSurrogate()
-        >>> freq, inputs, gas_index = bearing.verify_limits_predict(
-        ...     inlet_pressure=Q_(150, "bar"),
-        ...     outlet_pressure=Q_(4, "bar"),
-        ...     inlet_temperature=Q_(40, "degC"),
-        ...     frequency=Q_([16000, 6000], "Hz"),
-        ...     gas_composition = {
-        ...         "METHANE": 99.287,
-        ...         "ETHANE": 5.419,
-        ...         "PROPANE": 3.219,
-        ...         "N-BUTANE": 1.190,
-        ...         "I-BUTANE": 0.500,
-        ...         "N-PENTANE":0.760,
-        ...         "I-PENTANE": 0.280,
-        ...         "N-HEXANE": 0.240,
-        ...         "N2": 0.380,
-        ...         "H2S": 0.017,
-        ...         "CO2": 40.309,
-        ...         "WATER": 0.400,
-        ...         }
-        ...     )
+        >>> bearing = sg.TiltingPadSurrogate()
+        >>> freq, inputs = bearing.verify_limits_predict(
+        ...     frequency=Q_([900, 1100], "RPM"),
+        ...     args={"radial_clearance": 2.05e-4},
+        ... )  # doctest: +SKIP
         """
 
         _index = []
@@ -821,479 +676,7 @@ class CoefficientSurrogate:
                     f"Warning: {self.inputs_model['input_variable'][_num]} - {args[self.inputs_model['input_variable'][_num]]} outside the training range: {np.min(self.inputs_model[self.inputs_model['input_variable'][_num]])} to {np.max(self.inputs_model[self.inputs_model['input_variable'][_num]])}"
                 )
 
-        gas_index = {}
-        if "gas_composition" in args:
-            if max(args["gas_composition"].values()) > 1.0:
-                args["gas_composition"] = {
-                    k: v / 100 for k, v in args["gas_composition"].items()
-                }
-            for _k in range(len(args["gas_composition"])):
-                _max = max(
-                    d[list(args["gas_composition"].keys())[_k]]
-                    for d in self.inputs_model["gas_composition"]
-                )
-                _min = min(
-                    d[list(args["gas_composition"].keys())[_k]]
-                    for d in self.inputs_model["gas_composition"]
-                )
-                if (
-                    args["gas_composition"][list(args["gas_composition"].keys())[_k]]
-                    < _min
-                    or args["gas_composition"][list(args["gas_composition"].keys())[_k]]
-                    > _max
-                ):
-                    gas_index[list(args["gas_composition"].keys())[_k]] = args[
-                        "gas_composition"
-                    ][list(args["gas_composition"].keys())[_k]]
-            if gas_index:
-                log_warning(
-                    f"Warning: gas_composition - {gas_index} outside the training range"
-                )
-
-        return frequency, _index_inputs, gas_index
-
-    @check_units
-    def benchmark(self, name="example", print_result=False, **kwargs):
-        """Performs the performance between the model and the predict , extracting results, times and plot.
-
-        Parameters:
-        -----------
-        name (str, optional): Name bearning of model. Defaults to "example".
-        arg1 (list): Changed argument for template creation.
-        arg2 (list): Changed argument for template creation.
-        print_result (bool, optional): Print results in cmd. Defaults to True.
-
-        Example
-        -------
-
-        >>> import ross.surrogates as sg
-        >>> _radial_clearance = np.linspace(1.75e-4, 2.05e-4, 10)
-        >>> _reference_temperature = np.linspace(30, 50, 100)
-        >>> bearings = sg.CoefficientSurrogate()
-        >>> bench = bearings.benchmark(
-                name="example1",
-                arg1=_radial_clearance2,
-                arg2=_reference_temperature2)
-        """
-
-        _coefs = [
-            "kxx",
-            "kxy",
-            "kyx",
-            "kyy",
-            "cxx",
-            "cxy",
-            "cyx",
-            "cyy",
-        ]
-
-        # self.load(name)  # load model
-        # imported here because the subclasses depend on this module
-        from ross.surrogates.bearings import (
-            MaxBrgSurrogate,
-            PlainJournalSurrogate,
-            TiltingPadSurrogate,
-        )
-
-        arg1 = np.array(kwargs[self.inputs_model["input_variable"][0]])
-        arg2 = np.array(kwargs[self.inputs_model["input_variable"][1]])
-        _inputs = np.array([arg1, arg2])
-
-        self.inputs_model[self.inputs_model["input_variable"][0]] = arg1
-        self.inputs_model[self.inputs_model["input_variable"][1]] = arg2
-
-        if self.inputs_model["model"] == "ross":
-            _node = self.inputs_model["node"]
-            _frequency = self.inputs_model["speed"]
-        else:
-            _node = self.inputs_model["n"]
-            _frequency = self.inputs_model["frequency"]
-            if self.inputs_model["model"] == "hcomb":
-                _frequency = self.inputs_model["speed"]
-
-        valid_cylidrical_bearing = []
-        self.valid_coefs = []
-
-        for coef in _coefs:
-            setattr(self, f"prediction_{coef}", [])
-            self.valid_coefs.append([])
-
-        time_model = 0
-        time_kriging = 0
-
-        _aux_time = time.time()
-
-        if self.inputs_model["model"] == "ross":
-            valid_cylidrical_bearing = PlainJournalSurrogate(
-                metamodel=None,
-                input_variable=self.inputs_model["input_variable"],
-                axial_length=self.inputs_model["axial_length"],
-                journal_radius=self.inputs_model["journal_radius"],
-                radial_clearance=self.inputs_model["radial_clearance"],
-                elements_circumferential=self.inputs_model["elements_circumferential"],
-                elements_axial=self.inputs_model["elements_axial"],
-                n_y=self.inputs_model["n_y"],
-                n_pad=self.inputs_model["n_pad"],
-                pad_arc_length=self.inputs_model["pad_arc_length"],
-                reference_temperature=self.inputs_model["reference_temperature"],
-                reference_viscosity=self.inputs_model["reference_viscosity"],
-                speed=self.inputs_model["speed"],
-                load_x_direction=self.inputs_model["load_x_direction"],
-                load_y_direction=self.inputs_model["load_y_direction"],
-                groove_factor=self.inputs_model["groove_factor"],
-                lubricant=self.inputs_model["lubricant"],
-                node=self.inputs_model["node"],
-                sommerfeld_type=self.inputs_model["sommerfeld_type"],
-                initial_guess=self.inputs_model["initial_guess"],
-                method=self.inputs_model["method"],
-                show_coef=self.inputs_model["show_coef"],
-                print_result=self.inputs_model["print_result"],
-                print_progress=self.inputs_model["print_progress"],
-                print_time=self.inputs_model["print_time"],
-            )
-
-        elif self.inputs_model["model"] == "maxbrg":
-            valid_cylidrical_bearing = MaxBrgSurrogate(
-                metamodel=None,
-                input_variable=self.inputs_model["input_variable"],
-                n=self.inputs_model["n"],
-                frequency=self.inputs_model["frequency"],
-                probes=self.inputs_model["probes"],
-                total_ex_film=self.inputs_model["total_ex_film"],
-                total_ey_film=self.inputs_model["total_ey_film"],
-                total_ez_film=self.inputs_model["total_ez_film"],
-                total_ey_pad=self.inputs_model["total_ey_pad"],
-                bearing_type=self.inputs_model["bearing_type"],
-                operating_type=self.inputs_model["operating_type"],
-                thermal_type=self.inputs_model["thermal_type"],
-                temp_j_type=self.inputs_model["temp_j_type"],
-                deform_type=self.inputs_model["deform_type"],
-                equilibrium_type=self.inputs_model["equilibrium_type"],
-                sump_type=self.inputs_model["sump_type"],
-                journal_diameter=self.inputs_model["journal_diameter"],
-                radial_clearance=self.inputs_model["radial_clearance"],
-                pad_thickness=self.inputs_model["pad_thickness"],
-                pivot_angle=self.inputs_model["pivot_angle"],
-                pad_arc=self.inputs_model["pad_arc"],
-                pad_axial_length=self.inputs_model["pad_axial_length"],
-                preload=self.inputs_model["preload"],
-                offset=self.inputs_model["offset"],
-                taper_depth_le=self.inputs_model["taper_depth_le"],
-                taper_arc_le=self.inputs_model["taper_arc_le"],
-                taper_depth_te=self.inputs_model["taper_depth_te"],
-                taper_arc_te=self.inputs_model["taper_arc_te"],
-                pad_convection=self.inputs_model["pad_convection"],
-                pad_conductivity=self.inputs_model["pad_conductivity"],
-                pad_expansion=self.inputs_model["pad_expansion"],
-                pad_density=self.inputs_model["pad_density"],
-                pad_E=self.inputs_model["pad_E"],
-                pad_poisson=self.inputs_model["pad_poisson"],
-                track_arc=self.inputs_model["track_arc"],
-                track_axial_length=self.inputs_model["track_axial_length"],
-                track_depth=self.inputs_model["track_depth"],
-                pocket_arc=self.inputs_model["pocket_arc"],
-                pocket_axial_length=self.inputs_model["pocket_axial_length"],
-                lubricant=self.inputs_model["lubricant"],
-                journal_expansion=self.inputs_model["journal_expansion"],
-                shell_expansion=self.inputs_model["shell_expansion"],
-                house_diameter=self.inputs_model["house_diameter"],
-                pivot_type=self.inputs_model["pivot_type"],
-                pivot_diameter=self.inputs_model["pivot_diameter"],
-                pivot_stiffness=self.inputs_model["pivot_stiffness"],
-                sump_convect_area=self.inputs_model["sump_convect_area"],
-                environment_temperature=self.inputs_model["environment_temperature"],
-                environment_convection=self.inputs_model["environment_convection"],
-                weight=self.inputs_model["weight"],
-                fxs_load=self.inputs_model["fxs_load"],
-                fys_load=self.inputs_model["fys_load"],
-                oil_flow_v=self.inputs_model["oil_flow_v"],
-                excit_ratios=self.inputs_model["excit_ratios"],
-                xj=self.inputs_model["xj"],
-                yj=self.inputs_model["yj"],
-                ambient_pressure_1=self.inputs_model["ambient_pressure_1"],
-                ambient_pressure_2=self.inputs_model["ambient_pressure_2"],
-                cavitation_pressure=self.inputs_model["cavitation_pressure"],
-                oil_supply_pressure=self.inputs_model["oil_supply_pressure"],
-                oil_supply_temperature=self.inputs_model["oil_supply_temperature"],
-                reference_temperature=self.inputs_model["reference_temperature"],
-                edges_convection=self.inputs_model["edges_convection"],
-                crush_fit=self.inputs_model["crush_fit"],
-                shell_id=self.inputs_model["shell_id"],
-                shell_od=self.inputs_model["shell_od"],
-                journal_temperature=self.inputs_model["journal_temperature"],
-                ambient_temperature=self.inputs_model["ambient_temperature"],
-                starv_number=self.inputs_model["starv_number"],
-                hot_oil_lamda=self.inputs_model["hot_oil_lamda"],
-                relax_p=self.inputs_model["relax_p"],
-                relax_t=self.inputs_model["relax_t"],
-                relax_d=self.inputs_model["relax_d"],
-                relax_pivot=self.inputs_model["relax_pivot"],
-                re_lower=self.inputs_model["re_lower"],
-                re_upper=self.inputs_model["re_upper"],
-                weight_e=self.inputs_model["weight_e"],
-                weight_h=self.inputs_model["weight_h"],
-            )
-
-        elif self.inputs_model["model"] == "tiltingpad":
-            valid_cylidrical_bearing = TiltingPadSurrogate(
-                metamodel=None,
-                input_variable=self.inputs_model["input_variable"],
-                frequency=self.inputs_model["frequency"],
-                **{
-                    name: self.inputs_model[name]
-                    for name in TiltingPadSurrogate._bearing_arguments
-                },
-            )
-
-        elif self.inputs_model["model"] == "laby3":
-            valid_cylidrical_bearing = Laby3Surrogate(
-                metamodel=None,
-                input_variable=self.inputs_model["input_variable"],
-                n=self.inputs_model["n"],
-                inlet_pressure=self.inputs_model["inlet_pressure"],
-                outlet_pressure=self.inputs_model["outlet_pressure"],
-                inlet_temperature=self.inputs_model["inlet_temperature"],
-                inlet_swirl_velocity=self.inputs_model["inlet_swirl_velocity"],
-                frequency=self.inputs_model["frequency"],
-                n_teeth=self.inputs_model["n_teeth"],
-                shaft_radius=self.inputs_model["shaft_radius"],
-                radial_clearance=self.inputs_model["radial_clearance"],
-                pitch=self.inputs_model["pitch"],
-                tooth_height=self.inputs_model["tooth_height"],
-                tooth_width=self.inputs_model["tooth_width"],
-                seal_type=self.inputs_model["seal_type"],
-                gas_composition=self.inputs_model["gas_composition"],
-            )
-
-        elif self.inputs_model["model"] == "hcomb":
-            valid_cylidrical_bearing = HcombSurrogate(
-                metamodel=None,
-                input_variable=self.inputs_model["input_variable"],
-                num_inital_samples=self.inputs_model["num_inital_samples"],
-                step_num_inital_samples=self.inputs_model["step_num_inital_samples"],
-                coef_R2=self.inputs_model["coef_R2"],
-                n=self.inputs_model["n"],
-                length=self.inputs_model["length"],
-                radius=self.inputs_model["radius"],
-                clearance=self.inputs_model["clearance"],
-                roughness=self.inputs_model["roughness"],
-                cell_length=self.inputs_model["cell_length"],
-                cell_width=self.inputs_model["cell_width"],
-                cell_depth=self.inputs_model["cell_depth"],
-                inlet_pressure=self.inputs_model["inlet_pressure"],
-                outlet_pressure=self.inputs_model["outlet_pressure"],
-                inlet_temperature=self.inputs_model["inlet_temperature"],
-                speed=self.inputs_model["speed"],
-                preswirl=self.inputs_model["preswirl"],
-                entr_coef=self.inputs_model["entr_coef"],
-                exit_coef=self.inputs_model["exit_coef"],
-                gas_composition=self.inputs_model["gas_composition"],
-                print_result=self.inputs_model["print_result"],
-                print_time=self.inputs_model["print_time"],
-            )
-
-        elif self.inputs_model["model"] == "labyrinthseal":
-            valid_cylidrical_bearing = LabyrinthSealSurrogate(
-                metamodel=None,
-                input_variable=self.inputs_model["input_variable"],
-                n=self.inputs_model["n"],
-                inlet_pressure=self.inputs_model["inlet_pressure"],
-                outlet_pressure=self.inputs_model["outlet_pressure"],
-                inlet_temperature=self.inputs_model["inlet_temperature"],
-                inlet_swirl_velocity=self.inputs_model["inlet_swirl_velocity"],
-                frequency=self.inputs_model["frequency"],
-                n_teeth=self.inputs_model["n_teeth"],
-                shaft_radius=self.inputs_model["shaft_radius"],
-                radial_clearance=self.inputs_model["radial_clearance"],
-                pitch=self.inputs_model["pitch"],
-                tooth_height=self.inputs_model["tooth_height"],
-                tooth_width=self.inputs_model["tooth_width"],
-                seal_type=self.inputs_model["seal_type"],
-                gas_composition=self.inputs_model["gas_composition"],
-            )
-        time_model = time.time()
-        result_predict = []
-        _element = "cylidrical_bearing"
-        if self.inputs_model["model"] == "laby3":
-            _element = "seal_laby3"
-        elif self.inputs_model["model"] == "hcomb":
-            _element = "seal_hcomb"
-        elif self.inputs_model["model"] == "labyrinthseal":
-            _element = "labyrinthseal"
-
-        for i in range(_inputs[0].size):
-            # getattr(self, f"prediction_{coef}").append(getattr(self,f"sm_{coef}").predict_values(np.array([[_inputs[0,i],_inputs[1,i]],[_inputs[0,i],_inputs[1,i]]]))[0])
-            for num, coef in enumerate(_coefs):
-                self.valid_coefs[num].append(
-                    getattr(
-                        getattr(valid_cylidrical_bearing, _element)[i],
-                        f"{coef}",
-                    )
-                )
-                # getattr(self, f"prediction_{coef}").append(getattr(self,f"sm_{coef}").predict_values(np.array([[_inputs[0,i],_inputs[1,i]],[_inputs[0,i],_inputs[1,i]]]))[0])
-                getattr(self, f"prediction_{coef}").append(
-                    getattr(self, f"sm_{coef}").predict_values(
-                        np.array([[arg1[i], arg2[i]], [arg1[i], arg2[i]]])
-                    )[0][0]
-                )
-
-            if (
-                self.inputs_model["model"] in "maxbrg"
-                or self.inputs_model["model"] in "ross"
-                or self.inputs_model["model"] == "tiltingpad"
-            ):
-                result_predict.append(
-                    BearingElement(
-                        n=_node,
-                        kxx=self.prediction_kxx[0],
-                        cxx=self.prediction_cxx[0],
-                        kyy=self.prediction_kyy[0],
-                        kxy=self.prediction_kxy[0],
-                        kyx=self.prediction_kyx[0],
-                        cyy=self.prediction_cyy[0],
-                        cxy=self.prediction_cxy[0],
-                        cyx=self.prediction_cyx[0],
-                        frequency=_frequency,
-                    )
-                )
-            else:
-                result_predict.append(
-                    SealElement(
-                        n=_node,
-                        kxx=self.prediction_kxx[0],
-                        cxx=self.prediction_cxx[0],
-                        kyy=self.prediction_kyy[0],
-                        kxy=self.prediction_kxy[0],
-                        kyx=self.prediction_kyx[0],
-                        cyy=self.prediction_cyy[0],
-                        cxy=self.prediction_cxy[0],
-                        cyx=self.prediction_cyx[0],
-                        frequency=_frequency,
-                    )
-                )
-
-            if print_result == True:
-                print("*------------------------------------------------*")
-                for num, coef in enumerate(_coefs):
-                    _model = self.inputs_model["model"]
-                    _coef_metamodel = getattr(
-                        getattr(valid_cylidrical_bearing, _element)[i],
-                        f"{coef}",
-                    )
-                    _metamodel = self.inputs_model["metamodel"]
-                    _coef_predict = getattr(result_predict[i], coef)
-                    print(f"{coef}_{_model} = {_coef_metamodel}")
-                    print(f"{coef}_predict_{_metamodel} = {_coef_predict}")
-                    print("*------------------------------------------------*")
-
-        time_kriging = time.time()
-
-        for coef in _coefs:
-            setattr(self, f"prediction_{coef}", [])
-        for i in range(_inputs[0].size):
-            for coef in _coefs:
-                getattr(self, f"prediction_{coef}").append(
-                    getattr(result_predict[i], coef)
-                )
-
-        self._plot(self.inputs_model["name"], self.inputs_model["model"])
-        _model = self.inputs_model["model"]
-        print(f"Time {_model} model: {time_model - _aux_time:.2f} seg")
-        print(f"Time kriging: {time_kriging - time_model:.2f} seg")
-
-    def _plot(self, name="example", model="ross"):
-        line_styles = [
-            {"color": "goldenrod", "width": 5},
-            {"color": "magenta", "width": 4},
-            {"color": "green", "width": 3},
-            {"color": "red", "width": 2},
-        ]
-        name_coefs = ["xx", "xy", "yx", "yy"]
-
-        _frequency = self.inputs_model["frequency"]
-        if (
-            self.inputs_model["model"] in "ross"
-            or self.inputs_model["model"] in "hcomb"
-        ):
-            _frequency = self.inputs_model["speed"]
-
-        for f, _freq in enumerate(_frequency):
-            fig_k = go.Figure()
-            fig_c = go.Figure()
-
-            for i, y_values in enumerate(
-                [
-                    self.prediction_kxx,
-                    self.prediction_kxy,
-                    self.prediction_kyx,
-                    self.prediction_kyy,
-                ]
-            ):
-                prediction_k_values = [y_values[y][f] for y in range(len(y_values))]
-                fig_k.add_trace(
-                    go.Scatter(
-                        y=prediction_k_values,
-                        name=f"k{name_coefs[i]}",
-                        legendgrouptitle_text=name,
-                        legendgroup=name,
-                        line=line_styles[i],
-                    )
-                )
-
-            for i, y_values in enumerate(self.valid_coefs[:4]):
-                k_values = [y_values[y][f] for y in range(len(y_values))]
-                fig_k.add_trace(
-                    go.Scatter(
-                        y=k_values,
-                        name=f"k{name_coefs[i]}",
-                        legendgrouptitle_text=model,
-                        legendgroup=model,
-                        line=dict(line_styles[i], dash="dash"),
-                    )
-                )
-
-            for i, y_values in enumerate(
-                [
-                    self.prediction_cxx,
-                    self.prediction_cxy,
-                    self.prediction_cyx,
-                    self.prediction_cyy,
-                ]
-            ):
-                prediction_c_values = [y_values[y][f] for y in range(len(y_values))]
-                fig_c.add_trace(
-                    go.Scatter(
-                        y=prediction_c_values,
-                        name=f"c{name_coefs[i]}",
-                        legendgrouptitle_text=name,
-                        legendgroup=name,
-                        line=line_styles[i],
-                    )
-                )
-
-            for i, y_values in enumerate(self.valid_coefs[4:]):
-                c_values = [y_values[y][f] for y in range(len(y_values))]
-                fig_c.add_trace(
-                    go.Scatter(
-                        y=c_values,
-                        name=f"c{name_coefs[i]}",
-                        legendgrouptitle_text=model,
-                        legendgroup=model,
-                        line=dict(line_styles[i], dash="dash"),
-                    )
-                )
-
-            freq_rpm = Q_(_freq, "rad/s").to("rpm").m
-            _title = f"Frequency: {freq_rpm} rpm"
-            fig_k.update_xaxes(title_text="Sample")
-            fig_k.update_yaxes(title_text="N/m")
-            fig_k.update_layout(title_text=_title)
-            fig_c.update_xaxes(title_text="Sample")
-            fig_c.update_yaxes(title_text="Ns/m")
-            fig_c.update_layout(title_text=_title)
-
-            fig_k.show()
-            fig_c.show()
+        return frequency, _index_inputs
 
     def _size_samples(self, N=5, inputs=None):
         """Generate samples uniformly from past data."""
@@ -1321,13 +704,6 @@ class CoefficientSurrogate:
         else:
             sampling = FullFactorial(xlimits=np.array(_limits))(N)
 
-        # valid inlet_pressure > outlet_pressure (test olny laby3)
-        if "laby3" in inputs["model"] or "labyrinthseal" in inputs["model"]:
-            valid_sampling = sampling.copy()
-            filter_samples = valid_sampling[valid_sampling[:, 1] > valid_sampling[:, 2]]
-            sampling = filter_samples
-        # end
-
         _name_data = ["frequency"]
         _name_data = np.append(_name_data, inputs["input_variable"])
         df = pd.DataFrame(sampling, columns=_name_data)
@@ -1337,61 +713,6 @@ class CoefficientSurrogate:
             inputs[inputs["input_variable"][i]] = np.array(
                 df[inputs["input_variable"][i]]
             )
-
-        if "gas_composition" in inputs:
-            _key, _value = next(iter(inputs["gas_composition"].items()))
-            if isinstance(_value, tuple):
-                self.name_gases = list(inputs["gas_composition"].keys())
-                gas_composition = []
-                for _ in range(sampling.shape[0]):
-                    if inputs["distribution"] != "FullFactorial":
-                        sample = {
-                            gas: np.random.uniform(low=min_val, high=max_val)
-                            for gas, (min_val, max_val) in inputs[
-                                "gas_composition"
-                            ].items()
-                        }
-                    else:
-                        rng = np.random.default_rng()
-                        sample = {
-                            gas: rng.uniform(min_val, max_val)
-                            for gas, (min_val, max_val) in inputs[
-                                "gas_composition"
-                            ].items()
-                        }
-                    total = sum(sample.values())
-                    sample = {gas: value / total for gas, value in sample.items()}
-                    gas_composition.append(sample)
-
-                inputs["gas_composition"] = gas_composition
-
-                # Cria os vetores de cada gas
-                self.gas = {}
-                for sample in inputs["gas_composition"]:
-                    for gas_name, value in sample.items():
-                        if gas_name not in self.gas:
-                            self.gas[
-                                gas_name
-                            ] = []  # Criar uma lista vazia se ainda não existir
-                        self.gas[gas_name].append(value)
-
-        if self.old_num_min_sample != 5 and self.old_num_min_sample != N:
-            old_arg1 = np.random.uniform(
-                inputs[inputs["input_variable"][0]][0],
-                inputs[inputs["input_variable"][0]][1],
-                self.old_num_min_sample,
-            )
-            if len(inputs["input_variable"]) > 1:
-                old_arg2 = np.random.uniform(
-                    inputs[inputs["input_variable"][1]][0],
-                    inputs[inputs["input_variable"][1]][1],
-                    self.old_num_min_sample,
-                )
-
-            for i in range(self.old_num_min_sample):  # remove arguments calculated
-                arg1 = np.delete(arg1, np.where(arg1 == old_arg1[i]))
-                if len(inputs["input_variable"]) > 1:
-                    arg2 = np.delete(arg2, np.where(arg2 == old_arg2[i]))
 
         self.old_num_min_sample = N
 
@@ -1553,18 +874,6 @@ class CoefficientSurrogate:
             fieldnames = np.append(
                 fieldnames, list(inputs.get("coef_names", self._default_coef_names))
             )
-            if "gas_constant" in coefs and coefs["gas_constant"]:
-                fieldnames = np.append(
-                    fieldnames,
-                    [
-                        "gas_constant",
-                        "ratio_specific_heats",
-                        "tz1",
-                        "muz1",
-                        "tz2",
-                        "muz2",
-                    ],
-                )
             with open(path, "w", newline="") as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
@@ -1580,17 +889,6 @@ class CoefficientSurrogate:
             _sample[inputs["input_variable"][j]] = inputs[inputs["input_variable"][j]]
         for k in inputs.get("coef_names", self._default_coef_names):
             _sample[k] = coefs[k][-1]
-
-        if "gas_constant" in coefs and coefs["gas_constant"]:
-            for j in [
-                "gas_constant",
-                "ratio_specific_heats",
-                "tz1",
-                "muz1",
-                "tz2",
-                "muz2",
-            ]:
-                _sample[j] = coefs[j][-1]
 
         fieldnames = list(_sample.keys())
         with open(path, mode="a", newline="") as f:

@@ -7,7 +7,7 @@ from ross.units import check_units
 from tqdm import tqdm
 import pandas as pd
 import ast
-from rossml.surrogates.surrogate_core import CoefficientSurrogate
+from ross.surrogates.surrogate_core import CoefficientSurrogate
 
 
 class PlainJournalSurrogate(CoefficientSurrogate):
@@ -110,10 +110,10 @@ class PlainJournalSurrogate(CoefficientSurrogate):
 
     Examples
     --------
-    >>> import rossml as rsml
+    >>> import ross.surrogates as sg
     >>> _radial_clearance = [1.75e-4, 2.05e-4]
     >>> _reference_temperature = [30, 50]
-    >>> bearing = rsml.PlainJournal(
+    >>> bearing = sg.PlainJournal(
     ...         metamodel="KGR",
     ...         input_variable=["radial_clearance","reference_temperature"],
     ...         num_inital_samples=5,
