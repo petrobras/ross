@@ -4,10 +4,12 @@
 import os
 import tempfile
 
+import pytest
+
 os.environ.setdefault("DT_SESSIONS_DIR", tempfile.mkdtemp(prefix="dt-sessions-"))
 
 from ross.interface.tests.dt_app import HEADERS, create_app, requires_dt_app
-from ross.interface.extensions.digital_twin.domain import equipment, session
+from ross.interface.extensions.digital_twin.domain import equipment, network, session
 from ross.interface.extensions.digital_twin.services.digital_twin import (
     create_model,
     load_process_data,
@@ -19,25 +21,20 @@ PI_TIME = "2026/11/11 00:00:00"
 pytestmark = requires_dt_app
 
 
+@pytest.fixture(autouse=True)
+def inside_network(monkeypatch):
+    monkeypatch.setattr(network, "on_corporate_network", lambda: True)
+
+
 def _all_equipment():
     return [item for platform in equipment.catalog() for item in platform["equipment"]]
 
 
-def test_lmest_is_available_and_streamlit_models_are_not():
+def test_streamlit_models_are_not_refused_for_importing_streamlit():
     items = {item["tag"]: item for item in _all_equipment()}
     assert items[LMEST]["available"]
-    assert not items["P77-C-UC-1254001 A-LP"]["available"]
-    assert "Streamlit" in items["P77-C-UC-1254001 A-LP"]["reason"]
-
-
-def test_a_streamlit_model_is_refused_before_import():
-    current = session.create()
-    try:
-        load_process_data(current.id, "P77-C-UC-1254001 A-LP", PI_TIME, "clockwise")
-    except ValueError as error:
-        assert "Streamlit" in str(error)
-    else:
-        raise AssertionError("a Streamlit model should not run here")
+    for item in items.values():
+        assert "Streamlit" not in item["reason"], item
 
 
 def test_unknown_tag_and_bad_time_are_refused():

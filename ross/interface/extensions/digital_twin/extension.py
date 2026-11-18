@@ -16,5 +16,7 @@ EXTENSION = Extension(
     script="main.js",
     styles=("style.css",),
     home="home.html",
+    hub="hub.html",
+    analysis="analysis.html",
     screens="screens.html",
 )

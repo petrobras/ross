@@ -2,7 +2,7 @@
     <div id="screen-dt" class="screen">
         <div class="topbar">
             <div class="topbar-left">
-                <button class="btn-back" data-action="show-screen" data-screen="screen-home" title="Voltar ao Início" data-i18n-title="backToHome"><i class="fas fa-arrow-left"></i></button>
+                <button class="btn-back" data-action="open-hub" title="Back to Hub" data-i18n-title="backToHub"><i class="fas fa-arrow-left"></i></button>
                 <button class="btn-toggle-sidebar" data-action="dt-toggle-sidebar" data-target="dt-sidebar" title="Mostrar/ocultar painel" data-i18n-title="toggleSidebar"><i class="fas fa-bars"></i></button>
                 <button class="btn-help-general" data-action="dt-help" data-help="dt-dt" title="Como usar" data-i18n-title="howToUse"><i class="fas fa-question-circle"></i></button>
             </div>
@@ -21,16 +21,18 @@
         <div class="modeling-layout">
             <div class="sidebar" id="dt-sidebar">
                 <button class="tab-btn active" data-action="dt-panel" data-tab-group="dt" data-tab="equipment" data-i18n="dtStepEquipment">1. Equipamento</button>
-                <button class="tab-btn" data-action="dt-panel" data-tab-group="dt" data-tab="process" data-i18n="dtStepProcess">2. Dados de Processo</button>
+                <button class="tab-btn" id="dt-tab-process" data-action="dt-panel" data-tab-group="dt" data-tab="process" data-i18n="dtStepProcess">2. Dados de Processo</button>
                 <button class="tab-btn" data-action="dt-panel" data-tab-group="dt" data-tab="model" data-i18n="dtStepModel">3. Modelo</button>
+                <button class="tab-btn" data-action="dt-panel" data-tab-group="dt" data-tab="balancing" data-i18n="dtStepBalancing">4. Balanceamento</button>
             </div>
 
             <div class="dynamic-panel">
                 <div data-panel-group="dt" data-panel="equipment">
                     <h3 class="panel-title" data-i18n="dtStepEquipment">1. Equipamento</h3>
+                    <p class="panel-hint dt-network-note" id="dt-network-note" style="display: none;"></p>
                     <div class="form-box">
-                        <div class="input-group"><label data-i18n="dtPlatform">Plataforma</label><select id="dt-platform"></select></div>
-                        <div class="input-group"><label data-i18n="dtEquipment">Equipamento</label><select id="dt-equipment"></select></div>
+                        <div class="input-group" id="dt-platform-group"><label data-i18n="dtPlatform">Plataforma</label><select id="dt-platform"></select></div>
+                        <div class="input-group"><label id="dt-equipment-label" data-i18n="dtEquipment">Equipamento</label><select id="dt-equipment"></select></div>
                         <div class="input-group">
                             <label data-i18n="dtRotation">Sentido de rotação</label>
                             <select id="dt-rotation">
@@ -49,6 +51,13 @@
                             <div class="input-group"><label data-i18n="dtDate">Data</label><input id="dt-date" type="date"></div>
                             <div class="input-group"><label data-i18n="dtTime">Hora inicial</label><input id="dt-time" type="time" step="1" value="00:00:00"></div>
                         </div>
+                        <div class="input-group">
+                            <label data-i18n="dtSource">Origem dos dados</label>
+                            <select id="dt-source">
+                                <option value="pi" data-i18n="dtSourcePi">PI Data</option>
+                                <option value="sample" data-i18n="dtSourceSample">Dados de amostra do modelo</option>
+                            </select>
+                        </div>
                         <p class="panel-hint" data-i18n="dtNullWarning">Valores nulos nos dados selecionados podem comprometer a construção do modelo.</p>
                         <button type="button" id="dt-load" class="btn-primary"><i class="fas fa-database"></i> <span data-i18n="dtLoadData">Carregar dados</span></button>
                     </div>
@@ -58,7 +67,35 @@
                     <h3 class="panel-title" data-i18n="dtStepModel">3. Modelo</h3>
                     <div class="form-box">
                         <p class="panel-hint" data-i18n="dtModelHint">O modelo é construído a partir dos dados de processo da etapa 2.</p>
+                        <div id="dt-settings"></div>
                         <button type="button" id="dt-create" class="btn-primary" disabled><i class="fas fa-cogs"></i> <span data-i18n="dtCreateModel">Criar modelo</span></button>
+                        <button type="button" id="dt-to-hub" class="btn-secondary" disabled style="margin-top: 10px;"><i class="fas fa-layer-group"></i> <span data-i18n="dtOpenInHub">Abrir no Rotor Hub</span></button>
+                    </div>
+                </div>
+
+                <div data-panel-group="dt" data-panel="balancing" style="display: none;">
+                    <h3 class="panel-title" data-i18n="dtStepBalancing">4. Balanceamento</h3>
+                    <p class="panel-hint" id="dt-planes-need-model" data-i18n="dtPlanesNeedModel">Crie o modelo (etapa 3) para escolher os planos.</p>
+                    <div id="dt-planes-form" style="display: none;">
+                        <div class="form-box">
+                            <h4 data-i18n="dtMeasuringPlanes">Planos de medição</h4>
+                            <div class="dt-plane-picker">
+                                <div class="input-group"><label data-i18n="dtNode">Nó</label><select id="dt-measuring-node"></select></div>
+                                <button type="button" class="btn-secondary" data-action="dt-plane-add" data-kind="measuring" title="Adicionar" data-i18n-title="dtAdd"><i class="fas fa-plus"></i></button>
+                                <button type="button" class="btn-secondary" data-action="dt-plane-remove" data-kind="measuring" title="Remover" data-i18n-title="dtRemove"><i class="fas fa-minus"></i></button>
+                            </div>
+                            <p class="dt-plane-list" id="dt-measuring-list"></p>
+                        </div>
+                        <div class="form-box">
+                            <h4 data-i18n="dtBalancingPlanes">Planos de balanceamento</h4>
+                            <div class="dt-plane-picker">
+                                <div class="input-group"><label data-i18n="dtNode">Nó</label><select id="dt-balancing-node"></select></div>
+                                <button type="button" class="btn-secondary" data-action="dt-plane-add" data-kind="balancing" title="Adicionar" data-i18n-title="dtAdd"><i class="fas fa-plus"></i></button>
+                                <button type="button" class="btn-secondary" data-action="dt-plane-remove" data-kind="balancing" title="Remover" data-i18n-title="dtRemove"><i class="fas fa-minus"></i></button>
+                            </div>
+                            <p class="dt-plane-list" id="dt-balancing-list"></p>
+                        </div>
+                        <p class="panel-hint" id="dt-sensors-status"></p>
                     </div>
                 </div>
 
@@ -73,6 +110,17 @@
                     <span><span data-i18n="totalMass">Massa Total:</span> <span id="dt-info-mass" class="info-value">-</span> kg</span>
                     <span><span data-i18n="dtInfoDisks">Discos:</span> <span id="dt-info-disks" class="info-value">-</span></span>
                     <span><span data-i18n="dtInfoBearings">Mancais:</span> <span id="dt-info-bearings" class="info-value">-</span></span>
+                </div>
+
+                <div class="analysis-card" id="dt-sensors-card" style="display: none;">
+                    <div class="analysis-header" data-action="dt-collapse" data-target="dt-sensors-body">
+                        <span class="analysis-title"><i class="fas fa-wave-square"></i> <span data-i18n="dtSensors">Sensores</span></span>
+                        <span class="analysis-actions"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="analysis-body" id="dt-sensors-body">
+                        <p class="panel-hint" data-i18n="dtSensorsHint">Para cada plano de medição, envie o sinal (.csv separado por ;) dos sensores X e Y e clique em Aplicar. O sensor Y fica 90° depois do sensor X.</p>
+                        <div id="dt-sensors" class="dt-sensor-grid"></div>
+                    </div>
                 </div>
 
                 <div id="dt-plot" class="live-plot-area">

@@ -1,15 +1,45 @@
 # -*- coding: utf-8 -*-
-"""Digital Twin routes. The work lives in services.digital_twin."""
+"""Digital Twin routes. The work lives in services.digital_twin.
 
-from flask import Blueprint, jsonify, request
+The routes that read a pre-established equipment model or process data first
+check that this computer is on the Petrobras network (`domain/network.py`).
+The others work on a rotor of the user's own Rotor Hub and answer anywhere.
+"""
 
-from ross.interface.extensions.digital_twin.domain import equipment, session
+from flask import Blueprint, abort, jsonify, request
+
+from ross.interface.extensions.digital_twin.domain import equipment, network, session
 from ross.interface.extensions.digital_twin.services.digital_twin import (
     create_model,
+    create_user_model,
     load_process_data,
+    model_settings_for,
+    rotor_project,
+)
+from ross.interface.extensions.digital_twin.services.measurement import (
+    apply_sensor,
+    set_planes,
 )
 
 digital_twin = Blueprint("dt_digital_twin", __name__)
+
+NETWORK_ROUTES = {
+    "dt_digital_twin.equipment_list",
+    "dt_digital_twin.model_settings",
+    "dt_digital_twin.process_data",
+    "dt_digital_twin.model",
+    "dt_digital_twin.project",
+}
+
+
+@digital_twin.before_request
+def require_corporate_network():
+    """Refuse the pre-established model routes with 403 outside the Petrobras network."""
+    if request.endpoint not in NETWORK_ROUTES:
+        return None
+    if not network.on_corporate_network():
+        abort(403, description=network.refusal())
+    return None
 
 
 def _body():
@@ -19,10 +49,25 @@ def _body():
     return payload
 
 
+@digital_twin.route("/api/dt/network")
+def network_status():
+    """Tell whether the pre-established models can be used from here."""
+    available = network.on_corporate_network()
+    return jsonify(
+        {"available": available, "message": "" if available else network.refusal()}
+    )
+
+
 @digital_twin.route("/api/dt/equipment")
 def equipment_list():
     """List platforms and tags, saying which models run here."""
     return jsonify({"platforms": equipment.catalog()})
+
+
+@digital_twin.route("/api/dt/model-settings")
+def model_settings():
+    """Return the additional settings of the chosen equipment's model."""
+    return jsonify(model_settings_for(request.args.get("equipment")))
 
 
 @digital_twin.route("/api/dt/session", methods=["POST"])
@@ -42,6 +87,7 @@ def process_data():
             body.get("equipment"),
             body.get("pi_time"),
             body.get("rotation"),
+            body.get("source", "pi"),
         )
     )
 
@@ -49,4 +95,52 @@ def process_data():
 @digital_twin.route("/api/dt/model", methods=["POST"])
 def model():
     """Create the rotor model and return its figure."""
-    return jsonify(create_model(_body().get("session")))
+    body = _body()
+    return jsonify(create_model(body.get("session"), body.get("settings")))
+
+
+@digital_twin.route("/api/dt/user-model", methods=["POST"])
+def user_model():
+    """Use a rotor of the user's Rotor Hub as the session's model."""
+    body = _body()
+    return jsonify(
+        create_user_model(
+            body.get("session"),
+            body.get("project"),
+            body.get("name"),
+            body.get("rotation", "clockwise"),
+        )
+    )
+
+
+@digital_twin.route("/api/dt/project", methods=["POST"])
+def project():
+    """Return the session's rotor as a Rotor Hub project."""
+    return jsonify(rotor_project(_body().get("session")))
+
+
+@digital_twin.route("/api/dt/planes", methods=["POST"])
+def planes():
+    """Replace the measuring and balancing planes of the session."""
+    body = _body()
+    return jsonify(
+        set_planes(
+            body.get("session"), body.get("measuring", []), body.get("balancing", [])
+        )
+    )
+
+
+@digital_twin.route("/api/dt/sensor", methods=["POST"])
+def sensor():
+    """Apply one sensor: its angle and, when sent, its waveform CSV."""
+    body = _body()
+    return jsonify(
+        apply_sensor(
+            body.get("session"),
+            body.get("node"),
+            body.get("plane"),
+            body.get("angle"),
+            body.get("filename"),
+            body.get("content"),
+        )
+    )

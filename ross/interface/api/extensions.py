@@ -23,6 +23,10 @@ What an extension brings:
 * `styles`: stylesheets inside `static_dir`.
 * `home`: an HTML file inside `static_dir` with the buttons the home screen
   shows for this extension.
+* `hub`: an HTML file inside `static_dir` with the buttons the header of the
+  Rotor Hub ("My Rotors") shows for this extension.
+* `analysis`: an HTML file inside `static_dir` with the buttons the top bar
+  of the analysis screen ("ROSS - Analysis") shows for this extension.
 * `screens`: an HTML file inside `static_dir` with the extension's screens.
 
 The HTML is inserted into `index.html` by the server, before the page reaches
@@ -45,7 +49,17 @@ BUILT_IN = ("ross.interface.extensions.digital_twin.extension:EXTENSION",)
 NAME = re.compile(r"[a-z][a-z0-9_-]{0,39}")
 
 HOME_MARKER = "<!-- extensions:home -->"
+HUB_MARKER = "<!-- extensions:hub -->"
+ANALYSIS_MARKER = "<!-- extensions:analysis -->"
 SCREENS_MARKER = "<!-- extensions:screens -->"
+
+# Each HTML fragment of an extension, and the marker of index.html it replaces.
+FRAGMENTS = {
+    "home": HOME_MARKER,
+    "hub": HUB_MARKER,
+    "analysis": ANALYSIS_MARKER,
+    "screens": SCREENS_MARKER,
+}
 
 
 class Extension:
@@ -66,6 +80,11 @@ class Extension:
         Stylesheets, relative to `static_dir`.
     home : str, optional
         HTML file with the home screen buttons, relative to `static_dir`.
+    hub : str, optional
+        HTML file with the Rotor Hub header buttons, relative to `static_dir`.
+    analysis : str, optional
+        HTML file with the analysis screen top bar buttons, relative to
+        `static_dir`.
     screens : str, optional
         HTML file with the extension's screens, relative to `static_dir`.
     """
@@ -79,6 +98,8 @@ class Extension:
         styles=(),
         home=None,
         screens=None,
+        hub=None,
+        analysis=None,
     ):
         if not isinstance(name, str) or not NAME.fullmatch(name):
             raise ValueError("Invalid extension name: %r" % (name,))
@@ -92,6 +113,8 @@ class Extension:
         self.script = script
         self.styles = tuple(styles)
         self.home = home
+        self.hub = hub
+        self.analysis = analysis
         self.screens = screens
 
     def url(self, path):
@@ -150,12 +173,11 @@ def installed(app=None):
 
 
 def insert_into_page(html, extensions):
-    """Put each extension's styles, script, home buttons and screens in the page."""
+    """Put each extension's styles, script, buttons and screens in the page."""
     if not extensions:
         return html
     head = []
-    home = []
-    screens = []
+    fragments = {name: [] for name in FRAGMENTS}
     for extension in extensions:
         for style in extension.styles:
             head.append('<link rel="stylesheet" href="%s">' % extension.url(style))
@@ -164,11 +186,12 @@ def insert_into_page(html, extensions):
                 '<script type="module" src="%s"></script>'
                 % extension.url(extension.script)
             )
-        home.append(extension.read(extension.home))
-        screens.append(extension.read(extension.screens))
+        for name, found in fragments.items():
+            found.append(extension.read(getattr(extension, name)))
     html = html.replace("</head>", "    %s\n</head>" % "\n    ".join(head), 1)
-    html = html.replace(HOME_MARKER, "\n".join(home), 1)
-    return html.replace(SCREENS_MARKER, "\n".join(screens), 1)
+    for name, marker in FRAGMENTS.items():
+        html = html.replace(marker, "\n".join(fragments[name]), 1)
+    return html
 
 
 extension_files = Blueprint("extensions", __name__)

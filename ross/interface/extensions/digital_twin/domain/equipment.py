@@ -1,23 +1,28 @@
 # -*- coding: utf-8 -*-
-"""Equipment tags, their rotor models, and which models run without Streamlit.
+"""Equipment tags, their rotor models, and which models can run here.
 
-The tag list is `utils/settings.json` of the Digital Twin app. A model is
-available here only when its module does not import Streamlit: those models
-draw widgets and read `st.session_state` inside `get_pi_data` and
-`create_model`, and cannot run behind a JSON route. The check reads the
-source with `ast`, so a model becomes available the day it stops importing
-Streamlit.
+The tag list is `utils/settings.json` of the Digital Twin app. The models
+import `streamlit`, which `headless_streamlit` stands in for, so Streamlit is
+not needed. A model is unavailable only when a package it imports at the top
+of its module is not installed (`rossml` and `rossxl`, for the models with
+metamodels). The check reads the source with `ast`, without importing it.
 """
 
 import ast
 import importlib
+import importlib.util
 import json
 import os
 import re
+import sys
 
+from . import headless_streamlit, model_settings
 from .dt_app import APP_DIR, ensure_on_path
 
 MODEL_NAME = re.compile(r"[A-Za-z0-9_]+")
+
+# Provided by the stand-in, or modules of the Digital Twin app itself.
+PROVIDED = {"streamlit", "safe_pickle", "models_files"}
 
 
 def load_settings():
@@ -31,8 +36,11 @@ def load_settings():
 def catalog():
     """Group the tags by platform, the prefix before the first dash."""
     platforms = {}
+    status = {}
     for tag, model in load_settings().items():
-        available, reason = model_status(model)
+        if model not in status:
+            status[model] = model_status(model)
+        available, reason = status[model]
         platforms.setdefault(tag.split("-")[0], []).append(
             {"tag": tag, "model": model, "available": available, "reason": reason}
         )
@@ -47,25 +55,49 @@ def model_status(model):
     path = _model_path(model)
     if path is None:
         return False, "Model file not found."
-    with open(path, encoding="utf-8", errors="replace") as handle:
-        tree = ast.parse(handle.read(), filename=path)
-    for node in ast.walk(tree):
-        names = []
-        if isinstance(node, ast.Import):
-            names = [alias.name for alias in node.names]
-        elif isinstance(node, ast.ImportFrom) and node.module:
-            names = [node.module]
-        if any(name.split(".")[0] == "streamlit" for name in names):
-            return False, "The model still depends on Streamlit."
+    missing = missing_packages(model)
+    if missing:
+        return False, "Missing packages: %s." % ", ".join(missing)
     return True, ""
+
+
+def missing_packages(model):
+    """Return the packages the model's folder imports that are not installed.
+
+    Every `.py` of the folder is read, because the labyrinth seals are built
+    by `create_labyrinth_seals.py` in a subprocess. Only module-level imports
+    count: imports inside `try` (the models import `pandaspi` that way) are
+    optional, and `services.digital_twin` says what is missing when the
+    process data is asked of the PI server.
+    """
+    folder = os.path.dirname(_model_path(model))
+    local = {name[:-3] for name in os.listdir(folder) if name.endswith(".py")}
+    missing = set()
+    for name in sorted(local):
+        with open(
+            os.path.join(folder, name + ".py"), encoding="utf-8", errors="replace"
+        ) as handle:
+            imported = _top_level_imports(handle.read())
+        for package in imported - local - PROVIDED:
+            if package in sys.stdlib_module_names:
+                continue
+            if importlib.util.find_spec(package) is None:
+                missing.add(package)
+    return sorted(missing)
+
+
+def settings(model):
+    """Return the additional settings the model declares (`model_settings.defaults`)."""
+    _check_name(model)
+    return model_settings.defaults(_source(model))
 
 
 def model_for(tag):
     """Return the model name of a tag, refusing tags outside settings.json."""
-    settings = load_settings()
-    if tag not in settings:
+    current = load_settings()
+    if tag not in current:
         raise ValueError("Invalid equipment: %s" % tag)
-    model = settings[tag]
+    model = current[tag]
     available, reason = model_status(model)
     if not available:
         raise ValueError("%s: %s" % (tag, reason))
@@ -74,10 +106,35 @@ def model_for(tag):
 
 def import_model(model):
     """Import `models_files.<model>.<model>` for a model listed in settings.json."""
-    if model not in set(load_settings().values()) or not MODEL_NAME.fullmatch(model):
-        raise ValueError("Invalid rotor model: %s" % model)
+    _check_name(model)
     ensure_on_path()
+    headless_streamlit.install()
     return importlib.import_module("models_files.%s.%s" % (model, model))
+
+
+def _check_name(model):
+    if not MODEL_NAME.fullmatch(model or "") or model not in set(
+        load_settings().values()
+    ):
+        raise ValueError("Invalid rotor model: %s" % model)
+
+
+def _top_level_imports(source):
+    names = set()
+    for node in ast.parse(source).body:
+        if isinstance(node, ast.Import):
+            names.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            names.add(node.module.split(".")[0])
+    return names
+
+
+def _source(model):
+    path = _model_path(model)
+    if path is None:
+        raise ValueError("Model file not found: %s" % model)
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        return handle.read()
 
 
 def _model_path(model):

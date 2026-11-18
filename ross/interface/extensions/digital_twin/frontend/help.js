@@ -9,17 +9,21 @@ const HELP = {
             body: `
                 <h4>1. Equipamento</h4>
                 <ul>
-                    <li>Escolha a <b>plataforma</b> e o <b>equipamento</b>. Os equipamentos marcados como indisponíveis usam um modelo de rotor que ainda depende do Streamlit.</li>
+                    <li>Os modelos pré-estabelecidos estão disponíveis só na rede Petrobras (ou VPN).</li>
+                    <li>Escolha a <b>plataforma</b> e o <b>equipamento</b>. Um equipamento marcado como indisponível usa um modelo que importa um pacote não instalado (por exemplo, <code>rossxl</code> ou <code>rossml</code>); a nota abaixo da lista diz qual.</li>
                     <li>O <b>sentido de rotação</b> é visto do acionador para o acionado.</li>
                 </ul>
                 <h4>2. Dados de Processo</h4>
                 <ul>
-                    <li>Escolha a data e a hora inicial e clique em <b>Carregar dados</b>. A tabela aparece no painel à direita.</li>
+                    <li>Escolha a data, a hora inicial e a <b>origem dos dados</b>, e clique em <b>Carregar dados</b>. A tabela aparece no painel à direita.</li>
+                    <li><b>PI Data</b> lê a janela de 15 minutos no servidor PI; precisa do pacote <code>pandaspi</code> e das variáveis de ambiente <code>USER_SWAGGER</code> e <code>SWAGGER_PASSWORD</code>. <b>Dados de amostra</b> lê o arquivo .parquet que acompanha o modelo.</li>
                     <li>Células marcadas como <b>vazio</b> são valores nulos e podem comprometer o modelo.</li>
                 </ul>
                 <h4>3. Modelo</h4>
                 <ul>
+                    <li>As <b>configurações adicionais</b> (folga radial dos mancais, temperatura do óleo, ...) vêm preenchidas com os valores do modelo.</li>
                     <li><b>Criar modelo</b> monta o rotor a partir dos dados de processo e salva o arquivo <b>.toml</b> na sessão.</li>
+                    <li><b>Abrir no Rotor Hub</b> adiciona o rotor à biblioteca da interface, onde ele pode ser editado e analisado como qualquer outro.</li>
                     <li>A primeira criação demora alguns segundos enquanto o ROSS é importado.</li>
                 </ul>`,
         },
@@ -28,17 +32,21 @@ const HELP = {
             body: `
                 <h4>1. Equipment</h4>
                 <ul>
-                    <li>Choose the <b>platform</b> and the <b>equipment</b>. Equipment marked unavailable uses a rotor model that still depends on Streamlit.</li>
+                    <li>The pre-established models are available only on the Petrobras network (or VPN).</li>
+                    <li>Choose the <b>platform</b> and the <b>equipment</b>. Equipment marked unavailable uses a model that imports a package that is not installed (for example <code>rossxl</code> or <code>rossml</code>); the note below the list says which.</li>
                     <li>The <b>rotation direction</b> is seen from the driver towards the driven machine.</li>
                 </ul>
                 <h4>2. Process Data</h4>
                 <ul>
-                    <li>Choose the date and start time and click <b>Load data</b>. The table appears in the right panel.</li>
+                    <li>Choose the date, the start time and the <b>data source</b>, and click <b>Load data</b>. The table appears in the right panel.</li>
+                    <li><b>PI Data</b> reads the 15-minute window from the PI server; it needs the <code>pandaspi</code> package and the <code>USER_SWAGGER</code> and <code>SWAGGER_PASSWORD</code> environment variables. <b>Sample data</b> reads the .parquet file kept with the model.</li>
                     <li>Cells marked <b>empty</b> are null values and may compromise the model.</li>
                 </ul>
                 <h4>3. Model</h4>
                 <ul>
+                    <li>The <b>additional settings</b> (bearing radial clearance, oil temperature, ...) start with the model's values.</li>
                     <li><b>Create model</b> builds the rotor from the process data and saves the <b>.toml</b> file in the session.</li>
+                    <li><b>Open in Rotor Hub</b> adds the rotor to the interface's library, where it is edited and analysed like any other.</li>
                     <li>The first creation takes a few seconds while ROSS is imported.</li>
                 </ul>`,
         },

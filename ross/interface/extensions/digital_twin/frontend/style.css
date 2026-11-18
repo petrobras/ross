@@ -202,3 +202,62 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+#screen-dt .dt-network-note {
+    color: var(--accent-danger);
+    font-weight: 600;
+}
+
+#screen-dt .dt-plane-picker {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+#screen-dt .dt-plane-picker .input-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+/* This screen's forms stretch their buttons to the full width of the box (the
+   `.form-box button` rule above), which is what the step buttons want. In the
+   plane picker it squeezes the node select out of the row, so here the two
+   buttons keep the width of their icon. */
+#screen-dt .form-box .dt-plane-picker button.btn-secondary {
+    width: auto;
+    margin-top: 0;
+    flex: 0 0 auto;
+}
+
+#screen-dt .dt-plane-list {
+    font-size: 12px;
+    margin: 8px 0 0;
+}
+
+#screen-dt .dt-sensor h4 {
+    margin-top: 0;
+}
+
+#screen-dt .dt-sensor.applied {
+    border-left: 3px solid var(--accent-primary);
+}
+
+/* The step panels sit in the interface's `.dynamic-panel`, a 360px flex
+   column. Without this, the tall balancing panel is shrunk by the flexbox and
+   its content -- the node pickers among it -- is clipped away instead of
+   scrolling with the panel. */
+#screen-dt .dynamic-panel > [data-panel-group="dt"] {
+    flex: 0 0 auto;
+}
+
+/* The sensor cards live in the wide panel, so they sit side by side as the
+   expanders of the Streamlit page do, rather than stacked in the sidebar. */
+#screen-dt .dt-sensor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 10px;
+}
+
+#screen-dt .dt-sensor-grid .form-box {
+    margin-top: 0;
+}

@@ -32,14 +32,23 @@ class Session:
         self.model = None
         self.rotation = "clockwise"
         self.pi_time = None
+        self.source = None
+        self.settings = None
         self.process_data = None
         self.rotor = None
         self.components = None
         self.campbell = None
+        self.measuring_nodes = []
+        self.balancing_nodes = []
+        self.sensors_plans = {}
 
     @property
     def directory(self):
         return os.path.join(SESSIONS_ROOT, self.id)
+
+    @property
+    def database(self):
+        return os.path.join(self.directory, "database")
 
     @property
     def session_files(self):

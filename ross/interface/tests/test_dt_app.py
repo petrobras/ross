@@ -3,17 +3,42 @@
 
 from ross.interface.tests.dt_app import HEADERS, create_app
 
+from ross.interface.extensions.digital_twin.domain import network
 from ross.interface.extensions.digital_twin.extension import EXTENSION
 
 
-def test_page_carries_the_screens_and_the_home_buttons():
+def test_page_carries_the_screens_and_the_buttons():
     page = create_app().test_client().get("/").get_data(as_text=True)
     for screen in ("screen-dt", "screen-dt-analysis", "screen-balance", "screen-cfd"):
         assert 'id="%s"' % screen in page
         assert 'data-screen="%s"' % screen in page
+    home = page.index('id="screen-home"')
+    hub = page.index('id="screen-rotor-hub"')
+    hub_list = page.index('id="rotor-hub-list"')
+    for screen in ("screen-balance", "screen-cfd"):
+        assert home < page.index('data-screen="%s"' % screen) < hub
+    assert page.count('data-screen="screen-dt"') == 3
+    dt_button = page.index('data-screen="screen-dt"')
+    assert hub < dt_button < hub_list
+    analysis = page.index('id="screen-analysis"')
+    dt_button = page.index('data-screen="screen-dt"', analysis)
+    assert dt_button < page.index('class="analysis-layout"', analysis)
     assert '<script type="module" src="ext/dt/main.js?v=' in page
     assert '<link rel="stylesheet" href="ext/dt/style.css?v=' in page
     assert "<!-- extensions:" not in page
+
+
+def test_the_sensor_cards_sit_above_the_rotor_figure():
+    # The figure fills at least 500px of the panel (`.live-plot-area`), so a
+    # card placed after it begins below the fold: the file inputs of step 4
+    # were on the page and out of sight.
+    page = create_app().test_client().get("/").get_data(as_text=True)
+    screen = page.index('id="screen-dt"')
+    assert (
+        screen
+        < page.index('id="dt-sensors-card"', screen)
+        < page.index('id="dt-plot"', screen)
+    )
 
 
 def test_frontend_files_are_public():
@@ -24,7 +49,9 @@ def test_frontend_files_are_public():
         response.close()
 
 
-def test_routes_require_the_session_token():
+def test_routes_require_the_session_token(monkeypatch):
+    # The network check is tested in test_dt_models.py; here only the token.
+    monkeypatch.setattr(network, "on_corporate_network", lambda: True)
     client = create_app().test_client()
     assert client.get("/api/dt/equipment").status_code == 403
     assert client.post("/api/dt/session").status_code == 403
@@ -41,6 +68,9 @@ def test_every_route_of_the_extension_is_registered():
         "/api/dt/session",
         "/api/dt/process-data",
         "/api/dt/model",
+        "/api/dt/model-settings",
+        "/api/dt/network",
+        "/api/dt/project",
         "/api/dt/analysis",
         "/api/dt/campbell/mode-shape",
         "/api/balance/calculate",

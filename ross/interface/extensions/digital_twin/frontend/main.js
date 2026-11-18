@@ -11,6 +11,7 @@ import { defineActions } from '/core/actions.js';
 import { addTexts } from '/core/i18n.js';
 import { startBalance } from './features/balance.js';
 import { startDigitalTwin } from './features/digital_twin.js';
+import { MEASUREMENT_ACTIONS, startMeasurement } from './features/measurement.js';
 import { addSelectedCard, CARD_ACTIONS, startAnalyses } from './features/dt_analyses.js';
 import { openPanel, toggleCard, toggleSidebarById } from './features/panels.js';
 import { HELP_ENTRIES } from './help.js';
@@ -26,10 +27,12 @@ defineActions({
     'dt-help': element => openSectionHelp(element.dataset.help),
     'dt-add-card': () => addSelectedCard(),
     ...CARD_ACTIONS,
+    ...MEASUREMENT_ACTIONS,
 });
 
 document.addEventListener('DOMContentLoaded', () => {
     startBalance();
+    startMeasurement();
     startDigitalTwin();
     startAnalyses();
 });

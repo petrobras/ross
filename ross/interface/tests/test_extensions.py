@@ -14,6 +14,8 @@ from flask import Blueprint, jsonify
 from ross.interface.api import create_app
 from ross.interface.api.extensions import (
     HOME_MARKER,
+    ANALYSIS_MARKER,
+    HUB_MARKER,
     SCREENS_MARKER,
     Extension,
     discover,
@@ -48,6 +50,12 @@ def sample(tmp_path):
         'data-screen="screen-sample">Sample</button>\n',
         encoding="utf-8",
     )
+    (tmp_path / "hub.html").write_text(
+        '<button id="sample-hub-button">Sample</button>\n', encoding="utf-8"
+    )
+    (tmp_path / "analysis.html").write_text(
+        '<button id="sample-analysis-button">Sample</button>\n', encoding="utf-8"
+    )
     (tmp_path / "screens.html").write_text(
         '<div id="screen-sample" class="screen"></div>\n', encoding="utf-8"
     )
@@ -58,6 +66,8 @@ def sample(tmp_path):
         script="main.js",
         styles=("style.css",),
         home="home.html",
+        hub="hub.html",
+        analysis="analysis.html",
         screens="screens.html",
     )
 
@@ -68,6 +78,17 @@ def test_page_carries_the_extension(sample):
     assert '<link rel="stylesheet" href="ext/sample/style.css?v=' in page
     assert 'id="screen-sample"' in page
     assert HOME_MARKER not in page and SCREENS_MARKER not in page
+    assert HUB_MARKER not in page and ANALYSIS_MARKER not in page
+    analysis = page.index('id="screen-analysis"')
+    assert (
+        analysis
+        < page.index('id="sample-analysis-button"')
+        < page.index('class="analysis-layout"', analysis)
+    )
+    hub = page.index('id="screen-rotor-hub"')
+    assert (
+        hub < page.index('id="sample-hub-button"') < page.index('id="rotor-hub-list"')
+    )
     home = page.index('id="screen-home"')
     button = page.index('id="sample-home-button"')
     screen = page.index('id="screen-sample"')
@@ -78,7 +99,8 @@ def test_page_carries_the_extension(sample):
 def test_page_without_extensions_keeps_only_the_markers():
     page = create_app(extensions=[]).test_client().get("/").get_data(as_text=True)
     assert "ext/" not in page
-    assert HOME_MARKER in page and SCREENS_MARKER in page
+    assert HOME_MARKER in page and SCREENS_MARKER in page and HUB_MARKER in page
+    assert ANALYSIS_MARKER in page
 
 
 def test_files_are_public_and_never_cached(sample):
