@@ -237,19 +237,32 @@ class MultiRotor(Rotor):
         idx2 = R2.nodes.index(gear_2.n)
         self.dz_pos = float(R1.nodes_pos[idx1] - R2.nodes_pos[idx2])
 
-        R1_max_node = max([*R1.nodes, *R1.link_nodes])
-        R2_min_node = min([*R2.nodes, *R2.link_nodes])
         driven_offset = 0
+        if max(R1.nodes) >= min(R2.nodes):
+            driven_offset = max(R1.nodes) + 1
 
-        if R1_max_node >= R2_min_node:
-            driven_offset = R1_max_node + 1
-            for elm in R2.elements:
-                elm.n += driven_offset
+        last_shaft_node = max(R2.nodes) + driven_offset
+        driving_links = sorted(int(n) for n in R1.link_nodes)
+        driven_links = sorted(int(n) for n in R2.link_nodes)
 
+        self._link_node_map = {
+            "driving": {
+                n: last_shaft_node + 1 + i for i, n in enumerate(driving_links)
+            },
+            "driven": {
+                n: last_shaft_node + 1 + len(driving_links) + i
+                for i, n in enumerate(driven_links)
+            },
+        }
+
+        for key, rotor, shift in (("driving", R1, 0), ("driven", R2, driven_offset)):
+            link_map = self._link_node_map[key]
+            for elm in rotor.elements:
+                elm.n = link_map.get(int(elm.n), elm.n + shift)
                 if getattr(elm, "n_link", None) is not None:
-                    elm.n_link += driven_offset
-
-                elm.tag = None
+                    elm.n_link = link_map.get(int(elm.n_link), elm.n_link + shift)
+                if shift:
+                    elm.tag = None
 
         self.driven_nodes = [int(n + driven_offset) for n in R2.nodes]
 
@@ -330,22 +343,22 @@ class MultiRotor(Rotor):
             self.driven_nodes[0] - self.rotors["driven"].nodes[0]
         ) * node_scale
 
-        driving_nodes = set(
+        driving_shaft_nodes = set(
             range(
                 min(self.rotors["driving"].nodes) * node_scale,
                 (max(self.rotors["driving"].nodes) + 1) * node_scale,
             )
-        ) | {int(node) * node_scale for node in self.rotors["driving"].link_nodes}
-
-        driven_nodes = set(
+        )
+        driven_shaft_nodes = set(
             range(
                 min(self.driven_nodes) * node_scale,
                 (max(self.driven_nodes) + 1) * node_scale,
             )
-        ) | {
-            int(node) * node_scale + driven_offset
-            for node in self.rotors["driven"].link_nodes
+        )
+        driving_links = {
+            new: old for old, new in self._link_node_map["driving"].items()
         }
+        driven_links = {new: old for old, new in self._link_node_map["driven"].items()}
 
         driving_elements = []
         driven_elements = []
@@ -358,17 +371,19 @@ class MultiRotor(Rotor):
                     "Element node `n` must be set when adding to a MultiRotor."
                 )
 
-            if elm.n in driving_nodes:
-                driving_elements.append(elm)
-            elif elm.n in driven_nodes:
-                elm.n -= driven_offset
-                if getattr(elm, "n_link", None) is not None:
-                    elm.n_link -= driven_offset
-                driven_elements.append(elm)
+            if elm.n in driving_shaft_nodes or elm.n in driving_links:
+                links, shift, group = driving_links, 0, driving_elements
+            elif elm.n in driven_shaft_nodes or elm.n in driven_links:
+                links, shift, group = driven_links, driven_offset, driven_elements
             else:
                 raise ValueError(
                     f"Node {elm.n} does not belong to the driving or driven rotor."
                 )
+
+            elm.n = links.get(elm.n, elm.n - shift)
+            if getattr(elm, "n_link", None) is not None:
+                elm.n_link = links.get(elm.n_link, elm.n_link - shift)
+            group.append(elm)
 
         return driving_elements, driven_elements
 
