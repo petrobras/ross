@@ -11,139 +11,94 @@ from ross.surrogates.surrogate_core import CoefficientSurrogate
 
 
 class PlainJournalSurrogate(CoefficientSurrogate):
-    """This class calculates the pressure and temperature field in oil film of a cylindrical bearing. It is also possible to obtain the stiffness and
-    damping coefficients.
+    """Surrogate of the coefficients of a ``ross.PlainJournal`` bearing.
+
+    The training samples are generated with the ``ross.PlainJournal`` solver and
+    the bearing parameters follow its vocabulary (SI units). ``predict()`` returns
+    a ``BearingElement`` with the predicted stiffness and damping coefficients.
 
     Parameters
-        ----------
-        save_sample : str
-            Name file for save inputs and outputs in bearning of model (ex.: "example.csv").
-        model : str
-            Metamodel used for generate model result. Defaults to "KGR".
-        input_variable : list of str
-            Name of variables used for bearing variation. Maximum 2 variables. Example ["radial_clearance","reference_temperature"].
-        num_inital_samples: int, optinonal (Default: 100)
-            Number that initialize minimum samples in "input_variable" for create metamodel.
-        step_num_inital_samples : int, optional (Default: None)
-            Increases the number of samples beyond the previous value if the stop requirement is not met. If this variable is declared as "None", the previous value is doubled.
-        coef_R2: float, optional (Default: 0.9)
-            The coefficient of determination, R squared (R²), is a measure that provides information about the goodness of fit of a model. The value between 0.01 and 0.99 is the variation between the calculated values and accounted for by the metamodel values. The closer to 1, the more similar.
+    ----------
+    metamodel : str, optional
+        Metamodel used to fit the coefficients, "KGR" (Kriging from SMT) or
+        "gaussian" (scikit-learn Gaussian process). Default is "KGR".
+    save_sample : str, optional
+        Name of the csv file where inputs and outputs of each sample are saved.
+    input_variable : list of str
+        Variables varied to build the metamodel, at most two. Each one must be
+        given as a list [min, max]. Example: ["radial_clearance",
+        "oil_supply_temperature"].
+    distribution : str, optional
+        "LHS" (Latin Hypercube sampling) or "FullFactorial" (regular grid).
+        Default is "LHS".
+    corr : str, optional
+        Correlation function of the Kriging model: "pow_exp", "abs_exp",
+        "squar_exp", "matern52" or "matern32". Default is "squar_exp".
+    num_inital_samples : int, optional
+        Number of samples used to train the metamodel. Default is 100.
+    step_num_inital_samples : int, optional
+        Increment of samples if the stop requirement is not met.
+    coef_R2 : float, optional
+        Coefficient of determination used as stop requirement. Default is 0.01.
+    n : int, optional
+        Node where the bearing is located. Default is 0.
+    frequency : list of float, pint.Quantity
+        Range [min, max] of rotor speeds, passed to ``PlainJournal`` as ``speed``.
+        Default unit is rad/s.
+    print_result : bool, optional
+        If True, print each bearing after it is computed.
+    print_time : bool, optional
+        If True, print the total time spent computing the samples.
 
-    Bearing Geometry
-    ----------------
-    Describes the geometric characteristics.
-    axial_length : float, pint.Quantity or list [min, max] values
-        Bearing length. Default unit is meter.
-    journal_radius : float or list [min, max] values
-        Rotor radius. The unit is meter.
-    radial_clearance : float or list [min, max] values
-        Radial clearence between rotor and bearing. The unit is meter.
-    n_pad : integer
-        Number of pads that compound the bearing surface.
-    pad_arc_length : float
-        Arc length of each pad. The unit is degree.
-    initial_guess : array
-        Array with eccentricity ratio and attitude angle
-    method : string
-        Choose the method to calculate the dynamics coefficients. Options are:
-        - 'lund'
-        - 'perturbation'
-    print_progress : bool
-        Set it True to print the score and forces on each iteration.
-        False by default.
-    print_result : bool
-        Set it True to print result at the end.
-        False by default.
-    print_time : bool
-        Set it True to print the time at the end.
-        False by default.
-
-    Operation conditions
-    --------------------
-    Describes the operation conditions of the bearing.
-    speed : list of float, pint.Quantity
-        Rotor rotational speed. Default unit is rad/s.
-    load_x_direction : Float
-        Load in X direction. The unit is newton.
-    load_y_direction : Float
-        Load in Y direction. The unit is newton.
-
-    Fluid propierties
-    -----------------
-    Describes the fluid characteristics.
-
-    lubricant : str
-        Lubricant type. Can be:
-        - 'ISOVG46'
-    reference_temperature : float
-        Oil reference temperature. The unit is celsius.
-    reference_viscosity : float
-        Oil viscosity at reference temperature. Unit is Pa.s.
-    groove_factor : list, numpy array, tuple or float
-        Ratio of oil in reservoir temperature that mixes with the circulating oil.
-        Is required one factor per segment.
-
-
-    Turbulence Model
-    ----------------
-    Turbulence model to improve analysis in higher speed.The model represents
-    the turbulence by eddy diffusivities. The basic reference is found in :cite:t:`suganami1979`
-
-    Reyn : Array
-        The Reynolds number is a dimensionless number used to calculate the
-        fluid flow regime inside the bearing.
-    delta_turb : float
-        Eddy viscosity scaling factor. Coefficient to assign weight to laminar,
-        transitional and turbulent flows to calculate viscosity.
-
-    Mesh discretization
-    -------------------
-    Describes the discretization of the bearing.
-    elements_circumferential : int
-        Number of volumes along the direction theta (direction of flow).
-    elements_axial : int
-        Number of volumes along the Z direction (axial direction).
-
-    Returns
-    -------
-    A model PlainJournal object.
+    The remaining parameters (``pad_axial_length``, ``journal_diameter``,
+    ``radial_clearance``, ``n_pads``, ``pad_arc``, ``preload``,
+    ``oil_supply_temperature``, ``fxs_load``, ``fys_load``, ``lubricant``,
+    ``initial_position``, ``oil_supply_pressure``, ``oil_flow_v``,
+    ``pad_thickness``) are those of :class:`ross.bearings.plain_journal.PlainJournal`.
+    The ones listed in ``input_variable`` are given as [min, max].
 
     Examples
     --------
     >>> import ross.surrogates as sg
-    >>> _radial_clearance = [1.75e-4, 2.05e-4]
-    >>> _reference_temperature = [30, 50]
-    >>> bearing = sg.PlainJournal(
-    ...         metamodel="KGR",
-    ...         input_variable=["radial_clearance","reference_temperature"],
-    ...         num_inital_samples=5,
-    ...         step_num_inital_samples=None,
-    ...         coef_R2=0.01,
-    ...         axial_length=(0.263144),
-    ...         journal_radius=(0.2),
-    ...         radial_clearance=_radial_clearance,
-    ...         elements_circumferential=11,
-    ...         elements_axial=3,
-    ...         n_pad=2,
-    ...         pad_arc_length=176,
-    ...         reference_temperature=_reference_temperature,
-    ...         reference_viscosity=0.02,
-    ...         speed=Q_([900], "RPM"),
-    ...         load_x_direction=0,
-    ...         load_y_direction=-112814.91,
-    ...         groove_factor=[0.52, 0.48],
-    ...         lubricant="ISOVG32",
-    ...         node=3,
-    ...         sommerfeld_type=2,
-    ...         initial_guess=[0.1, -0.1],
-    ...         method="perturbation",
-    ...         injection_pressure=0,
-    ...         oil_flow=37.86,
-    ...         show_coef=False,
-    ...         print_result=True,
-    ...         print_progress=False,
-    ...         print_time=True,)
+    >>> from ross.units import Q_
+    >>> bearing = sg.PlainJournalSurrogate(
+    ...     metamodel="KGR",
+    ...     num_inital_samples=10,
+    ...     input_variable=["radial_clearance", "oil_supply_temperature"],
+    ...     n=3,
+    ...     frequency=Q_([900, 1100], "RPM"),
+    ...     pad_axial_length=0.263144,
+    ...     journal_diameter=0.4,
+    ...     radial_clearance=[1.75e-4, 2.05e-4],
+    ...     n_pads=2,
+    ...     pad_arc=Q_(176, "deg"),
+    ...     oil_supply_temperature=Q_([40, 60], "degC"),
+    ...     fys_load=-112814.91,
+    ...     lubricant="ISOVG32",
+    ...     oil_flow_v=Q_(37.86, "l/min"),
+    ... )  # doctest: +SKIP
     """
+
+    coef_names = CoefficientSurrogate._default_coef_names
+
+    # Arguments forwarded as-is to ross.PlainJournal (frequency is forwarded as speed)
+    _bearing_arguments = (
+        "n",
+        "pad_axial_length",
+        "journal_diameter",
+        "radial_clearance",
+        "n_pads",
+        "pad_arc",
+        "preload",
+        "oil_supply_temperature",
+        "fxs_load",
+        "fys_load",
+        "lubricant",
+        "initial_position",
+        "oil_supply_pressure",
+        "oil_flow_v",
+        "pad_thickness",
+    )
 
     @check_units
     def __init__(
@@ -151,89 +106,56 @@ class PlainJournalSurrogate(CoefficientSurrogate):
         metamodel="KGR",
         save_sample=None,
         input_variable=None,
+        distribution="LHS",
+        corr="squar_exp",
         num_inital_samples=100,
         step_num_inital_samples=None,
         coef_R2=0.01,
-        axial_length=None,
-        journal_radius=None,
+        n=0,
+        frequency=None,
+        pad_axial_length=None,
+        journal_diameter=None,
         radial_clearance=None,
-        elements_circumferential=None,
-        elements_axial=None,
-        n_y=None,
-        n_pad=None,
-        pad_arc_length=None,
-        reference_temperature=None,
-        reference_viscosity=None,
-        speed=None,
-        load_x_direction=None,
-        load_y_direction=None,
-        groove_factor=None,
+        n_pads=None,
+        pad_arc=None,
+        preload=0.0,
+        oil_supply_temperature=None,
+        fxs_load=0,
+        fys_load=0,
         lubricant=None,
-        node=None,
-        sommerfeld_type=2,
-        initial_guess=[0.1, -0.1],
-        method="perturbation",
-        operating_type="flooded",
-        injection_pressure=0,
-        oil_flow=37.86,
-        show_coef=False,
+        initial_position=(0.1, -0.1),
+        oil_supply_pressure=0,
+        oil_flow_v=None,
+        pad_thickness=None,
         print_result=False,
-        print_progress=False,
         print_time=False,
     ):
         super().__init__()
 
+        _arguments = locals()
         self.input_parameters = {
-            "model": "ross",
+            "model": "plainjournal",
             "metamodel": metamodel,
             "input_variable": input_variable,
             "save_sample": save_sample,
+            "distribution": distribution,
+            "corr": corr,
             "num_inital_samples": num_inital_samples,
             "step_num_inital_samples": step_num_inital_samples,
             "coef_R2": coef_R2,
-            "axial_length": axial_length,
-            "journal_radius": journal_radius,
-            "radial_clearance": radial_clearance,
-            "elements_circumferential": elements_circumferential,
-            "elements_axial": elements_axial,
-            "n_y": n_y,
-            "n_pad": n_pad,
-            "pad_arc_length": pad_arc_length,
-            "reference_temperature": reference_temperature,
-            "reference_viscosity": reference_viscosity,
-            "speed": speed,
-            "load_x_direction": load_x_direction,
-            "load_y_direction": load_y_direction,
-            "lubricant": lubricant,
-            "node": node,
-            "groove_factor": groove_factor,
-            "equilibrium_pos": None,
-            "sommerfeld_type": sommerfeld_type,
-            "initial_guess": initial_guess,
-            "method": method,
-            "operating_type": operating_type,
-            "injection_pressure": injection_pressure,
-            "oil_flow": oil_flow,
-            "show_coef": show_coef,
+            "frequency": frequency,
             "print_result": print_result,
-            "print_progress": print_progress,
             "print_time": print_time,
         }
+        for name in self._bearing_arguments:
+            self.input_parameters[name] = _arguments[name]
 
-        if input_variable != None:
+        self.cylidrical_bearing = []
+        if input_variable is not None:
             self.run()
 
     def run(self):
-        out_coefs = {
-            "kxx": [],
-            "kxy": [],
-            "kyx": [],
-            "kyy": [],
-            "cxx": [],
-            "cxy": [],
-            "cyx": [],
-            "cyy": [],
-        }
+        out_coefs = {coef: [] for coef in self.coef_names}
 
         aux_input_parameters = self.input_parameters.copy()
         if self.input_parameters["metamodel"] != None:
@@ -261,63 +183,33 @@ class PlainJournalSurrogate(CoefficientSurrogate):
                 _init,
                 len(_aux_input_parameters[_aux_input_parameters["input_variable"][0]]),
             ):
-                aux_input_parameters[aux_input_parameters["input_variable"][0]] = (
-                    _aux_input_parameters[_aux_input_parameters["input_variable"][0]][i]
-                )
-                if len(self.input_parameters["input_variable"]) > 1:
+                for j in range(len(_aux_input_parameters["input_variable"])):
+                    aux_input_parameters[aux_input_parameters["input_variable"][j]] = (
+                        _aux_input_parameters[
+                            _aux_input_parameters["input_variable"][j]
+                        ][i]
+                    )
                     aux_input_parameters["frequency"] = _aux_input_parameters[
                         "frequency"
                     ][i]
-                    aux_input_parameters[aux_input_parameters["input_variable"][1]] = (
-                        _aux_input_parameters[
-                            _aux_input_parameters["input_variable"][1]
-                        ][i]
-                    )
 
                 self._blockPrint()  # disable prints
 
                 bearing = PlainJournal(
-                    axial_length=aux_input_parameters["axial_length"],
-                    journal_radius=aux_input_parameters["journal_radius"],
-                    radial_clearance=aux_input_parameters["radial_clearance"],
-                    elements_circumferential=aux_input_parameters[
-                        "elements_circumferential"
-                    ],
-                    elements_axial=aux_input_parameters["elements_axial"],
-                    n_pad=aux_input_parameters["n_pad"],
-                    pad_arc_length=aux_input_parameters["pad_arc_length"],
-                    reference_temperature=aux_input_parameters["reference_temperature"],
-                    speed=aux_input_parameters["speed"],
-                    load_x_direction=aux_input_parameters["load_x_direction"],
-                    load_y_direction=aux_input_parameters["load_y_direction"],
-                    groove_factor=aux_input_parameters["groove_factor"],
-                    lubricant=aux_input_parameters["lubricant"],
-                    node=aux_input_parameters["node"],
-                    sommerfeld_type=aux_input_parameters["sommerfeld_type"],
-                    initial_guess=aux_input_parameters["initial_guess"],
-                    method=aux_input_parameters["method"],
-                    operating_type=aux_input_parameters["operating_type"],
-                    injection_pressure=aux_input_parameters["injection_pressure"],
-                    oil_flow=aux_input_parameters["oil_flow"],
-                    show_coef=aux_input_parameters["show_coef"],
-                    print_result=aux_input_parameters["print_result"],
-                    print_progress=aux_input_parameters["print_progress"],
-                    print_time=aux_input_parameters["print_time"],
+                    speed=[aux_input_parameters["frequency"]],
+                    **{
+                        name: aux_input_parameters[name]
+                        for name in self._bearing_arguments
+                    },
                 )
                 self.cylidrical_bearing.append(bearing)
 
-                out_coefs["kxx"].append(self.cylidrical_bearing[i].kxx)
-                out_coefs["kxy"].append(self.cylidrical_bearing[i].kxy)
-                out_coefs["kyx"].append(self.cylidrical_bearing[i].kyx)
-                out_coefs["kyy"].append(self.cylidrical_bearing[i].kyy)
-                out_coefs["cxx"].append(self.cylidrical_bearing[i].cxx)
-                out_coefs["cxy"].append(self.cylidrical_bearing[i].cxy)
-                out_coefs["cyx"].append(self.cylidrical_bearing[i].cyx)
-                out_coefs["cyy"].append(self.cylidrical_bearing[i].cyy)
+                for coef in self.coef_names:
+                    out_coefs[coef].append(getattr(self.cylidrical_bearing[i], coef))
                 del bearing
 
                 if self.input_parameters["print_result"]:
-                    self._enablePrint()  # restores prints
+                    self._enablePrint()  # enable prints
                     print(self.cylidrical_bearing[-1])
 
                 if self.input_parameters["save_sample"] is not None:
@@ -330,12 +222,12 @@ class PlainJournalSurrogate(CoefficientSurrogate):
                 progress_bar.update(1)
 
         t2 = time.time()
-        self._enablePrint()  # restores prints
+        self._enablePrint()  # enable prints
 
         if self.input_parameters["save_sample"] is not None:
             out_coefs = {}
             df = pd.read_csv(self.input_parameters["save_sample"])
-            for k in ["kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"]:
+            for k in self.coef_names:
                 if df[k].dtype == "object":
                     out_coefs[k] = [ast.literal_eval(s)[0] for s in df[k]]
                 else:
@@ -344,12 +236,14 @@ class PlainJournalSurrogate(CoefficientSurrogate):
         if self.input_parameters["metamodel"] != None:
             self._set_model(inputs=_aux_input_parameters, coefs=out_coefs)
 
-            new_n = self._find_min_samples(inputs=_aux_input_parameters)
-            if new_n != self.input_parameters["num_inital_samples"]:
-                self.input_parameters["num_inital_samples"] = new_n
+            new_num_inital_samples = self._find_min_samples(
+                inputs=_aux_input_parameters
+            )
+            if new_num_inital_samples != self.input_parameters["num_inital_samples"]:
+                self.input_parameters["num_inital_samples"] = new_num_inital_samples
                 self.run()
 
         if self.input_parameters["print_time"]:
-            print(f"Overall Time model THC: {(t2 - t1) / 60.0:.2f} min")
+            print(f"Overall Time model PlainJournal: {(t2 - t1) / 60.0:.2f} min")
 
         return self.cylidrical_bearing

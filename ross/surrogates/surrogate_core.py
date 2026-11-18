@@ -584,18 +584,14 @@ class CoefficientSurrogate:
                     metamodel.predict_values(inputs)
                 )
 
-        model = self.inputs_model["model"]
-        if model == "ross":
-            node = self.inputs_model["node"]
-        else:
-            node = self.inputs_model["n"]
+        node = self.inputs_model["n"]
 
         coefficients = {
             coef: [a.item() for a in getattr(self, f"prediction_{coef}")]
             for coef in coef_names
         }
 
-        if model == "thrustpad":
+        if self.inputs_model["model"] == "thrustpad":
             result = BearingElement(
                 n=node,
                 kxx=0,

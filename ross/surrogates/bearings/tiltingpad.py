@@ -11,11 +11,11 @@ from ross.surrogates.surrogate_core import CoefficientSurrogate
 
 
 class TiltingPadSurrogate(CoefficientSurrogate):
-    """Calculate bearing with ross TiltingPad.
+    """Surrogate of the coefficients of a ``ross.TiltingPad`` bearing.
 
-    Surrogate counterpart of :class:`MaxBrgSurrogate` that uses the
-    ``ross.TiltingPad`` solver (ross-rotordynamics >= 3.0) to generate the training
-    samples. The bearing parameters follow the ``TiltingPad`` vocabulary (SI units).
+    The training samples are generated with the ``ross.TiltingPad`` solver and the
+    bearing parameters follow its vocabulary (SI units). ``predict()`` returns a
+    ``BearingElement`` with the predicted stiffness and damping coefficients.
 
     Parameters
     ----------
