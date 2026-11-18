@@ -293,6 +293,25 @@ class MultiRotor(Rotor):
             tag=tag,
         )
 
+        driving_shaft_dofs = self.number_dof * len(self.rotors["driving"].nodes)
+        driven_shaft_dofs = self.number_dof * len(self.rotors["driven"].nodes)
+        shaft_dofs = driving_shaft_dofs + driven_shaft_dofs
+        driving_housing_dofs = self.rotors["driving"].ndof - driving_shaft_dofs
+        driven_housing_dofs = self.rotors["driven"].ndof - driven_shaft_dofs
+
+        self._driving_dofs = np.concatenate(
+            (
+                np.arange(driving_shaft_dofs),
+                shaft_dofs + np.arange(driving_housing_dofs),
+            )
+        )
+        self._driven_dofs = np.concatenate(
+            (
+                driving_shaft_dofs + np.arange(driven_shaft_dofs),
+                shaft_dofs + driving_housing_dofs + np.arange(driven_housing_dofs),
+            )
+        )
+
         # Create mesh
         self.mesh = Mesh(
             gear_1,
@@ -794,9 +813,8 @@ class MultiRotor(Rotor):
 
         global_matrix = np.zeros((self.ndof, self.ndof))
 
-        first_ndof = self.rotors["driving"].ndof
-        global_matrix[:first_ndof, :first_ndof] = driving_matrix
-        global_matrix[first_ndof:, first_ndof:] = driven_matrix
+        global_matrix[np.ix_(self._driving_dofs, self._driving_dofs)] = driving_matrix
+        global_matrix[np.ix_(self._driven_dofs, self._driven_dofs)] = driven_matrix
 
         return global_matrix
 

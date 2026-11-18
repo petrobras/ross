@@ -1237,3 +1237,82 @@ def test_three_shaft_harmonic_balance(three_shaft_rotors, nest, node):
 
     assert_allclose(results.dQ[:, harmonic - 1], reference, rtol=1e-6, atol=1e-15)
     assert_allclose(np.delete(results.dQ, harmonic - 1, axis=1), 0, atol=1e-15)
+
+
+@pytest.fixture
+def multi_rotor_housing(multi_rotor):
+    """Two-shaft rotor whose driving rotor has a bearing with a housing."""
+    driving = multi_rotor.rotors["driving"]
+    housing_node = max(driving.nodes) + 1
+    housing = rs.PointMass(n=housing_node, m=50, tag="housing")
+    bearing = rs.BearingElement(
+        n=driving.bearing_elements[0].n,
+        n_link=housing_node,
+        kxx=1e8,
+        cxx=1e3,
+        tag="bearing_housing",
+    )
+    ground = rs.BearingElement(n=housing_node, kxx=5e8, cxx=1e3, tag="ground")
+    driving = rs.Rotor(
+        driving.shaft_elements,
+        driving.disk_elements,
+        [*driving.bearing_elements[1:], bearing, ground],
+        [housing],
+    )
+
+    return rs.MultiRotor(
+        driving,
+        multi_rotor.rotors["driven"],
+        coupled_nodes=multi_rotor.coupled_nodes,
+        gear_mesh_stiffness=multi_rotor.gear_mesh_stiffness,
+        orientation_angle=multi_rotor.orientation_angle,
+        position=multi_rotor.position,
+    )
+
+
+def test_housing_nodes_after_shaft_nodes(multi_rotor_housing):
+    rotor = multi_rotor_housing
+    n_shaft = len(rotor.nodes)
+
+    assert rotor.nodes == list(range(n_shaft))
+    assert rotor.link_nodes == [n_shaft]
+    assert rotor.ndof == rotor.number_dof * n_shaft + rotor.number_dof / 2
+
+
+def test_housing_matrices_blocks(multi_rotor_housing):
+    # The driving and driven rotor matrices must sit in the multi-rotor matrix
+    # with the housing dofs last. Only the gear mesh couples the two rotors.
+    rotor = multi_rotor_housing
+    driving = rotor.rotors["driving"]
+    driven = rotor.rotors["driven"]
+    n = rotor.number_dof
+    n_driving = n * len(driving.nodes)
+    n_driven = n * len(driven.nodes)
+    n_shaft = n_driving + n_driven
+
+    driving_dofs = np.r_[0:n_driving, n_shaft : rotor.ndof]
+    driven_dofs = np.r_[n_driving:n_shaft]
+
+    M = rotor.M(0)
+    assert_allclose(M[np.ix_(driving_dofs, driving_dofs)], driving.M(0), atol=1e-9)
+    assert_allclose(M[np.ix_(driven_dofs, driven_dofs)], driven.M(0), atol=1e-9)
+    assert_allclose(M[np.ix_(driving_dofs, driven_dofs)], 0, atol=1e-9)
+
+    gear_nodes = (
+        rotor.coupled_nodes[0],
+        rotor.driven_nodes[0] + rotor.coupled_nodes[1] - driven.nodes[0],
+    )
+    mesh_dofs = [n * node + i for node in gear_nodes for i in range(n)]
+    K_blocks = np.zeros((rotor.ndof, rotor.ndof))
+    K_blocks[np.ix_(driving_dofs, driving_dofs)] = driving.K(0)
+    K_blocks[np.ix_(driven_dofs, driven_dofs)] = driven.K(0)
+    difference = rotor.K(0) - K_blocks
+    outside_mesh = np.delete(np.delete(difference, mesh_dofs, 0), mesh_dofs, 1)
+    assert_allclose(outside_mesh, 0, atol=1e-3)
+
+
+def test_housing_run_modal(multi_rotor_housing):
+    modal = multi_rotor_housing.run_modal(speed=0, num_modes=8)
+
+    assert np.all(np.isfinite(modal.wn))
+    assert np.all(modal.wn > 0)
