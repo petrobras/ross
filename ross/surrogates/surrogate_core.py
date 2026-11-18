@@ -21,7 +21,7 @@ from smt.sampling_methods import LHS, FullFactorial
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
 from json_tricks import dumps, loads
-from rossml.safe_pickle import loads as pickle_loads
+from ross.surrogates.safe_pickle import loads as pickle_loads
 import zipfile
 import shutil
 import plotly.graph_objects as go
@@ -358,11 +358,11 @@ class CoefficientSurrogate:
         --------
         >>> from tempfile import tempdir
         >>> from pathlib import Path
-        >>> import rossml as rsml
+        >>> import ross.surrogates as sg
         >>> file = Path(tempdir) / 'example1'
         >>> _radial_clearance = [1.75e-4, 2.05e-4]
         >>> _journal_temperature = [303.15, 323.15]
-        >>> bearing = rsml.MaxBrgSurrogate(
+        >>> bearing = sg.MaxBrgSurrogate(
         ...        metamodel="KGR",
         ...        name="example1",
         ...        num_inital_samples=30,
@@ -521,8 +521,8 @@ class CoefficientSurrogate:
         Example
         -------
 
-        >>> import rossml as rsml
-        >>> bearing = rsml.CoefficientSurrogate()
+        >>> import ross.surrogates as sg
+        >>> bearing = sg.CoefficientSurrogate()
         >>> model = bearing.load(name="example1")
         """
 
@@ -580,10 +580,10 @@ class CoefficientSurrogate:
         Example
         -------
 
-        >>> import rossml as rsml
+        >>> import ross.surrogates as sg
         >>> _radial_clearance = 2.05e-4
         >>> _reference_temperature = 30
-        >>> bearing = rsml.CoefficientSurrogate()
+        >>> bearing = sg.CoefficientSurrogate()
         >>> result = bearing.predict(
         ...             name="example1",
         ...             frequency=Q_(1000, "RPM"),
@@ -763,10 +763,10 @@ class CoefficientSurrogate:
         Example
         -------
 
-        >>> import rossml as rsml
+        >>> import ross.surrogates as sg
         >>> _radial_clearance = 2.05e-4
         >>> _reference_temperature = 30
-        >>> bearing = rsml.CoefficientSurrogate()
+        >>> bearing = sg.CoefficientSurrogate()
         >>> freq, inputs, gas_index = bearing.verify_limits_predict(
         ...     inlet_pressure=Q_(150, "bar"),
         ...     outlet_pressure=Q_(4, "bar"),
@@ -866,10 +866,10 @@ class CoefficientSurrogate:
         Example
         -------
 
-        >>> import rossml as rsml
+        >>> import ross.surrogates as sg
         >>> _radial_clearance = np.linspace(1.75e-4, 2.05e-4, 10)
         >>> _reference_temperature = np.linspace(30, 50, 100)
-        >>> bearings = rsml.CoefficientSurrogate()
+        >>> bearings = sg.CoefficientSurrogate()
         >>> bench = bearings.benchmark(
                 name="example1",
                 arg1=_radial_clearance2,
@@ -889,15 +889,10 @@ class CoefficientSurrogate:
 
         # self.load(name)  # load model
         # imported here because the subclasses depend on this module
-        from rossml.surrogates.bearings import (
+        from ross.surrogates.bearings import (
             MaxBrgSurrogate,
             PlainJournalSurrogate,
             TiltingPadSurrogate,
-        )
-        from rossml.surrogates.seals import (
-            HcombSurrogate,
-            Laby3Surrogate,
-            LabyrinthSealSurrogate,
         )
 
         arg1 = np.array(kwargs[self.inputs_model["input_variable"][0]])

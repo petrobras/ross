@@ -7,7 +7,7 @@ from ross.units import check_units
 from tqdm import tqdm
 import pandas as pd
 import ast
-from rossml.surrogates.surrogate_core import CoefficientSurrogate
+from ross.surrogates.surrogate_core import CoefficientSurrogate
 
 
 class ThrustPadSurrogate(CoefficientSurrogate):
@@ -52,8 +52,8 @@ class ThrustPadSurrogate(CoefficientSurrogate):
 
     Example
     -------
-    >>> import rossml as rsml
-    >>> bearing = rsml.ThrustPadSurrogate(
+    >>> import ross.surrogates as sg
+    >>> bearing = sg.ThrustPadSurrogate(
     ...        metamodel="KGR",
     ...        num_inital_samples=500,
     ...        input_variable=["axial_load", "oil_supply_temperature"],

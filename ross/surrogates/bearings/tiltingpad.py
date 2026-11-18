@@ -7,7 +7,7 @@ from ross.units import check_units
 from tqdm import tqdm
 import pandas as pd
 import ast
-from rossml.surrogates.surrogate_core import CoefficientSurrogate
+from ross.surrogates.surrogate_core import CoefficientSurrogate
 
 
 class TiltingPadSurrogate(CoefficientSurrogate):
@@ -52,8 +52,8 @@ class TiltingPadSurrogate(CoefficientSurrogate):
 
     Example
     -------
-    >>> import rossml as rsml
-    >>> bearing = rsml.TiltingPadSurrogate(
+    >>> import ross.surrogates as sg
+    >>> bearing = sg.TiltingPadSurrogate(
     ...        metamodel="KGR",
     ...        num_inital_samples=500,
     ...        input_variable=["radial_clearance", "journal_temperature"],
