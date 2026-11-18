@@ -1239,25 +1239,44 @@ def test_three_shaft_harmonic_balance(three_shaft_rotors, nest, node):
     assert_allclose(np.delete(results.dQ, harmonic - 1, axis=1), 0, atol=1e-15)
 
 
-@pytest.fixture
-def multi_rotor_housing(multi_rotor):
-    """Two-shaft rotor whose driving rotor has a bearing with a housing."""
+def build_multi_rotor_housing(multi_rotor, housing_mass=50, housing=True):
+    """Build the two-shaft rotor with a housing on the first driving bearing.
+
+    The bearing and the housing support are springs in series with the same
+    damping-to-stiffness ratio. With ``housing=False`` they are replaced by
+    the equivalent bearing, without the housing node.
+    """
+    k_bearing, k_support = 1e8, 5e8
+    tau = 1e-5
     driving = multi_rotor.rotors["driving"]
-    housing_node = max(driving.nodes) + 1
-    housing = rs.PointMass(n=housing_node, m=50, tag="housing")
-    bearing = rs.BearingElement(
-        n=driving.bearing_elements[0].n,
-        n_link=housing_node,
-        kxx=1e8,
-        cxx=1e3,
-        tag="bearing_housing",
-    )
-    ground = rs.BearingElement(n=housing_node, kxx=5e8, cxx=1e3, tag="ground")
+    node = driving.bearing_elements[0].n
+    bearings = list(driving.bearing_elements[1:])
+    point_masses = []
+
+    if housing:
+        housing_node = max(driving.nodes) + 1
+        point_masses = [rs.PointMass(n=housing_node, m=housing_mass, tag="housing")]
+        bearings += [
+            rs.BearingElement(
+                n=node,
+                n_link=housing_node,
+                kxx=k_bearing,
+                cxx=tau * k_bearing,
+                tag="bearing_housing",
+            ),
+            rs.BearingElement(
+                n=housing_node,
+                kxx=k_support,
+                cxx=tau * k_support,
+                tag="ground",
+            ),
+        ]
+    else:
+        k_eq = k_bearing * k_support / (k_bearing + k_support)
+        bearings += [rs.BearingElement(n=node, kxx=k_eq, cxx=tau * k_eq, tag="eq")]
+
     driving = rs.Rotor(
-        driving.shaft_elements,
-        driving.disk_elements,
-        [*driving.bearing_elements[1:], bearing, ground],
-        [housing],
+        driving.shaft_elements, driving.disk_elements, bearings, point_masses
     )
 
     return rs.MultiRotor(
@@ -1268,6 +1287,11 @@ def multi_rotor_housing(multi_rotor):
         orientation_angle=multi_rotor.orientation_angle,
         position=multi_rotor.position,
     )
+
+
+@pytest.fixture
+def multi_rotor_housing(multi_rotor):
+    return build_multi_rotor_housing(multi_rotor)
 
 
 def test_housing_nodes_after_shaft_nodes(multi_rotor_housing):
@@ -1316,3 +1340,44 @@ def test_housing_run_modal(multi_rotor_housing):
 
     assert np.all(np.isfinite(modal.wn))
     assert np.all(modal.wn > 0)
+
+
+@pytest.mark.parametrize("node", [2, 7])
+def test_housing_unbalance_response(multi_rotor, node):
+    # Reference: a massless housing in series with the bearing is the
+    # equivalent bearing of the model without the housing node. The housing
+    # natural frequency, far above the speed range, bounds the difference.
+    speed_range = np.linspace(50, 150, 5)
+    options = dict(
+        node=node,
+        unbalance_magnitude=1e-3,
+        unbalance_phase=0,
+        speed_range=speed_range,
+    )
+    response = build_multi_rotor_housing(
+        multi_rotor, housing_mass=1e-3
+    ).run_unbalance_response(**options)
+    reference = build_multi_rotor_housing(
+        multi_rotor, housing=False
+    ).run_unbalance_response(**options)
+
+    n_shaft = reference.rotor.ndof
+    assert_allclose(
+        np.abs(response.forced_resp[:n_shaft]),
+        np.abs(reference.forced_resp),
+        rtol=1e-3,
+        atol=1e-12,
+    )
+
+
+@pytest.mark.parametrize("suffix", [".toml", ".json"])
+def test_housing_save_load(multi_rotor_housing, tmp_path, suffix):
+    file = tmp_path / f"multi_rotor_housing{suffix}"
+
+    multi_rotor_housing.save(file)
+    loaded = rs.Rotor.load(file)
+
+    assert isinstance(loaded, rs.MultiRotor)
+    assert loaded.link_nodes == multi_rotor_housing.link_nodes
+    assert_allclose(loaded.K(0), multi_rotor_housing.K(0))
+    assert_allclose(loaded.M(0), multi_rotor_housing.M(0))
