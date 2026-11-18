@@ -13,15 +13,23 @@ import time
 import warnings
 from pathlib import Path
 import numpy as np
-from sklearn.metrics import r2_score
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
-from smt.surrogate_models import KRG
-from smt.sampling_methods import LHS, FullFactorial
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
-from json_tricks import dumps, loads
 from ross.surrogates.safe_pickle import loads as pickle_loads
+
+try:
+    from sklearn.metrics import r2_score
+    from sklearn.gaussian_process import GaussianProcessRegressor
+    from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
+    from smt.surrogate_models import KRG
+    from smt.sampling_methods import LHS, FullFactorial
+    from json_tricks import dumps, loads
+    import tqdm  # noqa: F401
+except ImportError as error:
+    raise ImportError(
+        "The surrogate models need optional dependencies that are not installed. "
+        'Install them with: pip install "ross-rotordynamics[surrogates]"'
+    ) from error
 import zipfile
 import shutil
 import pandas as pd
