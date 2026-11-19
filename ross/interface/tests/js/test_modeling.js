@@ -36,7 +36,7 @@ import '../../frontend/main.js';
 
 // `openTab` is no longer on the bridge: the buttons call `pickTab`, which can
 // also hide the list. It is still what every other path uses to show a tab.
-const { openForm, editItem, selectSubType } = await import('../../frontend/features/modeling.js');
+const { addFirstShaft, openForm, editItem, selectSubType } = await import('../../frontend/features/modeling.js');
 
 let ok = 0, failed = 0;
 // `check(d, error === null || !console.log(error.message))` was the earlier
@@ -121,6 +121,21 @@ check('and starts with no item being edited', state.editingIndex === -1);
 check('the model choice comes first',
           node('form-fields').innerHTML.includes('Select Model')
           && node('form-fields').innerHTML.includes('data-action="pick-subtype" data-subtype="LIST"'));
+
+// The empty 2D figure's button: the shafts tab, whatever tab was open, the
+// list open again if it was hidden, and the same form as "+".
+prepare();
+openTab('disks');
+node('insertion-form').style.display = 'none';
+node('list-panel').classList.add('collapsed');
+errorOnOpen = null;
+try { await addFirstShaft(); } catch (e) { errorOnOpen = e; }
+withoutError('the empty figure\'s button does not throw', errorOnOpen);
+check('it opens the shafts tab and the list', state.currentTab === 'shafts'
+          && !node('list-panel').classList.contains('collapsed'));
+check('and a new shaft\'s form, from its model choice', node('insertion-form').style.display === 'block'
+          && state.editingIndex === -1
+          && node('form-fields').innerHTML.includes('data-action="pick-subtype" data-subtype="BASIC"'));
 
 selectSubType('BASIC');
 check('with the model chosen, the schema fields come',
