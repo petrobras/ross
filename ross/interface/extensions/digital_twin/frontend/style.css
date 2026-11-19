@@ -296,6 +296,16 @@
     min-height: 420px;
 }
 
+/* The time signals, orbits and the view along the rotor are read across, so
+   they take the whole width of the card. */
+#screen-dt .dt-polar-grid.dt-chart-wide {
+    grid-template-columns: 1fr;
+}
+
+#screen-dt .dt-chart-wide .dt-polar-chart {
+    min-height: 560px;
+}
+
 #screen-dt .dt-polar-title {
     font-size: 13px;
     font-weight: 600;

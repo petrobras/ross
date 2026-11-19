@@ -157,14 +157,27 @@
                                 <label for="dt-polar-sensor" data-i18n="dtReferenceSensor">Sensor de referência</label>
                                 <select id="dt-polar-sensor" data-action="dt-polar-change"></select>
                             </div>
-                            <div class="input-group">
-                                <label for="dt-polar-view" data-i18n="dtPlanView">Plano de vista</label>
-                                <select id="dt-polar-view" data-action="dt-polar-change"></select>
-                            </div>
                         </div>
                         <div id="dt-balancing-result"></div>
-                        <p class="panel-hint" data-i18n="dtPolarHint">O gráfico é orientado pelo sensor de referência: o desbalanceamento em azul, a correção em verde.</p>
-                        <div id="dt-polar" class="dt-polar-grid"></div>
+                        <div class="dt-polar-controls">
+                            <div class="input-group">
+                                <label for="dt-chart-kind" data-i18n="dtChart">Gráfico</label>
+                                <select id="dt-chart-kind" data-action="dt-chart-change"></select>
+                            </div>
+                            <div class="input-group" id="dt-chart-node-group">
+                                <label for="dt-chart-node" data-i18n="dtNode">Nó</label>
+                                <select id="dt-chart-node" data-action="dt-chart-change"></select>
+                            </div>
+                        </div>
+                        <div class="dt-polar-controls" id="dt-decomposition" style="display: none;">
+                            <div class="input-group"><label for="dt-decomp-angle-a" data-i18n="dtPositionAngleA">Ângulo da posição A (°)</label><input id="dt-decomp-angle-a" type="number" step="any" value="0"></div>
+                            <div class="input-group"><label for="dt-decomp-radius-a" data-i18n="dtPositionRadiusA">Raio da posição A (mm)</label><input id="dt-decomp-radius-a" type="number" step="any" min="0"></div>
+                            <div class="input-group"><label for="dt-decomp-angle-b" data-i18n="dtPositionAngleB">Ângulo da posição B (°)</label><input id="dt-decomp-angle-b" type="number" step="any" value="90"></div>
+                            <div class="input-group"><label for="dt-decomp-radius-b" data-i18n="dtPositionRadiusB">Raio da posição B (mm)</label><input id="dt-decomp-radius-b" type="number" step="any" min="0"></div>
+                            <button type="button" class="btn-secondary" data-action="dt-chart-draw"><i class="fas fa-sync-alt"></i> <span data-i18n="dtDecompose">Decompor</span></button>
+                        </div>
+                        <p class="panel-hint" id="dt-chart-hint"></p>
+                        <div id="dt-charts" class="dt-polar-grid"></div>
                     </div>
                 </div>
 

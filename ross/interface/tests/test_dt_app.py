@@ -72,7 +72,7 @@ def test_every_route_of_the_extension_is_registered():
         "/api/dt/network",
         "/api/dt/balancing",
         "/api/dt/balancing-settings",
-        "/api/dt/balancing-polar",
+        "/api/dt/balancing-figure",
         "/api/dt/balancing-parameters",
         "/api/dt/project",
         "/api/dt/analysis",

@@ -2,12 +2,14 @@
 """Step 4 of the Digital Twin: the rossml balancing estimate.
 
 `rossml` is not a dependency of ROSS, so the tests come in two kinds. The
-contract tests put a stand-in in `sys.modules` and check the dictionary the
-interface hands rossml, against what rossml reads from it. The run at the end
-only happens where rossml is installed.
+contract tests put a stand-in for `rossml.api.API` in `sys.modules` and check
+the arguments the interface hands it. The tests at the end only happen where
+rossml is installed: one checks those arguments against the real `API.run`,
+the other runs it on rossml's sample signals and draws every chart.
 """
 
 import importlib.util
+import inspect
 import json
 import os
 import shutil
@@ -68,74 +70,111 @@ def measured(monkeypatch):
     return current
 
 
-class FakeKalmanFilterApp:
-    """Stands in for rossml, keeping the parameters it is given."""
+class FakeAPI:
+    """Stands in for `rossml.api.API`, keeping the arguments `run` is given.
+
+    The signature of `run` lists the arguments of the real one that the
+    interface uses; `test_the_arguments_are_those_of_rossml` checks them
+    against the real one where rossml is installed.
+    """
 
     seen = {}
+    drawn = []
 
-    def experimental_unbalance_fault_calling(self, rotor_model, parameters_data):
-        FakeKalmanFilterApp.seen = parameters_data
-        return "filter", parameters_data
-
-    def apply_api_calling(self, kalman_filter, parameters_data):
-        planes = parameters_data["balance_plans"]
-        phi = {"Sensor #1": [10.0, 200.0], "Sensor #2": [100.0, 290.0]}
-        results = type(
+    def run(
+        self,
+        rotor_model=None,
+        sensors_plans=None,
+        probes_angle=None,
+        balance_plans=None,
+        speed=None,
+        number_points=4096,
+        rotation_sense="clockwise",
+        indirect=None,
+        view_plans="all",
+        resultant_force_limits=None,
+        signal_parameters=None,
+        kalman_flow=None,
+        verbose=True,
+        kalman_max_iter=0,
+        kalman_pop_size=1,
+        database_directory=None,
+        figs_directory=None,
+        config_balance_plans=None,
+        direct=None,
+        **kwargs,
+    ):
+        arguments = dict(locals())
+        del arguments["self"], arguments["kwargs"]
+        FakeAPI.seen = {**arguments, **kwargs}
+        self.phi = {"Sensor #1": [10.0, 200.0], "Sensor #2": [100.0, 290.0]}
+        self.mu_d = [34.0, 68.0]
+        self.loss_function = [0.9, 0.5]
+        self.results_balance = type(
             "Results",
             (),
-            {
-                "dof_forces": [node * 6 for node, _ in planes],
-                "number_dof": 6,
-                # One chart per view, plane and sensor, as `polar` builds them.
-                "polar": lambda self, **kwargs: [
-                    go.Figure() for _ in range(2 * len(planes) * len(kwargs["phi"]))
-                ],
-            },
+            {"dof_forces": [node * 6 for node in balance_plans], "number_dof": 6},
         )()
-        return None, results, 0.5, [34.0, 68.0], phi
+
+    def _figure(self, name, **arguments):
+        FakeAPI.drawn.append((name, arguments))
+        return go.Figure()
+
+    def plot_balance_polar(self, sensor_ref=None):
+        # One chart per balancing plane, as `polar_API` draws them.
+        FakeAPI.drawn.append(("polar", {"sensor_ref": sensor_ref}))
+        return [go.Figure() for _ in self.mu_d]
+
+    def plot_balance_polar_decomposed(self, node=None, **arguments):
+        return [self._figure("decomposed", node=node, **arguments)]
+
+    def plot_balance_1d(self, node=None):
+        return self._figure("forces_1d", node=node)
+
+    def plot_balance_2d(self, node=None):
+        return self._figure("forces_2d", node=node)
+
+    def plot_vs_1d(self, node=None):
+        return self._figure("vs_1d", node=node)
+
+    def plot_vs_2d(self, node=None):
+        return self._figure("vs_2d", node=node)
+
+    def plot_vs_3d(self):
+        return self._figure("vs_3d")
 
 
 @pytest.fixture
 def fake_rossml(monkeypatch):
     """Install a stand-in rossml, so the contract can be checked anywhere."""
     api = type(sys)("rossml.api")
-    api._default_indirect = lambda: {"P_factor": [[1, 9], [-9, 9]]}
-    api._default_reduction_params = lambda: {"tol": 5e-4}
-    api._default_signal_parameters = lambda: {"number_points": None}
-    api._default_plot_figs = lambda: {"plot_rec": None}
-    api._default_kalman_flow = lambda: {"max_iter": 0, "pop_size": 1, "w_f0": None}
-    kalman = type(sys)("rossml.kalman_filter")
-    kalman.KalmanFilterApp = FakeKalmanFilterApp
+    api.API = FakeAPI
     monkeypatch.setitem(sys.modules, "rossml", type(sys)("rossml"))
     monkeypatch.setitem(sys.modules, "rossml.api", api)
-    monkeypatch.setitem(sys.modules, "rossml.kalman_filter", kalman)
     monkeypatch.setattr(rossml_balancing, "available", lambda: True)
-    FakeKalmanFilterApp.seen = {}
-    return FakeKalmanFilterApp
+    FakeAPI.seen = {}
+    FakeAPI.drawn = []
+    return FakeAPI
 
 
-def test_the_parameters_are_what_rossml_reads(measured, fake_rossml):
-    # The keys and shapes rossml reads out of this dictionary:
-    # `sensors_plans` as {node: angle} and `balance_plans` as
-    # [(node, ["x", "y"])] (rossml/api.py), `database_directory` with the
-    # trailing slash that is joined to the file names, and `number_points`,
-    # which `signal_decompfilter` uses as the length of the resampled signal
-    # and which fails on None (rossml/datapipeline/methods.py).
+def test_the_arguments_are_what_the_api_reads(measured, fake_rossml):
+    # `sensors_plans` and `probes_angle` are matched one to one, in the order
+    # of the measuring nodes, and `database_directory` carries the trailing
+    # slash rossml joins the file names to (rossml/datapipeline/methods.py).
     balancing_analysis.run_balancing(measured.id, iterations=2, population=3)
     seen = fake_rossml.seen
-    assert seen["sensors_plans"] == {8: 0.0, 30: 0.0}
-    assert seen["balance_plans"] == [(14, ["x", "y"]), (25, ["x", "y"])]
-    assert seen["measuring_plans_nodes_list"] == [8, 30]
-    assert seen["balancing_plans_nodes_list"] == [{"Nodes": 14}, {"Nodes": 25}]
-    assert seen["probes_angle_dict"] == {"8": [0.0, 90.0], "30": [0.0, 90.0]}
+    assert seen["sensors_plans"] == [8, 30]
+    assert seen["probes_angle"] == [0.0, 0.0]
+    assert seen["balance_plans"] == [14, 25]
     assert seen["database_directory"].endswith(os.sep + "database" + "/")
-    assert isinstance(seen["number_points"], int)
-    assert seen["kalman_flow"]["max_iter"] == 2 and seen["maxiter"] == 2
-    assert seen["kalman_flow"]["pop_size"] == 3 and seen["popsize"] == 3
+    assert seen["figs_directory"].endswith("/")
+    assert seen["kalman_max_iter"] == 2 and seen["kalman_pop_size"] == 3
     assert seen["config_balance_plans"] is None
     assert seen["rotation_sense"] == "clockwise"
+    # A server must not clear the terminal it runs in, which `verbose` does.
+    assert seen["verbose"] is False
     # The speed is the one the signal files were measured at, not one typed in.
-    assert seen["speed"] == [840.0, "rpm"] == seen["parquet_speed"]
+    assert seen["speed"] == [840.0, "rpm"]
 
 
 def test_the_correction_is_the_estimate_over_the_radius_half_a_turn_away(
@@ -149,6 +188,7 @@ def test_the_correction_is_the_estimate_over_the_radius_half_a_turn_away(
     assert_allclose([plane["mass"] for plane in planes], [0.5, 1.0])
     assert_allclose([plane["phase"] for plane in planes], [190.0, 20.0])
     assert_allclose([plane["unbalance"] for plane in planes], [34.0, 68.0])
+    # rossml answers the history of the objective function; the last is kept.
     assert answer["balancing"]["loss"] == 0.5
     assert answer["balancing"]["measuring"] == [8, 30]
     assert answer["ready"] and answer["refusal"] == ""
@@ -156,24 +196,80 @@ def test_the_correction_is_the_estimate_over_the_radius_half_a_turn_away(
     # and the screen names each one by the node and plane it sits on.
     assert answer["balancing"]["phases"]["Sensor #2"] == [100.0, 290.0]
     assert answer["balancing"]["sensors"] == [
-        {"node": 8, "plane": "X", "key": "Sensor #1"},
-        {"node": 8, "plane": "Y", "key": "Sensor #2"},
+        {"node": 8, "plane": "X", "key": "Sensor #1", "index": 0},
+        {"node": 8, "plane": "Y", "key": "Sensor #2", "index": 1},
     ]
-    assert answer["balancing"]["views"] == ["A", "B"]
+    # The virtual sensing is offered where the Streamlit app offers it: on the
+    # balancing planes the estimate used, then on the measuring planes.
+    assert answer["balancing"]["vs_nodes"] == [14, 25, 8, 30]
+    assert answer["balancing"]["charts"] == list(rossml_balancing.CHARTS)
 
 
-def test_a_polar_chart_per_view_plane_and_sensor(measured, fake_rossml):
+def test_every_chart_of_a_run(measured, fake_rossml):
     balancing_analysis.run_balancing(measured.id)
-    for view in ("A", "B"):
-        for sensor in ("Sensor #1", "Sensor #2"):
-            answer = balancing_analysis.polar_for(measured.id, view, sensor)
-            assert [chart["node"] for chart in answer["charts"]] == [14, 25]
-            for chart in answer["charts"]:
-                assert "data" in chart["figure"] and "layout" in chart["figure"]
-    with pytest.raises(ValueError, match="charts"):
-        balancing_analysis.polar_for(measured.id, "C", "Sensor #1")
+
+    answer = balancing_analysis.figure_for(measured.id, "polar", sensor=1)
+    assert [chart["node"] for chart in answer["charts"]] == [14, 25]
+    assert fake_rossml.drawn[-1] == ("polar", {"sensor_ref": 1})
+    for chart in answer["charts"]:
+        assert "data" in chart["figure"] and "layout" in chart["figure"]
+
+    for kind, node in (
+        ("forces_1d", 14),
+        ("forces_2d", 25),
+        ("vs_1d", 8),
+        ("vs_2d", 30),
+    ):
+        answer = balancing_analysis.figure_for(measured.id, kind, node=node)
+        assert [chart["node"] for chart in answer["charts"]] == [node]
+        assert fake_rossml.drawn[-1] == (kind, {"node": node})
+
+    answer = balancing_analysis.figure_for(measured.id, "vs_3d")
+    assert [chart["node"] for chart in answer["charts"]] == [None]
+
+    answer = balancing_analysis.figure_for(
+        measured.id,
+        "decomposed",
+        node=25,
+        sensor=1,
+        positions=[30, 120],
+        radii=[68, 50],
+    )
+    assert fake_rossml.drawn[-1] == (
+        "decomposed",
+        {
+            "node": 25,
+            "positions_list": [30.0, 120.0],
+            "radius_list": [68.0, 50.0],
+            "sensor_ref": 1,
+        },
+    )
+
+
+def test_a_chart_is_refused_with_the_reason(measured, fake_rossml):
     with pytest.raises(ValueError, match="Run the analysis"):
-        balancing_analysis.polar_for(session.create().id, "A", "Sensor #1")
+        balancing_analysis.figure_for(measured.id, "polar")
+    balancing_analysis.run_balancing(measured.id)
+    refusals = (
+        ({"chart": "bode"}, "Unknown chart"),
+        # The forces are estimated on the balancing planes only.
+        ({"chart": "forces_1d", "node": 8}, "balancing plane among 14, 25"),
+        ({"chart": "vs_2d", "node": 3}, "plane among 14, 25, 8, 30"),
+        ({"chart": "vs_1d", "node": 1.5}, "plane among"),
+        ({"chart": "polar", "sensor": 2}, "reference sensor among 0, 1"),
+        ({"chart": "decomposed", "node": 14}, "at least two positions"),
+        (
+            {"chart": "decomposed", "node": 14, "positions": [0], "radii": [68]},
+            "at least two positions",
+        ),
+        (
+            {"chart": "decomposed", "node": 14, "positions": [0, 90], "radii": [68, 0]},
+            "positive",
+        ),
+    )
+    for arguments, message in refusals:
+        with pytest.raises(ValueError, match=message):
+            balancing_analysis.figure_for(measured.id, **arguments)
 
 
 # A file of the shape the Digital Twin app keeps per machine. The values are
@@ -185,6 +281,8 @@ PARAMETERS = {
     "resultant_force_limits": {"mu_d": [100, 1000], "phi": [0, 360]},
     "signal_parameters": {"number_points": 2048, "decomposition_threshold": 4},
     "kalman_flow": {"df_multiple": 11, "mu_pop_size": 2, "max_iter": 9, "pop_size": 9},
+    "direct": {"P_factor": 0.1, "Q_factor": 1e-18, "S_factor": 3e8, "R_factor": 7e-15},
+    "database_directory": "/elsewhere/",
 }
 
 
@@ -202,17 +300,20 @@ def test_the_machine_parameters_replace_the_rossml_defaults(measured, fake_rossm
 
     balancing_analysis.run_balancing(measured.id, iterations=2, population=3)
     seen = fake_rossml.seen
-    # The file wins where it has a key.
+    # The file wins where `API.run` takes the key, and `number_points` comes
+    # out of `signal_parameters`, as the Streamlit app reads it.
     assert seen["indirect"] == PARAMETERS["indirect"]
     assert seen["resultant_force_limits"] == PARAMETERS["resultant_force_limits"]
+    assert seen["signal_parameters"] == PARAMETERS["signal_parameters"]
+    assert seen["kalman_flow"] == PARAMETERS["kalman_flow"]
     assert seen["number_points"] == 2048
-    assert seen["kalman_flow"]["df_multiple"] == 11
+    assert seen["direct"] == PARAMETERS["direct"]
     # What the run owns is kept: the iterations and population chosen on the
-    # screen, the speed read from the signal files, and the folders.
-    assert seen["kalman_flow"]["max_iter"] == 2 and seen["kalman_flow"]["pop_size"] == 3
-    assert seen["maxiter"] == 2 and seen["popsize"] == 3
-    assert seen["speed"] == [840.0, "rpm"] == seen["parquet_speed"]
-    assert seen["database_directory"].endswith("/")
+    # screen (`API.run` writes them over the file's `kalman_flow`), the speed
+    # read from the signal files, and the folders.
+    assert seen["kalman_max_iter"] == 2 and seen["kalman_pop_size"] == 3
+    assert seen["speed"] == [840.0, "rpm"]
+    assert seen["database_directory"].endswith(os.sep + "database" + "/")
 
     answer = balancing_analysis.set_parameters(measured.id, None, None)
     assert answer["parameters"] is None
@@ -271,19 +372,15 @@ def test_the_planes_the_estimate_used_may_be_fewer_than_the_planes_offered(
 ):
     # With the optimization on, rossml may report forces on a subset of the
     # planes. The answer follows what it used, not what was offered.
-    def apply(self, kalman_filter, parameters_data):
-        results = type(
-            "Results",
-            (),
-            {
-                "dof_forces": [25 * 6],
-                "number_dof": 6,
-                "polar": lambda self, **kwargs: [go.Figure(), go.Figure()],
-            },
-        )()
-        return None, results, None, [68.0], {"Sensor #1": [200.0]}
+    run = FakeAPI.run
 
-    monkeypatch.setattr(FakeKalmanFilterApp, "apply_api_calling", apply)
+    def subset(self, **arguments):
+        run(self, **arguments)
+        self.results_balance.dof_forces = [25 * 6]
+        self.mu_d = [68.0]
+        self.phi = {"Sensor #1": [200.0]}
+
+    monkeypatch.setattr(FakeAPI, "run", subset)
     planes = balancing_analysis.run_balancing(measured.id, optimize=True)["balancing"][
         "planes"
     ]
@@ -341,13 +438,25 @@ def test_the_balancing_routes(measured, fake_rossml):
     )
     assert answer.status_code == 200
     assert len(answer.get_json()["balancing"]["planes"]) == 2
-    charts = client.get(
-        "/api/dt/balancing-polar?session=%s&view=A&sensor=%s"
-        % (measured.id, "Sensor+%231"),
+    charts = client.post(
+        "/api/dt/balancing-figure",
+        json={"session": measured.id, "chart": "polar", "sensor": 0},
         headers=HEADERS,
     )
     assert charts.status_code == 200
     assert len(charts.get_json()["charts"]) == 2
+    one = client.post(
+        "/api/dt/balancing-figure",
+        json={"session": measured.id, "chart": "vs_2d", "node": 8},
+        headers=HEADERS,
+    )
+    assert [chart["node"] for chart in one.get_json()["charts"]] == [8]
+    wrong = client.post(
+        "/api/dt/balancing-figure",
+        json={"session": measured.id, "chart": "vs_2d", "node": 99},
+        headers=HEADERS,
+    )
+    assert wrong.status_code == 400
     refused = client.post(
         "/api/dt/balancing",
         json={"session": measured.id, "iterations": 99},
@@ -358,17 +467,28 @@ def test_the_balancing_routes(measured, fake_rossml):
 
 
 def sample_signals():
-    """The folder of waveform files rossml keeps as its sample, or `None`.
-
-    The package is located without importing it: importing rossml needs the
-    stand-in for Streamlit in place, which collecting a test does not do.
-    """
+    """The folder of waveform files rossml keeps as its sample, or `None`."""
     spec = importlib.util.find_spec("rossml") if rossml_balancing.available() else None
     if spec is None or not spec.origin:
         return None
     folder = os.path.join(os.path.dirname(os.path.dirname(spec.origin)), "database")
     files = sorted(os.listdir(folder)) if os.path.isdir(folder) else []
     return folder if len(files) >= 4 else None
+
+
+@pytest.mark.skipif(not rossml_balancing.available(), reason="rossml is not installed")
+def test_the_arguments_are_those_of_rossml():
+    # The stand-in above takes what the interface passes; this is the check
+    # that the real `API.run` takes the same, and that every key the
+    # interface owns is one `API.run` would otherwise read from the file.
+    from rossml.api import API
+
+    real = inspect.signature(API.run).parameters
+    stand_in = inspect.signature(FakeAPI.run).parameters
+    assert set(stand_in) <= set(real)
+    assert rossml_balancing.OWNED - {"self", "kwargs"} <= set(real)
+    for name, kind in rossml_balancing.CHARTS.items():
+        assert callable(getattr(API, kind)), name
 
 
 # statsmodels 0.15 warns that `adfuller` will return a result object instead of
@@ -380,12 +500,12 @@ def sample_signals():
     sample_signals() is None,
     reason="rossml, with its sample signals, is not installed here",
 )
-def test_a_real_run_answers_one_correction_per_plane(measured):
+def test_a_real_run_answers_a_correction_per_plane_and_draws_every_chart(measured):
     # rossml's own sample signals, renamed to this rotor's measuring nodes.
     # They were measured on another machine, so the numbers are not a physical
     # reference: what is checked is that a run answers one finite correction
     # mass per balancing plane, at the radius given, half a turn from the
-    # estimated unbalance.
+    # estimated unbalance, and that every chart the screen offers is drawn.
     folder = sample_signals()
     files = sorted(name for name in os.listdir(folder) if name.endswith(".csv"))
     for node, (x_file, y_file) in zip(MEASURING, (files[:2], files[2:4]), strict=True):
@@ -396,18 +516,37 @@ def test_a_real_run_answers_one_correction_per_plane(measured):
             )
 
     answer = balancing_analysis.run_balancing(measured.id)
-    planes = answer["balancing"]["planes"]
+    result = answer["balancing"]
+    planes = result["planes"]
     assert [plane["node"] for plane in planes] == [14, 25]
-    # Four sensors on two measuring planes, so eight charts per view.
-    assert len(answer["balancing"]["sensors"]) == 4
-    for view in ("A", "B"):
-        for sensor in answer["balancing"]["sensors"]:
-            charts = balancing_analysis.polar_for(measured.id, view, sensor["key"])
-            assert [chart["node"] for chart in charts["charts"]] == [14, 25]
-            for chart in charts["charts"]:
-                assert chart["figure"]["data"]
     for plane in planes:
         assert plane["mass"] > 0
         assert_allclose(plane["mass"], plane["unbalance"] / plane["radius"])
         assert_allclose(plane["phase"], (plane["unbalance_phase"] + 180.0) % 360.0)
         assert 0 <= plane["phase"] < 360
+    # Four sensors on two measuring planes.
+    assert [sensor["index"] for sensor in result["sensors"]] == [0, 1, 2, 3]
+
+    for sensor in result["sensors"]:
+        charts = balancing_analysis.figure_for(
+            measured.id, "polar", sensor=sensor["index"]
+        )["charts"]
+        assert [chart["node"] for chart in charts] == [14, 25]
+        assert all(chart["figure"]["data"] for chart in charts)
+    for kind, nodes in (
+        ("forces_1d", [14, 25]),
+        ("forces_2d", [14, 25]),
+        ("vs_1d", result["vs_nodes"]),
+        ("vs_2d", result["vs_nodes"]),
+    ):
+        for node in nodes:
+            charts = balancing_analysis.figure_for(measured.id, kind, node=node)[
+                "charts"
+            ]
+            assert charts[0]["figure"]["data"], (kind, node)
+    charts = balancing_analysis.figure_for(measured.id, "vs_3d")["charts"]
+    assert charts[0]["figure"]["data"]
+    charts = balancing_analysis.figure_for(
+        measured.id, "decomposed", node=14, positions=[0, 90], radii=[68, 68]
+    )["charts"]
+    assert charts[0]["figure"]["data"]

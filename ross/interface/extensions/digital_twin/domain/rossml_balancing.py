@@ -5,45 +5,65 @@
 machine with an augmented Kalman filter. It is not a dependency of ROSS: the
 Digital Twin asks `available()` first and says what is missing.
 
-The Streamlit app reaches it through `RossmlApi.run()`, which reads the
-Streamlit session pickled to disk. `rossml.api.API.run()` is the same two
-calls without the pickles, but it reads the signals from a `database` folder
-inside the rossml checkout, so the interface makes those two calls itself and
-points `database_directory` at the session:
+The estimate goes through `rossml.api.API`, the entry point rossml offers for
+running without the Streamlit app. `API.run` reads the waveform CSVs of the
+session, runs the filter and keeps the results, and its `plot_*` methods draw
+them: the virtual sensing of the displacements, the estimated forces, the
+polar chart of each balancing plane and the decomposition of a correction
+into masses at chosen positions. The `API` object is kept with the session,
+so the charts are drawn when the screen asks for them.
 
-* `experimental_unbalance_fault_calling` reads the waveform CSVs and cuts and
-  filters them against the reference sensor;
-* `apply_api_calling` runs the filter and returns the estimated unbalance
-  `mu_d`, in g·mm, and its phase, in degrees, for each balancing plane.
-
-Every other hyperparameter is rossml's own default, read from `rossml.api`,
-so no tuned value of theirs is copied into ROSS.
-
-The signals are read from the folder, in the order `natsorted` puts the file
+The signals are read from the folder in the order `natsort` puts the file
 names, and matched one by one to the sensors given here: the measuring nodes
 must be in ascending order, X before Y, or the signals land on the wrong
 degrees of freedom. `services.measurement` keeps them that way.
 """
 
 import importlib.util
+import inspect
 
 PACKAGE = "rossml"
 
 MISSING = (
     "The rossml package is not installed: the balancing analysis cannot run "
-    "here. Install rossml (and rossxl, which it needs) and restart the "
-    "interface."
+    "here. Install rossml and restart the interface."
 )
 
 PLANES = ("x", "y")
 REFERENCE_SENSOR = "Sensor #1"
 
-# The polar figures come in the order `BalancingResults.polar` builds them:
-# the plan view, then the balancing plane, then the sensor whose angle the
-# chart is drawn against. A view is where the machine is seen from, as the
-# Streamlit app names it: `A` from the driven machine towards the driver, `B`
-# the other way round.
-VIEWS = ("A", "B")
+# What `run` decides itself, so a parameters file cannot replace it: the
+# signals, the planes and the settings chosen on the screen.
+OWNED = {
+    "self",
+    "rotor_model",
+    "sensors_plans",
+    "probes_angle",
+    "probes_sensitivity",
+    "balance_plans",
+    "unbalance_plans",
+    "speed",
+    "rotation_sense",
+    "verbose",
+    "kalman_max_iter",
+    "kalman_pop_size",
+    "database_directory",
+    "figs_directory",
+    "config_balance_plans",
+    "kwargs",
+}
+
+# The charts the screen offers. `node` names the plane a chart is drawn for;
+# the polar chart has one per balancing plane and the 3D view takes none.
+CHARTS = {
+    "polar": "plot_balance_polar",
+    "decomposed": "plot_balance_polar_decomposed",
+    "forces_1d": "plot_balance_1d",
+    "forces_2d": "plot_balance_2d",
+    "vs_1d": "plot_vs_1d",
+    "vs_2d": "plot_vs_2d",
+    "vs_3d": "plot_vs_3d",
+}
 
 
 def available():
@@ -100,172 +120,108 @@ def run(
 
     Returns
     -------
-    dict
+    api : rossml.api.API
+        The run, kept to draw its charts with `chart`.
+    answer : dict
         `planes`, the nodes the estimate ended up using; `mu_d`, one
         unbalance in g·mm per plane; `phase`, its angle in degrees, seen from
-        the first sensor; `phases`, the same angles for every sensor;
-        `polar`, one Plotly figure per view, plane and sensor; and `loss`, the
-        value of the objective function, when rossml reports one.
+        the first sensor; `phases`, the same angles for every sensor; and
+        `loss`, the last value of the objective function, when rossml reports
+        one.
     """
     if not available():
         raise ValueError(MISSING)
 
-    from ross.interface.extensions.digital_twin.domain import headless_streamlit
-
-    headless_streamlit.install()
-
-    from rossml.api import (
-        _default_indirect,
-        _default_kalman_flow,
-        _default_plot_figs,
-        _default_reduction_params,
-        _default_signal_parameters,
-    )
-    from rossml.kalman_filter import KalmanFilterApp
+    from rossml.api import API
 
     nodes = [int(node) for node in sensors]
     if nodes != sorted(nodes):
         raise ValueError("The measuring nodes must be in ascending order.")
 
-    kalman_flow = dict(_default_kalman_flow())
-    kalman_flow["max_iter"] = int(iterations)
-    kalman_flow["pop_size"] = int(population)
-
-    parameters = {
-        "speed": list(speed),
-        "parquet_speed": list(speed),
-        "xvc_list": [1],
-        "number_points": 4096,
-        "rotation_sense": rotation,
-        "plots_lists_forces": ["1d", "polar", "2d"],
-        "plots_lists_vs": ["1d", "2d", "3d", "deformed"],
-        "indirect": _default_indirect(),
-        "numeric_test": False,
-        "numeric_settings": None,
-        "reduction_params": _default_reduction_params(),
-        "domain": "modal",
-        "type_execAPI": "interface",
-        "w_f0": 0.65,
-        "verbose": False,
-        "view_plans": "all",
-        "dx": None,
-        "N_multiple": None,
-        "noise_rate": None,
-        "mu_max_iter": None,
-        "mu_pop_size": None,
-        "df_multiple": None,
-        "points_number": None,
-        "transient_len": None,
-        "resultant_force_limits": None,
-        "signal_parameters": _default_signal_parameters(),
-        "plot_figs": _default_plot_figs(),
-        "kalman_flow": kalman_flow,
-        "maxiter": kalman_flow["max_iter"],
-        "popsize": kalman_flow["pop_size"],
-        "analysis_type": "indirect",
-        "plot_options_vs": ["1d", "2d", "3d", "deformed"],
-        "plot_options_balancing": ["1d", "2d", "3d", "polar"],
-        "config_balance_plans": plane_groups(balancing) if optimize else None,
-        "local": True,
-        "database_directory": database if database.endswith("/") else database + "/",
-        "figs_directory": figures if figures.endswith("/") else figures + "/",
-        "balance_plans": [(int(node), list(PLANES)) for node in balancing],
-        "unbalance_plans": [int(node) for node in balancing],
-        "sensors_plans": {int(node): float(angle) for node, angle in sensors.items()},
-        "balancing_plans_nodes_list": [{"Nodes": int(node)} for node in balancing],
-        "measuring_plans_nodes_list": list(nodes),
-        "probes_angle_dict": {
-            str(node): [float(angle), float(angle) + 90.0]
-            for node, angle in sensors.items()
-        },
-    }
-
-    filtered, built = KalmanFilterApp().experimental_unbalance_fault_calling(
-        rotor_model=rotor, parameters_data=_with(parameters, hyperparameters)
-    )
-    _, results, loss, mu_d, phi = KalmanFilterApp().apply_api_calling(
-        kalman_filter=filtered, parameters_data=built
-    )
-    answer = _answer(rotor, balancing, results, loss, mu_d, phi)
-    answer["phases"] = _phases(phi, answer["planes"])
-    answer["polar"] = _polar(results, built, mu_d, phi, rotation, answer["planes"])
-    return answer
-
-
-def _polar(results, parameters, mu_d, phi, rotation, planes):
-    """Return the polar charts, one per view, balancing plane and sensor.
-
-    `plot_results_balance_calling` draws them this way in the Streamlit app:
-    the angles of the reference sensor are what the chart is turned to, so
-    there is one chart per sensor, and the app lets the user choose which.
-    """
-    parameters["mu_d"], parameters["phi"] = mu_d, phi
-    angles = parameters["probes_angle_dict"]
-    reference = angles[list(angles)[0]]
-    figures = results.polar(
-        mu_d=mu_d,
-        ang_sensor_ref=reference,
-        phi=phi,
+    api = API()
+    api.run(
+        rotor_model=rotor,
+        sensors_plans=nodes,
+        probes_angle=[float(sensors[node]) for node in sensors],
+        balance_plans=[int(node) for node in balancing],
+        speed=list(speed),
         rotation_sense=rotation,
-        parameters_data=parameters,
+        kalman_max_iter=int(iterations),
+        kalman_pop_size=int(population),
+        database_directory=_folder(database),
+        figs_directory=_folder(figures),
+        config_balance_plans=plane_groups(balancing) if optimize else None,
+        verbose=False,
+        **settings(hyperparameters),
     )
-    sensors = list(phi) if isinstance(phi, dict) else [REFERENCE_SENSOR]
-    found = []
-    for view in VIEWS:
-        for node in planes:
-            for sensor in sensors:
-                found.append({"view": view, "node": node, "sensor": sensor})
-    if len(found) != len(figures):
-        raise ValueError(
-            "rossml answered %d polar charts, not the %d of %d views, %d "
-            "planes and %d sensors."
-            % (len(figures), len(found), len(VIEWS), len(planes), len(sensors))
-        )
-    for item, figure in zip(found, figures, strict=True):
-        item["figure"] = figure
-    return found
+    answer = _answer(rotor, balancing, api)
+    answer["phases"] = _phases(api.phi, answer["planes"])
+    return api, answer
 
 
-def _phases(phi, planes):
-    """Return the unbalance angle of every plane, for each sensor."""
-    if not isinstance(phi, dict):
-        return {}
-    return {
-        sensor: [_number(_item(values, index)) for index in range(len(planes))]
-        for sensor, values in phi.items()
-    }
+def settings(hyperparameters):
+    """Turn a machine's `input_parameters.json` into arguments of `API.run`.
 
-
-def _with(parameters, hyperparameters):
-    """Lay the machine's hyperparameters over the defaults, as rossml does.
-
-    `RossmlApi.run` builds its dictionary and then spreads the JSON file over
-    it, so the file wins wherever both have a key, and takes `number_points`
-    out of `signal_parameters`. The speed of the signals is kept: it is read
-    from the signal files, while the file carries the speed of the machine the
-    parameters were tuned at.
+    The file wins over the library defaults wherever `API.run` takes the key,
+    as it does when the Streamlit app spreads it over its own dictionary, and
+    `number_points` comes out of `signal_parameters`. What `run` decides (the
+    signals, the planes, the speed the signals were measured at and the
+    settings chosen on the screen) is not taken from the file.
     """
     if not hyperparameters:
-        return parameters
+        return {}
     if not isinstance(hyperparameters, dict):
         raise ValueError("The analysis parameters must be a JSON object.")
-    merged = {**parameters, **hyperparameters}
-    signal = merged.get("signal_parameters")
+    from rossml.api import API
+
+    accepted = set(inspect.signature(API.run).parameters) - OWNED
+    chosen = {key: value for key, value in hyperparameters.items() if key in accepted}
+    signal = hyperparameters.get("signal_parameters")
     if isinstance(signal, dict) and signal.get("number_points"):
-        merged["number_points"] = signal["number_points"]
-    merged["speed"] = parameters["speed"]
-    merged["parquet_speed"] = parameters["parquet_speed"]
-    merged["database_directory"] = parameters["database_directory"]
-    merged["figs_directory"] = parameters["figs_directory"]
-    merged["kalman_flow"] = {
-        **merged.get("kalman_flow", {}),
-        "max_iter": parameters["kalman_flow"]["max_iter"],
-        "pop_size": parameters["kalman_flow"]["pop_size"],
-    }
-    merged["maxiter"] = parameters["maxiter"]
-    merged["popsize"] = parameters["popsize"]
-    merged["config_balance_plans"] = parameters["config_balance_plans"]
-    return merged
+        chosen["number_points"] = signal["number_points"]
+    return chosen
+
+
+def chart(api, kind, node=None, sensor=0, positions=None, radii=None):
+    """Draw one of the charts of a run.
+
+    Parameters
+    ----------
+    api : rossml.api.API
+        A run returned by `run`.
+    kind : str
+        One of `CHARTS`.
+    node : int, optional
+        The plane the chart is for. The polar chart and the 3D view take
+        none.
+    sensor : int, optional
+        Index of the reference sensor of the angles, X then Y of each
+        measuring plane: the polar chart and the decomposition use it.
+    positions, radii : list of float, optional
+        For the decomposition: the angles, in degrees, and radii, in mm, of
+        the positions the correction is split into.
+
+    Returns
+    -------
+    list of plotly.graph_objects.Figure
+    """
+    if kind not in CHARTS:
+        raise ValueError("Unknown chart: %s." % kind)
+    method = getattr(api, CHARTS[kind])
+    if kind == "polar":
+        drawn = method(sensor_ref=int(sensor))
+    elif kind == "decomposed":
+        drawn = method(
+            node=int(node),
+            positions_list=[float(value) for value in positions],
+            radius_list=[float(value) for value in radii],
+            sensor_ref=int(sensor),
+        )
+    elif kind == "vs_3d":
+        drawn = method()
+    else:
+        drawn = method(node=int(node))
+    return list(drawn) if isinstance(drawn, (list, tuple)) else [drawn]
 
 
 def plane_groups(balancing):
@@ -280,14 +236,34 @@ def plane_groups(balancing):
     return [[(node, list(PLANES)) for node in group] for group in groups]
 
 
-def _answer(rotor, balancing, results, loss, mu_d, phi):
-    planes = _planes_used(rotor, balancing, results)
+def _folder(path):
+    return path if path.endswith("/") else path + "/"
+
+
+def _answer(rotor, balancing, api):
+    planes = _planes_used(rotor, balancing, api.results_balance)
+    phi = api.phi
     phases = phi.get(REFERENCE_SENSOR) if isinstance(phi, dict) else phi
-    answer = {"planes": planes, "mu_d": [], "phase": [], "loss": _number(loss)}
+    answer = {
+        "planes": planes,
+        "mu_d": [],
+        "phase": [],
+        "loss": _last(api.loss_function),
+    }
     for index in range(len(planes)):
-        answer["mu_d"].append(_number(_item(mu_d, index)))
+        answer["mu_d"].append(_number(_item(api.mu_d, index)))
         answer["phase"].append(_number(_item(phases, index)))
     return answer
+
+
+def _phases(phi, planes):
+    """Return the unbalance angle of every plane, for each sensor."""
+    if not isinstance(phi, dict):
+        return {}
+    return {
+        sensor: [_number(_item(values, index)) for index in range(len(planes))]
+        for sensor, values in phi.items()
+    }
 
 
 def _planes_used(rotor, balancing, results):
@@ -302,6 +278,17 @@ def _planes_used(rotor, balancing, results):
         if node not in used:
             used.append(node)
     return used
+
+
+def _last(values):
+    """The last value of the objective function's history, or the value itself."""
+    if values is None:
+        return None
+    try:
+        values = list(values)
+    except TypeError:
+        return _number(values)
+    return _number(values[-1]) if values else None
 
 
 def _item(values, index):

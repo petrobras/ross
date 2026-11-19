@@ -52,14 +52,17 @@ globalThis.fetch = async (path, options = {}) => {
                 parameters = body.content ? { name: body.filename, source: 'file', keys: ['indirect'] } : null;
                 return analysis(false);
             }
-            if (route.includes('/api/dt/balancing-polar')) {
-                asked.polar = route;
+            if (route.includes('/api/dt/balancing-figure')) {
+                asked.figure = body;
+                // The polar chart comes one per balancing plane, every other
+                // chart one for the plane asked.
+                const nodes = body.chart === 'polar' ? planes.balancing.map(plane => plane.node)
+                    : [body.node === undefined ? null : body.node];
                 return {
-                    view: 'A',
-                    sensor: 'Sensor #1',
-                    charts: planes.balancing.map(plane => ({
-                        node: plane.node,
-                        figure: { data: [{ type: 'scatterpolar', r: [1], theta: [10] }], layout: {} },
+                    chart: body.chart,
+                    charts: nodes.map(node => ({
+                        node,
+                        figure: { data: [{ type: 'scatter', x: [0], y: [1] }], layout: {} },
                     })),
                 };
             }
@@ -107,12 +110,13 @@ function analysis(done) {
             measuring: planes.measuring,
             phases: { 'Sensor #1': [10.0], 'Sensor #2': [100.0] },
             sensors: [
-                { node: 2, plane: 'X', key: 'Sensor #1' },
-                { node: 2, plane: 'Y', key: 'Sensor #2' },
-                { node: 4, plane: 'X', key: 'Sensor #3' },
-                { node: 4, plane: 'Y', key: 'Sensor #4' },
+                { node: 2, plane: 'X', key: 'Sensor #1', index: 0 },
+                { node: 2, plane: 'Y', key: 'Sensor #2', index: 1 },
+                { node: 4, plane: 'X', key: 'Sensor #3', index: 2 },
+                { node: 4, plane: 'Y', key: 'Sensor #4', index: 3 },
             ],
-            views: ['A', 'B'],
+            vs_nodes: [3, 2, 4],
+            charts: ['polar', 'decomposed', 'forces_1d', 'forces_2d', 'vs_1d', 'vs_2d', 'vs_3d'],
         } : null,
     };
 }
@@ -298,32 +302,77 @@ check('the correction mass and its phase are shown per plane',
 check('the summary says at which speed the signals were measured',
       document.getElementById('dt-balancing-summary').textContent.includes('840 rpm'));
 
-// --- The polar charts: one per balancing plane, for the sensor chosen -------
+// --- The charts of the run: polar first, then the others on request ---------
 
 check('the reference sensor picker offers every sensor of the measuring planes',
       document.getElementById('dt-polar-sensor').innerHTML.includes('Sensor #1')
       && document.getElementById('dt-polar-sensor').innerHTML.includes('Sensor #4'));
-check('the plan view picker offers both views',
-      (document.getElementById('dt-polar-view').innerHTML.match(/value="[AB]"/g) || []).length === 2);
+check('the chart picker offers the polar diagram, the forces and the virtual sensing',
+      ['polar', 'decomposed', 'forces_1d', 'forces_2d', 'vs_1d', 'vs_2d', 'vs_3d'].every(kind =>
+          document.getElementById('dt-chart-kind').innerHTML.includes(`value="${kind}"`)));
 // The rotor figure of step 3 is drawn through the same Plotly, so only the
-// polar boxes are counted here.
-const polarDrawn = () => drawn.filter(([id]) => id.startsWith('dt-polar-chart-'));
-check('a polar chart is drawn for each balancing plane',
-      polarDrawn().length === 1 && polarDrawn()[0][1] === 1);
+// boxes of the result card are counted here.
+const chartsDrawn = () => drawn.filter(([id]) => id.startsWith('dt-chart-'));
+check('the polar diagram is drawn first, one chart per balancing plane',
+      asked.figure && asked.figure.chart === 'polar' && chartsDrawn().length === 1);
+check('the polar diagram needs no plane, so the plane picker is hidden',
+      document.getElementById('dt-chart-node-group').style.display === 'none');
 
 // In a browser, filling a `<select>` selects its first option; the fake DOM
 // does not, so the choice is made here as the user would.
 document.getElementById('dt-polar-sensor').value = 'Sensor #2';
-document.getElementById('dt-polar-view').value = 'B';
 drawn.length = 0;
 await MEASUREMENT_ACTIONS['dt-polar-change']({ dataset: {} });
 await settle();
-check('the chart of the chosen sensor and view is the one asked for',
-      asked.polar.includes('sensor=Sensor%20%232') && asked.polar.includes('view=B'));
+check('the polar diagram of the chosen sensor is the one asked for',
+      asked.figure.chart === 'polar' && asked.figure.sensor === 1);
 check('the phase in the table follows the chosen sensor',
       document.getElementById('dt-balancing-result').innerHTML.includes('280.0'));
 check('the chart is drawn again for the new choice',
-      polarDrawn().length === 1);
+      chartsDrawn().length === 1);
+
+// The virtual sensing is offered on the balancing planes and the measuring
+// planes, as the Streamlit app offers it.
+document.getElementById('dt-chart-kind').value = 'vs_2d';
+drawn.length = 0;
+await MEASUREMENT_ACTIONS['dt-chart-change']({ dataset: {} });
+await settle();
+check('the virtual sensing offers the balancing and the measuring planes',
+      options('dt-chart-node').join(',') === '3,2,4'
+      && document.getElementById('dt-chart-node-group').style.display === '');
+document.getElementById('dt-chart-node').value = '4';
+await MEASUREMENT_ACTIONS['dt-chart-change']({ dataset: {} });
+await settle();
+check('the virtual sensing of the chosen plane is the one asked for',
+      asked.figure.chart === 'vs_2d' && asked.figure.node === 4 && chartsDrawn().length >= 1);
+
+document.getElementById('dt-chart-kind').value = 'forces_1d';
+await MEASUREMENT_ACTIONS['dt-chart-change']({ dataset: {} });
+await settle();
+check('the estimated forces are offered on the balancing planes only',
+      options('dt-chart-node').join(',') === '3' && asked.figure.chart === 'forces_1d');
+
+// The decomposition waits for its positions: a chart drawn before the angles
+// and radii are typed would be one the user did not ask for.
+document.getElementById('dt-chart-kind').value = 'decomposed';
+const before = asked.figure;
+await MEASUREMENT_ACTIONS['dt-chart-change']({ dataset: {} });
+await settle();
+check('choosing the decomposition shows its positions and draws nothing yet',
+      document.getElementById('dt-decomposition').style.display === ''
+      && asked.figure === before);
+check('the positions start at the radius of the balancing plane',
+      document.getElementById('dt-decomp-radius-a').value === '120'
+      && document.getElementById('dt-decomp-radius-b').value === '120');
+document.getElementById('dt-decomp-angle-a').value = '30';
+document.getElementById('dt-decomp-angle-b').value = '120';
+await MEASUREMENT_ACTIONS['dt-chart-draw']({ dataset: {} });
+await settle();
+check('splitting sends the angles and radii of both positions',
+      asked.figure.chart === 'decomposed'
+      && JSON.stringify(asked.figure.positions) === '[30,120]'
+      && JSON.stringify(asked.figure.radii) === '[120,120]'
+      && asked.figure.node === 3 && asked.figure.sensor === 1);
 
 // --- Choosing another rotor builds it again, so the nodes follow it ----------
 

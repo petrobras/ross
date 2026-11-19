@@ -17,7 +17,7 @@ from ross.interface.extensions.digital_twin.services.digital_twin import (
     rotor_project,
 )
 from ross.interface.extensions.digital_twin.services.balancing_analysis import (
-    polar_for,
+    figure_for,
     run_balancing,
     set_parameters,
     settings_for,
@@ -165,14 +165,18 @@ def balancing_parameters():
     )
 
 
-@digital_twin.route("/api/dt/balancing-polar")
-def balancing_polar():
-    """Return the polar chart of each balancing plane, for one view and sensor."""
+@digital_twin.route("/api/dt/balancing-figure", methods=["POST"])
+def balancing_figure():
+    """Draw one chart of the last balancing run: polar, forces or virtual sensing."""
+    body = _body()
     return jsonify(
-        polar_for(
-            request.args.get("session"),
-            request.args.get("view"),
-            request.args.get("sensor"),
+        figure_for(
+            body.get("session"),
+            body.get("chart"),
+            node=body.get("node"),
+            sensor=body.get("sensor", 0),
+            positions=body.get("positions"),
+            radii=body.get("radii"),
         )
     )
 

@@ -7,8 +7,8 @@ unbalance from the measured signals with `rossml`.
 
 The Streamlit app saves its session and hands it to `RossmlApi.run()`, which
 unpickles it and calls `rossml`. Here the session is already in memory, so
-`domain/rossml_balancing.py` is called with it and the answer is kept on the
-session.
+`domain/rossml_balancing.py` runs `rossml.api.API` with it, and the run is
+kept on the session to draw its charts when the screen asks for them.
 
 What comes back is an unbalance per balancing plane: a mass times a radius,
 in g·mm, and its angle. The correction goes on the other side of the shaft,
@@ -116,7 +116,7 @@ def run_balancing(identifier, iterations=0, population=1, optimize=False):
         raise ValueError(refusal)
 
     planes = [plane["node"] for plane in current.balancing_planes]
-    estimate = rossml_balancing.run(
+    run, estimate = rossml_balancing.run(
         current.rotor,
         measurement.sensor_angles(current),
         planes,
@@ -130,43 +130,102 @@ def run_balancing(identifier, iterations=0, population=1, optimize=False):
         hyperparameters=(_hyperparameters(current) or {}).get("values"),
     )
     current.balancing = _corrections(current, estimate)
-    current.balancing_polar = _polar(estimate)
+    current.balancing_run = run
     return settings_for(identifier)
 
 
-def polar_for(identifier, view, sensor):
-    """Return the polar chart of each balancing plane, for one view and sensor.
+def figure_for(identifier, chart, node=None, sensor=0, positions=None, radii=None):
+    """Draw one chart of the last run.
 
     Parameters
     ----------
     identifier : str
         Session id.
-    view : str
-        `A`, seen from the driven machine towards the driver, or `B`.
-    sensor : str
-        The sensor the chart is turned to, as `balancing.sensors` names it.
+    chart : str
+        `polar`, one chart per balancing plane; `decomposed`, the correction
+        of one plane split into masses at chosen positions; `forces_1d` and
+        `forces_2d`, the estimated force on one balancing plane; `vs_1d` and
+        `vs_2d`, the virtual sensing of the displacement on one balancing or
+        measuring plane; or `vs_3d`, the virtual sensing along the rotor.
+    node : int, optional
+        The plane, for the charts drawn per plane.
+    sensor : int, optional
+        The reference sensor of the angles, as `balancing.sensors` numbers
+        them, for `polar` and `decomposed`.
+    positions, radii : list of float, optional
+        For `decomposed`: the angles, in degrees, and the radii, in mm, of the
+        positions the correction is split into, two or more.
 
     Returns
     -------
     dict
-        `charts`, one `{node, figure}` per balancing plane.
+        `charts`, one `{node, figure}` per figure drawn.
     """
     current = session.get(identifier)
-    charts = (current.balancing_polar or {}).get((view, sensor))
-    if charts is None:
+    run = current.balancing_run
+    if run is None or current.balancing is None:
         raise ValueError("Run the analysis before asking for its charts.")
-    return {"view": view, "sensor": sensor, "charts": charts}
+    if chart not in rossml_balancing.CHARTS:
+        raise ValueError("Unknown chart: %s." % chart)
+    result = current.balancing
+    planes = [plane["node"] for plane in result["planes"]]
+    sensor = _choice("reference sensor", sensor, range(max(1, len(result["sensors"]))))
+    if chart in ("decomposed", "forces_1d", "forces_2d"):
+        node = _choice("balancing plane", node, planes)
+    elif chart in ("vs_1d", "vs_2d"):
+        node = _choice("plane", node, result["vs_nodes"])
+    else:
+        node = None
+    if chart == "decomposed":
+        positions, radii = _positions(positions, radii)
+    figures = rossml_balancing.chart(
+        run, chart, node=node, sensor=sensor, positions=positions, radii=radii
+    )
+    nodes = planes if chart == "polar" else [node] * len(figures)
+    return {
+        "chart": chart,
+        "charts": [
+            {"node": name, "figure": figure(drawn)}
+            for name, drawn in zip(nodes, figures, strict=True)
+        ],
+    }
 
 
-def _polar(estimate):
-    """Group the charts by view and sensor, the two the screen chooses from."""
-    charts = {}
-    for item in estimate.get("polar", []):
-        key = (item["view"], item["sensor"])
-        charts.setdefault(key, []).append(
-            {"node": item["node"], "figure": figure(item["figure"])}
-        )
-    return charts
+def _positions(positions, radii):
+    """Check the positions of a decomposition: two or more, a radius for each."""
+    message = (
+        "Give the angle, in degrees, and the radius, in mm, of at least two "
+        "positions to split the correction into."
+    )
+    if not isinstance(positions, list) or not isinstance(radii, list):
+        raise ValueError(message)
+    if len(positions) < 2 or len(positions) != len(radii):
+        raise ValueError(message)
+    try:
+        positions = [float(value) for value in positions]
+        radii = [float(value) for value in radii]
+    except (TypeError, ValueError):
+        raise ValueError(message) from None
+    if any(radius <= 0 for radius in radii):
+        raise ValueError("The radius of every position must be positive.")
+    return positions, radii
+
+
+def _choice(name, value, allowed):
+    """Return `value` as a whole number when it is one of `allowed`."""
+    allowed = list(allowed)
+    refusal = ValueError(
+        "Choose the %s among %s." % (name, ", ".join(str(item) for item in allowed))
+    )
+    if isinstance(value, bool) or (isinstance(value, float) and not value.is_integer()):
+        raise refusal
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        raise refusal from None
+    if number not in allowed:
+        raise refusal
+    return number
 
 
 def _corrections(current, estimate):
@@ -197,7 +256,14 @@ def _corrections(current, estimate):
         # on it.
         "phases": estimate.get("phases", {}),
         "sensors": _sensors(current, estimate),
-        "views": list(rossml_balancing.VIEWS),
+        # The planes the virtual sensing is drawn for, as the Streamlit app
+        # offers them: the balancing planes used, then the measuring planes.
+        "vs_nodes": list(
+            dict.fromkeys(
+                [plane["node"] for plane in planes] + sorted(current.measuring_nodes)
+            )
+        ),
+        "charts": list(rossml_balancing.CHARTS),
     }
 
 
@@ -215,6 +281,7 @@ def _sensors(current, estimate):
     for index, key in enumerate(keys):
         if index < len(names):
             names[index]["key"] = key
+            names[index]["index"] = index
     return [name for name in names if "key" in name]
 
 

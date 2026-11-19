@@ -42,7 +42,8 @@ class Session:
         self.balancing_planes = []
         self.sensors_plans = {}
         self.balancing = None
-        self.balancing_polar = None
+        # The rossml run (`rossml.api.API`), kept to draw its charts on request.
+        self.balancing_run = None
         self.balancing_parameters = None
 
     @property

@@ -25,9 +25,25 @@ export const MEASUREMENT_ACTIONS = {
     'dt-run-balancing': () => runBalancing(),
     'dt-parameters-apply': () => applyParameters(),
     // The interface dispatches a select's `change` through the same actions
-    // (core/actions.js), so the two pickers of the polar chart come here.
+    // (core/actions.js), so the pickers of the result card come here.
     'dt-polar-change': () => renderBalancing(state.result),
+    'dt-chart-change': () => showChart(),
+    'dt-chart-draw': () => drawChart(),
 };
+
+// The charts of a run, in the order the picker offers them. `node` says which
+// planes a chart is drawn for: the balancing planes the estimate used, the
+// planes of the virtual sensing, or none (one chart per balancing plane, or
+// the whole rotor).
+const CHARTS = [
+    { kind: 'polar', label: 'dtChartPolar', hint: 'dtPolarHint', node: null },
+    { kind: 'decomposed', label: 'dtChartDecomposed', hint: 'dtDecomposedHint', node: 'planes' },
+    { kind: 'forces_1d', label: 'dtChartForces1d', node: 'planes' },
+    { kind: 'forces_2d', label: 'dtChartForces2d', node: 'planes' },
+    { kind: 'vs_1d', label: 'dtChartVs1d', hint: 'dtVirtualSensingHint', node: 'vs' },
+    { kind: 'vs_2d', label: 'dtChartVs2d', hint: 'dtVirtualSensingHint', node: 'vs' },
+    { kind: 'vs_3d', label: 'dtChartVs3d', hint: 'dtVirtualSensingHint', node: null },
+];
 
 export function startMeasurement() {
     if (!document.getElementById('dt-planes-form')) return;
@@ -186,11 +202,12 @@ function renderBalancing(result) {
         card.style.display = 'none';
         box.innerHTML = '';
         summary.textContent = '';
-        document.getElementById('dt-polar').innerHTML = '';
+        document.getElementById('dt-charts').innerHTML = '';
         return;
     }
     card.style.display = '';
     fillPolarChoices(result);
+    fillChartChoices(result);
     summary.textContent = t('dtBalancingSummary')
         .replace('{speed}', number(result.speed[0], 0) + ' ' + result.speed[1])
         .replace('{nodes}', result.measuring.join(', '));
@@ -212,7 +229,7 @@ function renderBalancing(result) {
                     <td>${number(correctionPhase(result, plane, index), 1)}</td>
                 </tr>`).join('')}</tbody>
         </table>`;
-    loadPolar();
+    showChart();
 }
 
 // The unbalance angle is measured against one sensor, so the correction angle
@@ -227,44 +244,112 @@ function correctionPhase(result, plane, index) {
 
 function fillPolarChoices(result) {
     const sensors = document.getElementById('dt-polar-sensor');
-    const views = document.getElementById('dt-polar-view');
-    const chosen = { sensor: sensors.value, view: views.value };
+    const chosen = sensors.value;
     sensors.innerHTML = (result.sensors || []).map(sensor =>
         `<option value="${escapeHtml(sensor.key)}">${escapeHtml(t('dtNode'))} ${sensor.node} - ${escapeHtml(sensor.plane)}</option>`).join('');
-    views.innerHTML = (result.views || []).map(view =>
-        `<option value="${escapeHtml(view)}">${escapeHtml(t('dtView' + view))}</option>`).join('');
     // The first option is chosen here rather than left to the browser, which
     // selects it on its own: the choice has to be readable right away, because
     // the phase in the table is read against the sensor chosen.
-    sensors.value = chosen.sensor || (result.sensors || [{}])[0].key || '';
-    views.value = chosen.view || (result.views || [''])[0];
+    const keys = (result.sensors || []).map(sensor => sensor.key);
+    sensors.value = keys.includes(chosen) ? chosen : (keys[0] || '');
 }
 
-async function loadPolar() {
-    const box = document.getElementById('dt-polar');
-    if (!state.result || !state.sessionId) {
+function sensorIndex() {
+    const key = document.getElementById('dt-polar-sensor').value;
+    const sensor = ((state.result || {}).sensors || []).find(item => item.key === key);
+    return sensor ? sensor.index : 0;
+}
+
+function fillChartChoices(result) {
+    const kinds = document.getElementById('dt-chart-kind');
+    const chosen = kinds.value;
+    const offered = CHARTS.filter(chart => (result.charts || []).includes(chart.kind));
+    kinds.innerHTML = offered.map(chart =>
+        `<option value="${chart.kind}">${escapeHtml(t(chart.label))}</option>`).join('');
+    kinds.value = offered.some(chart => chart.kind === chosen) ? chosen : (offered[0] || {}).kind || '';
+    // A new run brings its own planes: the positions start at the radius the
+    // correction was computed for.
+    const radius = ((result.planes || [])[0] || {}).radius;
+    ['dt-decomp-radius-a', 'dt-decomp-radius-b'].forEach(id => {
+        const input = document.getElementById(id);
+        if (!input.value && radius) input.value = String(radius);
+    });
+}
+
+function chosenChart() {
+    const kind = document.getElementById('dt-chart-kind').value;
+    return CHARTS.find(chart => chart.kind === kind) || null;
+}
+
+// The picker of planes follows the chart, and a chart is drawn as soon as it
+// is chosen, except the decomposition, which waits for its positions.
+function showChart() {
+    const chart = chosenChart();
+    const result = state.result;
+    if (!chart || !result) return;
+    const nodes = chartNodes(chart, result);
+    const picker = document.getElementById('dt-chart-node');
+    const chosen = Number(picker.value);
+    picker.innerHTML = nodes.map(node => `<option value="${node}">${node}</option>`).join('');
+    picker.value = String(nodes.includes(chosen) ? chosen : (nodes[0] ?? ''));
+    document.getElementById('dt-chart-node-group').style.display = nodes.length ? '' : 'none';
+    document.getElementById('dt-decomposition').style.display = chart.kind === 'decomposed' ? '' : 'none';
+    document.getElementById('dt-chart-hint').textContent = chart.hint ? t(chart.hint) : '';
+    if (chart.kind === 'decomposed') {
+        document.getElementById('dt-charts').innerHTML = '';
+        return;
+    }
+    drawChart();
+}
+
+function chartNodes(chart, result) {
+    if (chart.node === 'planes') return result.planes.map(plane => plane.node);
+    if (chart.node === 'vs') return result.vs_nodes || [];
+    return [];
+}
+
+async function drawChart() {
+    const box = document.getElementById('dt-charts');
+    const chart = chosenChart();
+    if (!state.result || !state.sessionId || !chart) {
         box.innerHTML = '';
         return;
     }
-    const sensor = document.getElementById('dt-polar-sensor').value;
-    const view = document.getElementById('dt-polar-view').value;
-    if (!sensor || !view) return;
+    const body = { session: state.sessionId, chart: chart.kind, sensor: sensorIndex() };
+    if (chart.node) body.node = Number(document.getElementById('dt-chart-node').value);
+    if (chart.kind === 'decomposed') {
+        const value = id => Number(document.getElementById(id).value);
+        body.positions = [value('dt-decomp-angle-a'), value('dt-decomp-angle-b')];
+        body.radii = [value('dt-decomp-radius-a'), value('dt-decomp-radius-b')];
+    }
+    // The answer is drawn only while it is still the chart on screen: choosing
+    // another one while rossml draws must not be overwritten by the older one.
+    const asked = JSON.stringify(body);
+    state.chartAsked = asked;
+    box.innerHTML = '';
+    const stop = showLoader('dt-chart', box, { label: t('dtDrawing'), top: '50%' });
     let answer = null;
     try {
-        answer = await apiJson('/api/dt/balancing-polar?session=' + state.sessionId
-            + '&view=' + encodeURIComponent(view) + '&sensor=' + encodeURIComponent(sensor));
+        answer = await apiJson('/api/dt/balancing-figure', body);
     } catch (error) {
-        box.innerHTML = `<p class="panel-hint">${escapeHtml(error.message)}</p>`;
+        stop();
+        if (state.chartAsked === asked) {
+            box.innerHTML = `<p class="panel-hint">${escapeHtml(error.message)}</p>`;
+        }
         return;
     }
-    box.innerHTML = answer.charts.map((chart, index) => `
+    stop();
+    if (state.chartAsked !== asked) return;
+    const wide = chart.kind !== 'polar' && chart.kind !== 'decomposed';
+    box.classList.toggle('dt-chart-wide', wide);
+    box.innerHTML = answer.charts.map((item, index) => `
         <div>
-            <p class="dt-polar-title">${escapeHtml(t('dtNode'))} ${chart.node}</p>
-            <div id="dt-polar-chart-${index}" class="dt-polar-chart"></div>
+            ${item.node === null || item.node === undefined ? '' : `<p class="dt-polar-title">${escapeHtml(t('dtNode'))} ${item.node}</p>`}
+            <div id="dt-chart-${index}" class="dt-polar-chart"></div>
         </div>`).join('');
-    answer.charts.forEach((chart, index) => {
-        const layout = Object.assign({}, chart.figure.layout, { autosize: true });
-        window.Plotly.newPlot(`dt-polar-chart-${index}`, chart.figure.data, layout,
+    answer.charts.forEach((item, index) => {
+        const layout = Object.assign({}, item.figure.layout, { autosize: true, width: null, height: null });
+        window.Plotly.newPlot(`dt-chart-${index}`, item.figure.data, layout,
                               { responsive: true, displaylogo: false });
     });
 }
