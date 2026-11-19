@@ -31,6 +31,7 @@ from .element_registry import (
 from .legacy import migrate_element
 from .material_names import material_key, ross_material_name, validate_materials
 from .node_resolver import effective_nodes, listed_nodes, validate_node_topology
+from .seal_stages import folded
 from .units import INT_PARAMETERS, UNITS_MAPPING, typed_unit
 from ross.interface.services.expressions import safe_math_eval
 
@@ -546,8 +547,11 @@ def assemble_rotor(data):
 
         def build_seal():
             element_class = ross_class_name("seals", type_val)
+            # The hybrid seal's stages: one field per key in the form, one
+            # dictionary per stage for ROSS (domain/seal_stages.py).
+            row = folded(s) if element_class == "HybridSeal" else s
             kwargs = extract_kwargs(
-                migrate_element(s, element_class),
+                migrate_element(row, element_class),
                 created_materials,
                 element_class,
                 ["n", "element_type"],

@@ -21,13 +21,14 @@
 import { escapeHtml } from '../core/dom.js';
 import { t } from '../core/i18n.js';
 import {
-    annotationLayout, benchLayout, framing, hitPoint, layoutScene, nearestNode, pickPart, viewDirection,
+    annotationLayout, benchLayout, framing, hitPoint, layoutScene, nearestNode, pickPart,
 } from '../core/rotor3d_layout.js';
 import { arrangeLabels, buildAnnotations, fillLabels } from '../components/rotor3d_annotations.js';
 import {
     alongAxis, grabbedEnd, keptEnds, measureLine, measureTop, measured, placeEnd, startingEnds,
 } from '../core/rotor3d_measure.js';
 import { buildMeasure } from '../components/rotor3d_measure.js';
+import { FLIGHT_MS, VIEWS, cameraBetween, easeInOut, viewTowards } from '../core/rotor3d_views.js';
 import { state } from '../core/state.js';
 import {
     LEGEND_CATEGORIES, categoryHidden, drawn, elementHidden, legendClick, toggleElementHidden,
@@ -97,6 +98,15 @@ let tapeEnds = null;
 let dragging = -1;
 
 let pointer = null;
+
+// The standard view last chosen (core/rotor3d_views.js), and the scene it was
+// chosen for: the rotor is framed from it again when it changes size. Not
+// remembered between sessions -- the page opens on the opening view.
+let chosenView = 'home';
+let lastScene = null;
+// The camera on its way to a view: where it left from, where it goes, and
+// when it left. Null when it is not flying.
+let flight = null;
 
 // Editing from the 3D view (slice 3). `chosen` is the key of the part last
 // clicked -- its row's form is open -- and `listPointed` the part of the row
@@ -273,6 +283,8 @@ function makeStage(container) {
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.addEventListener('change', requestFrame);
+    // A drag or a scroll during a flight takes the camera over from it.
+    controls.addEventListener('start', () => { flight = null; });
     // Moving the view: OrbitControls already pans with the right button and
     // with Shift, Ctrl or Cmd held on the left one; the arrow keys pan once it
     // listens to them. The "move" button (`togglePan`) swaps the left and right
@@ -486,22 +498,109 @@ function needsFraming(bounds) {
     return after.some((value, i) => Math.abs(value - before[i]) > 0.25 * Math.max(before[i], 1e-6));
 }
 
-export function frameRotor() {
+// `smooth`: the camera flies there (`FLIGHT_MS`) instead of jumping -- for
+// the buttons the person presses. A rebuild of the rotor still jumps: a view
+// that moves by itself after every edit would be a distraction.
+export function frameRotor(smooth = false) {
     if (!stage || !layout) return;
     const { camera, controls } = stage;
     const view = framing(shownBounds(), FOV, camera.aspect, direction);
     const [cx, cy, cz] = view.center;
     const [dx, dy, dz] = view.direction;
     const d = view.distance;
-    camera.position.set(cx + dx * d, cy + dy * d, cz + dz * d);
-    camera.near = Math.max(view.distance / 200, 1e-4);
-    camera.far = view.distance * 20;
-    camera.updateProjectionMatrix();
-    controls.target.set(cx, cy, cz);
-    controls.update();
+    const end = {
+        position: [cx + dx * d, cy + dy * d, cz + dz * d],
+        target: [cx, cy, cz],
+        near: Math.max(view.distance / 200, 1e-4),
+        far: view.distance * 20,
+    };
     framedFor = shownBounds();
     framedFrom = String(direction);
+    if (smooth && !prefersStillness()) {
+        flight = {
+            from: { position: camera.position.toArray(), target: controls.target.toArray() },
+            to: end,
+            start: performance.now(),
+        };
+        // Whatever the camera passes through stays inside the clipping range.
+        camera.near = Math.min(camera.near, end.near);
+        camera.far = Math.max(camera.far, end.far);
+        camera.updateProjectionMatrix();
+    } else {
+        flight = null;
+        placeCamera(end);
+        setClipping(end);
+    }
     requestFrame();
+}
+
+function placeCamera(at) {
+    const { camera, controls } = stage;
+    camera.position.set(...at.position);
+    controls.target.set(...at.target);
+    controls.update();
+}
+
+function setClipping(end) {
+    stage.camera.near = end.near;
+    stage.camera.far = end.far;
+    stage.camera.updateProjectionMatrix();
+}
+
+// The operating system's "reduce motion": the camera jumps to the view.
+function prefersStillness() {
+    try {
+        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    } catch (e) {
+        return false;
+    }
+}
+
+// One step of the flight, before each frame is drawn; the next frame is asked
+// for until it lands.
+function advanceFlight() {
+    if (!flight) return;
+    const progress = (performance.now() - flight.start) / FLIGHT_MS;
+    if (progress >= 1) {
+        const end = flight.to;
+        flight = null;
+        placeCamera(end);
+        setClipping(end);
+        return;
+    }
+    placeCamera(cameraBetween(flight.from, flight.to, easeInOut(progress)));
+    requestFrame();
+}
+
+// A standard view (core/rotor3d_views.js): the whole rotor, seen from there.
+export function showView(name) {
+    if (!VIEWS.includes(name)) return;
+    chosenView = name;
+    if (!stage || !layout) return;
+    direction = viewTowards(name, lastScene);
+    frameRotor(true);
+}
+
+// The views button: its menu opens under it.
+export function openViewsMenu(button) {
+    const box = button && typeof button.getBoundingClientRect === 'function'
+        ? button.getBoundingClientRect() : { left: 0, bottom: 0 };
+    openContextMenu(box.left, box.bottom + 4, viewEntries());
+}
+
+const VIEW_ICONS = { home: 'fa-house', iso: 'fa-cube', front: 'fa-circle', side: 'fa-arrows-left-right', top: 'fa-arrow-down' };
+const VIEW_LABELS = {
+    home: () => t('rotor3dViewHome'),
+    iso: () => t('rotor3dViewIso'),
+    front: () => t('rotor3dViewFront'),
+    side: () => t('rotor3dViewSide'),
+    top: () => t('rotor3dViewTop'),
+};
+
+export function viewEntries() {
+    return [{ header: t('rotor3dViewsTitle') }].concat(VIEWS.map(name => ({
+        label: VIEW_LABELS[name](), icon: VIEW_ICONS[name], run: () => showView(name),
+    })));
 }
 
 // Draw `scene` in `container`. The first call loads three.js; a browser
@@ -514,7 +613,8 @@ export async function showRotor3d(container, scene) {
     }
     fitCanvas(stage);
     layout = layoutScene(scene, shapeForElement);
-    direction = viewDirection(scene);
+    lastScene = scene;
+    direction = viewTowards(chosenView, scene);
     buildModel();
     placeAnnotations();
     placeMeasure();
@@ -758,7 +858,9 @@ export function menuEntries(hit) {
         return [
             { label: t('ctxMeshAll'), icon: 'fa-ruler-horizontal', run: () => meshFrom3d(null, currentHalf()) },
             { label: measuring ? t('ctxMeasureStop') : t('ctxMeasure'), icon: 'fa-ruler', run: () => toggleMeasure() },
-            { label: t('rotor3dFrame'), icon: 'fa-expand', run: () => frameRotor() },
+            { label: t('rotor3dFrame'), icon: 'fa-expand', run: () => frameRotor(true) },
+            null,
+            ...viewEntries(),
         ];
     }
     const { part } = hit;
@@ -852,6 +954,7 @@ function requestFrame() {
 function drawFrame() {
     frameAsked = false;
     if (!stage) return;
+    advanceFlight();
     showWhatIsUnderThePointer();
     stage.renderer.render(stage.scene, stage.camera);
     drawTriad();

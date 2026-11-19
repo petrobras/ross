@@ -199,7 +199,12 @@ def mesh_shafts_route():
         )
     elif method == "convergence":
         built, report = mesh_by_convergence(
-            project, payload["n_modes"], payload["rtol"], payload["speed"]
+            project,
+            payload["n_modes"],
+            payload["rtol"],
+            payload["speed"],
+            strategy=payload["strategy"],
+            max_elements=payload["max_elements"],
         )
     else:
         raise ValueError(BAD_METHOD % method)

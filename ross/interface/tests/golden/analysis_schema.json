@@ -829,6 +829,52 @@
     "deps_de": "plot_type"
    },
    {
+    "id": "window_start",
+    "label": "Window Start (s)",
+    "type": "number",
+    "val": "",
+    "role": "plot",
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "window_end",
+    "label": "Window End (s)",
+    "type": "number",
+    "val": "",
+    "role": "plot",
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "one_revolution",
+    "label": "One Revolution",
+    "type": "select",
+    "val": "False",
+    "role": "plot",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
     "id": "rotor_length_units",
     "label": "Rotor Len Units",
     "type": "select",
@@ -1427,6 +1473,52 @@
     "deps_de": "plot_type"
    },
    {
+    "id": "window_start",
+    "label": "Window Start (s)",
+    "type": "number",
+    "val": "",
+    "role": "plot",
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "window_end",
+    "label": "Window End (s)",
+    "type": "number",
+    "val": "",
+    "role": "plot",
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "one_revolution",
+    "label": "One Revolution",
+    "type": "select",
+    "val": "False",
+    "role": "plot",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
     "id": "rotor_length_units",
     "label": "Rotor Len Units",
     "type": "select",
@@ -1617,6 +1709,52 @@
     "deps_de": "plot_type"
    },
    {
+    "id": "window_start",
+    "label": "Window Start (s)",
+    "type": "number",
+    "val": "",
+    "role": "plot",
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "window_end",
+    "label": "Window End (s)",
+    "type": "number",
+    "val": "",
+    "role": "plot",
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "one_revolution",
+    "label": "One Revolution",
+    "type": "select",
+    "val": "False",
+    "role": "plot",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
     "id": "rotor_length_units",
     "label": "Rotor Len Units",
     "type": "select",
@@ -1786,6 +1924,52 @@
     "adv": "plot",
     "deps": [
      "1D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "window_start",
+    "label": "Window Start (s)",
+    "type": "number",
+    "val": "",
+    "role": "plot",
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "window_end",
+    "label": "Window End (s)",
+    "type": "number",
+    "val": "",
+    "role": "plot",
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "one_revolution",
+    "label": "One Revolution",
+    "type": "select",
+    "val": "False",
+    "role": "plot",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "2D",
+     "3D"
     ],
     "deps_de": "plot_type"
    },
