@@ -30,7 +30,6 @@ electrical = dict(
     stator_reactance=1.3,  # Ohm
     rotor_reactance=1.3,  # Ohm
     mutual_reactance=43.08,  # Ohm
-    Ip_load=0.0,  # kg·m²
     viscosity_coeff=0.0,
 )
 
@@ -80,7 +79,7 @@ fig = campbell.plot()
 ```
 
 - With `shaft_elements`, the attributes of the motor (`m`, `Ip`, `tag`, `save()`...) and the arguments of `ElectricMotor` are not forwarded to the rotor: use `motor_fem.mechanical_model.shaft_elements`, for example. The lumped motor has no rotor and forwards nothing.
-- Either `m` and `Ip` (lumped model) or `shaft_elements` (finite element model) is required. Without `shaft_elements`, a missing `m` or `Ip`, or any `disk_elements`, `bearing_elements` or `point_mass_elements`, raises `ValueError`; with `shaft_elements`, `m`, `Ip` and `Id` raise `ValueError`. The motor-only simulations use only `Ip + Ip_load`.
+- Either `m` and `Ip` (lumped model) or `shaft_elements` (finite element model) is required. Without `shaft_elements`, a missing `m` or `Ip`, or any `disk_elements`, `bearing_elements` or `point_mass_elements`, raises `ValueError`; with `shaft_elements`, `m`, `Ip` and `Id` raise `ValueError`. The motor-only simulations (`run_direct_on_line`, `run_with_inverter_vf`, `run_with_inverter_foc`) use `Ip` plus the `Ip_load` argument of the method, the polar inertia of the driven load in kg·m² (zero by default).
 - The direct-on-line supply voltage and frequency are the `voltage_net` and `frequency_net` arguments of `run_direct_on_line`, which default to the rated values. The `ElectricMotor` arguments of the same name do not reach the supply: `voltage_net` only sets the network short-circuit impedance and `frequency_net` is not used. `run_with_motor` does not pass a supply voltage or frequency, so its `"DOL"` mode always runs at the rated values. The inverters set the voltage and frequency themselves.
 - Speeds and frequencies are rad/s internally; pass `Q_(..., "RPM")` or `Q_(..., "Hz")` to convert.
 
@@ -255,7 +254,7 @@ response = rotor_lumped.run_with_motor(
 - A rotor holds one motor; `add_motor` on a rotor that already has one raises `ValueError`. `rotor.add_elements` does not add motors.
 - The finite element model adds the flexibility of the motor shaft and the motor bearings, so the natural frequencies differ from the lumped model (in the tutorial, with the coupling, the second pair moves from 40.4 Hz to 52.2 Hz).
 - A rotor with a motor round-trips `save`/`load` with either model. A motor with `shaft_elements` cannot be saved on its own before it is connected to a rotor.
-- The motor is simulated first with the chosen drive, using only `Ip + Ip_load` (not the inertia of the whole rotor). Then the rotor is integrated with Newmark, with the net torque (electric minus load) on the `theta` DOF of `motor.n_torque` and unbalance forces computed from the motor speed, which varies in time.
+- The motor is simulated first with the chosen drive, with the polar inertia of the whole rotor: the `Ip` of the motor plus the inertia of the rest of the rotor, `rotor.Ip - motor.Ip`, passed as `Ip_load`. Then the rotor is integrated with Newmark, with the net torque (electric minus load) on the `theta` DOF of `motor.n_torque` and unbalance forces computed from the motor speed, which varies in time.
 - `ac_source_harmonics` / `ac_source_unbalances` are the `harmonics` / `unbalances` dicts of `run_direct_on_line`, used only with `"DOL"`.
 - `time_step`, `time_ramp` and `frequency_ref` are the inverter arguments, used only with `"VFD_VF"` and `"VFD_FOC"`. The switching frequency is fixed at 5 kHz.
 - `steady_state=True` (default) integrates only the last third of the interval after `load_torque_entrance_time`: `response.t` starts there, not at `t[0]`. The motor start-up and load transient are skipped, but the rotor starts from rest at the start of that window, so the window begins with a new lateral transient. In the run above the amplitudes at the end of the window are still 20-40 % above the steady value. Use `steady_state=False` (or a longer `t`) when amplitudes matter.

@@ -71,7 +71,6 @@ def motor_high_inertia():
         m=10.0,
         Ip=0.0372 * 10000,
         viscosity_coeff=0.0,
-        Ip_load=0.0,
         voltage_net=127,
         frequency_net=Q_(60.0, "Hz"),
     )
@@ -461,12 +460,18 @@ def test_foc_speed_tracks_reduced_reference_no_load(
 # Test 7 - Motor coupled to a rotor (Rotor.run_with_motor)
 # ---------------------------------------------------------------------------
 #
-# The rotor uses the shaft and disks of ``rotor_example()`` with damped
-# bearings: with the undamped bearings of the example, the free vibration
-# excited at the start of the steady-state window never decays and dominates
-# the spectrum instead of the unbalance response. All three ``drive_mode``
-# values are run at 60 Hz under rated load, so the shaft settles near the
-# rated speed and the unbalance response is a 1X well above the first modes.
+# The rotor uses the shaft of ``rotor_example()`` with damped bearings and
+# smaller disks, which give it a polar inertia of 0.07 kg.m^2, about twice the
+# one of the motor. The motor simulation includes the inertia of the whole
+# rotor: with the disks of the example (0.67 kg.m^2) the start would not end
+# in a few seconds. The load enters at 1 s and the simulation lasts 3 s, so
+# that the open-loop V/f speed and the ringing of the FOC speed loop have
+# settled in the steady-state window. With the undamped bearings of the example,
+# the free vibration excited at the start of the steady-state window never
+# decays and dominates the spectrum instead of the unbalance response. All
+# three ``drive_mode`` values are run at 60 Hz under rated load, so the shaft
+# settles near the rated speed and the unbalance response is a 1X well above
+# the first modes.
 
 _ROTOR_LOAD_TIME = 1.0
 _ROTOR_UNBALANCE_NODE = 2
@@ -481,7 +486,13 @@ def rotor_with_motor(motor):
         BearingElement(n=bearing.n, kxx=1e6, cxx=2e3)
         for bearing in base_rotor.bearing_elements
     ]
-    rotor = Rotor(base_rotor.shaft_elements, base_rotor.disk_elements, bearings)
+    disks = [
+        DiskElement.from_geometry(
+            n=disk.n, material=steel, width=0.04, i_d=0.05, o_d=0.18
+        )
+        for disk in base_rotor.disk_elements
+    ]
+    rotor = Rotor(base_rotor.shaft_elements, disks, bearings)
     return rotor.add_motor(deepcopy(motor))
 
 
@@ -489,7 +500,7 @@ def rotor_with_motor(motor):
 def results_run_with_motor(rotor_with_motor, request):
     """Simulate the rotor with each supported drive_mode under rated load."""
     drive_mode = request.param
-    t = np.arange(0, 2.0 + 1e-3, 1e-3)
+    t = np.arange(0, 3.0 + 1e-3, 1e-3)
     kwargs = {}
     if drive_mode != "DOL":
         kwargs["time_step"] = 1e-5
@@ -565,6 +576,47 @@ def test_run_with_motor_without_motor_element():
             drive_mode="DOL",
             load_torque_entrance_time=0.05,
         )
+
+
+@pytest.mark.parametrize("drive_mode", _DRIVE_MODES)
+def test_ip_load_argument_adds_to_the_motor_inertia(drive_mode):
+    # Reference: a motor built with Ip equal to Ip + Ip_load, simulated without
+    # load inertia.
+    Ip_load = 0.05
+    circuit = dict(
+        power_rated=1118.5,
+        voltage_rated=127,
+        speed_rated=179.07,
+        stator_resistance=2.5,
+        rotor_resistance=1.8,
+        stator_reactance=1.3,
+        rotor_reactance=1.3,
+        mutual_reactance=43.08,
+    )
+    motor = ElectricMotor(n=0, m=10.0, Ip=0.0372, **circuit)
+    heavy_motor = ElectricMotor(n=0, m=10.0, Ip=0.0372 + Ip_load, **circuit)
+
+    t = np.arange(0, 0.3 + 1e-3, 1e-3)
+    methods = {
+        "DOL": ("run_direct_on_line", {}),
+        "VFD_VF": ("run_with_inverter_vf", {"frequency_s": 5e3 * 2 * np.pi}),
+        "VFD_FOC": ("run_with_inverter_foc", {"frequency_s": 5e3 * 2 * np.pi}),
+    }
+    name, kwargs = methods[drive_mode]
+    if drive_mode != "DOL":
+        kwargs["time_step"] = 1e-5
+        kwargs["frequency_ref"] = Q_(60.0, "Hz")
+        kwargs["time_ramp"] = 0.2
+
+    speed = getattr(motor, name)(t, Ip_load=Ip_load, **kwargs).sample_at("speed", t)
+    reference = getattr(heavy_motor, name)(t, **kwargs).sample_at("speed", t)
+    unloaded = getattr(motor, name)(t, **kwargs).sample_at("speed", t)
+
+    if drive_mode != "VFD_FOC":
+        # The FOC speed controller is tuned with the motor inertia only, so the
+        # heavy motor, tuned with the total inertia, is not a reference for it.
+        assert_allclose(speed, reference, rtol=1e-8)
+    assert np.max(np.abs(unloaded - speed)) > 0.1 * np.max(speed)
 
 
 _CIRCUIT = dict(

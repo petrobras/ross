@@ -4079,10 +4079,11 @@ def test_run_with_motor_uses_the_inertia_of_the_load_rotor(structure, operation)
         load_torque_ratio=1.0,
     )
 
-    motor = copy(rotor.motor)
-    motor.update_load_inertia(expected_load_inertia)
-    reference = motor.run_direct_on_line(
-        t, load_torque_entrance_time=0.1, load_torque_ratio=1.0
+    reference = rotor.motor.run_direct_on_line(
+        t,
+        load_torque_entrance_time=0.1,
+        load_torque_ratio=1.0,
+        Ip_load=expected_load_inertia,
     )
 
     assert_allclose(
@@ -4090,7 +4091,6 @@ def test_run_with_motor_uses_the_inertia_of_the_load_rotor(structure, operation)
         reference.sample_at("speed", t),
         rtol=1e-8,
     )
-    assert rotor.motor.Ip_load == 0.0
 
 
 def _rotor_with_motor(structure):

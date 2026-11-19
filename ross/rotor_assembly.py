@@ -5436,7 +5436,7 @@ class Rotor(object):
         the unbalance force is time-varying. The motor mass ``m`` and inertia
         ``Ip`` enter the rotor matrices as a disk. The motor simulation uses the
         inertia of the motor plus the polar inertia of the rest of the rotor, that is,
-        ``rotor.Ip - motor.Ip``. The ``Ip_load`` of the motor is replaced by this value.
+        ``rotor.Ip - motor.Ip``.
 
         Available plotting methods:
             .plot_1d()
@@ -5563,8 +5563,8 @@ class Rotor(object):
         if self.motor is None:
             raise ValueError("No motor elements found in the rotor.")
 
-        motor = copy(self.motor)
-        motor.update_load_inertia(self.Ip - motor.Ip)
+        motor = self.motor
+        Ip_load = self.Ip - motor.Ip
 
         if load_torque_entrance_time is None:
             load_torque_entrance_time = t[len(t) // 2]
@@ -5582,6 +5582,7 @@ class Rotor(object):
                 t,
                 load_torque_entrance_time=load_torque_entrance_time,
                 load_torque_ratio=load_torque_ratio,
+                Ip_load=Ip_load,
                 harmonics=ac_source_harmonics,
                 unbalances=ac_source_unbalances,
             )
@@ -5590,6 +5591,7 @@ class Rotor(object):
                 t,
                 load_torque_entrance_time=load_torque_entrance_time,
                 load_torque_ratio=load_torque_ratio,
+                Ip_load=Ip_load,
                 frequency_s=frequency_s,
                 time_step=time_step,
                 time_ramp=time_ramp,
@@ -5600,6 +5602,7 @@ class Rotor(object):
                 t,
                 load_torque_entrance_time=load_torque_entrance_time,
                 load_torque_ratio=load_torque_ratio,
+                Ip_load=Ip_load,
                 frequency_s=frequency_s,
                 time_step=time_step,
                 time_ramp=time_ramp,

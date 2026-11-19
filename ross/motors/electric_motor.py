@@ -88,9 +88,6 @@ class ElectricMotor:
     viscosity_coeff : float, optional, pint.Quantity
         Viscosity coefficient [Pa.s].
         Default is 0.
-    Ip_load : float, optional, pint.Quantity
-        Polar Moment of inertia related to load [kg.m²].
-        Default is 0.
     voltage_net : float, optional
         Electrical tension of Power Supply [V], used to compute the network
         short-circuit impedance. The direct-on-line supply voltage is the
@@ -162,7 +159,6 @@ class ElectricMotor:
     ...     m=10.0,
     ...     Ip=0.0372,
     ...     viscosity_coeff=0.0,
-    ...     Ip_load=0.0,
     ...     voltage_net=127,
     ...     frequency_net=Q_(60.0, "Hz"),
     ... )
@@ -195,7 +191,6 @@ class ElectricMotor:
         frequency_rated=None,
         n_poles=4,
         viscosity_coeff=0.0,
-        Ip_load=0.0,
         voltage_net=None,
         frequency_net=None,
         initial_angle_net=None,
@@ -260,7 +255,6 @@ class ElectricMotor:
             self.n_torque = None
 
         self.viscosity_coeff = float(viscosity_coeff)
-        self.Ip_load = float(Ip_load)
 
         if frequency_rated is None:
             self.frequency_rated = Q_(60.0, "Hz").to("rad/s").m
@@ -383,7 +377,6 @@ class ElectricMotor:
             f"m={self.m:{0}.{5}}, "
             f"Ip={self.Ip:{0}.{5}}, "
             f"viscosity_coeff={self.viscosity_coeff:{0}.{5}}, "
-            f"Ip_load={self.Ip_load:{0}.{5}}, "
             f"voltage_net={self.voltage_net:{0}.{5}}, "
             f"frequency_net={self.frequency_net:{0}.{5}}, "
             f"initial_angle_net={self.initial_angle_net:{0}.{5}}, "
@@ -432,7 +425,6 @@ class ElectricMotor:
             f"\nMotor Mass (kg):                    {self.m:{2}.{5}}"
             f"\nMotor Inertia (kg.m²):              {self.Ip:{2}.{5}}"
             f"\nViscosity Coefficient (Pa.s):       {self.viscosity_coeff:{2}.{5}}"
-            f"\nLoad Inertia (kg.m²):               {self.Ip_load:{2}.{5}}"
             f"\n----- Power Supply Parameters (SCIP) -----"
             f"\nSupply Voltage (V):                 {self.voltage_net:{2}.{5}}"
             f"\nSupply Frequency (Hz):              {Q_(self.frequency_net, 'rad/s').to('Hz').m:{2}.{5}}"
@@ -512,9 +504,6 @@ class ElectricMotor:
 
     summary = Element.summary
     load = Element.__dict__["load"]
-
-    def update_load_inertia(self, value):
-        self.Ip_load = value
 
     def save(self, file, **more_args):
         """Save the motor in a .toml or .json file.
@@ -744,6 +733,7 @@ class ElectricMotor:
         time_step=None,
         load_torque_entrance_time=None,
         load_torque_ratio=1.0,
+        Ip_load=0.0,
         element=None,
     ):
         """Run a generic motor simulation for specified time points.
@@ -762,6 +752,9 @@ class ElectricMotor:
             Load torque ratio applied at the entrance time. This is a multiplier
             for the rated load torque, e.g., a value of 1.0 applies 100% of the
             rated torque at entrance time. Default is 1.0.
+        Ip_load : float, pint.Quantity, optional
+            Polar moment of inertia of the load driven by the motor [kg.m²].
+            It is added to the inertia of the motor, ``Ip``, in the motor dynamics. Default is 0.
         element : SourceAC, InverterVF or InverterFOC
             Electrical source or inverter. Must implement ``get_current_state``.
             :class:`InverterFOC` is stepped in closed
@@ -817,7 +810,7 @@ class ElectricMotor:
         Tl_full = self.T_rated * load_torque_ratio
 
         Rs = self.stator_resistance + self.short_circuit_resistance
-        Ip = self.Ip + self.Ip_load
+        Ip = self.Ip + Ip_load
 
         is_closed_loop = isinstance(element, InverterFOC)
 
@@ -928,6 +921,7 @@ class ElectricMotor:
         time_step=None,
         load_torque_entrance_time=None,
         load_torque_ratio=1.0,
+        Ip_load=0.0,
         voltage_net=None,
         frequency_net=None,
         initial_phase_angle=0.0,
@@ -950,6 +944,9 @@ class ElectricMotor:
             Load torque ratio applied at the entrance time. This is a multiplier
             for the rated load torque, e.g., a value of 1.0 applies 100% of the
             rated torque at entrance time. Default is 1.0.
+        Ip_load : float, pint.Quantity, optional
+            Polar moment of inertia of the load driven by the motor [kg.m²].
+            It is added to the inertia of the motor, ``Ip``, in the motor dynamics. Default is 0.
         voltage_net : float, pint.Quantity, optional
             Power supply voltage [V]. If None, uses motor rated voltage.
         frequency_net : float, pint.Quantity, optional
@@ -1052,6 +1049,7 @@ class ElectricMotor:
             time_step=time_step,
             load_torque_entrance_time=load_torque_entrance_time,
             load_torque_ratio=load_torque_ratio,
+            Ip_load=Ip_load,
             element=source,
         )
 
@@ -1065,6 +1063,7 @@ class ElectricMotor:
         time_step=None,
         load_torque_entrance_time=None,
         load_torque_ratio=1.0,
+        Ip_load=0.0,
         time_ramp=0.6667,
         frequency_ref=None,
     ):
@@ -1090,6 +1089,9 @@ class ElectricMotor:
             Load torque ratio applied at the entrance time. This is a multiplier
             for the rated load torque, e.g., a value of 1 applies 100% of the
             rated torque. Default is 1.
+        Ip_load : float, pint.Quantity, optional
+            Polar moment of inertia of the load driven by the motor [kg.m²].
+            It is added to the inertia of the motor, ``Ip``, in the motor dynamics. Default is 0.
         time_ramp : float, optional
             Acceleration ramp time [s] for frequency ramping. Default is 0.6667.
         frequency_ref : float or pint.Quantity, optional
@@ -1151,6 +1153,7 @@ class ElectricMotor:
             time_step=time_step or inverter.Ts / 200,
             load_torque_entrance_time=load_torque_entrance_time,
             load_torque_ratio=load_torque_ratio,
+            Ip_load=Ip_load,
             element=inverter,
         )
 
@@ -1163,6 +1166,7 @@ class ElectricMotor:
         time_step=None,
         load_torque_entrance_time=None,
         load_torque_ratio=1.0,
+        Ip_load=0.0,
         time_ramp=1.0,
         frequency_s=None,
         frequency_ref=None,
@@ -1191,6 +1195,9 @@ class ElectricMotor:
             Load torque ratio applied at the entrance time. This is a multiplier
             for the rated load torque, e.g., a value of 1 applies 100% of the
             rated torque. Default is 1.
+        Ip_load : float, pint.Quantity, optional
+            Polar moment of inertia of the load driven by the motor [kg.m²].
+            It is added to the inertia of the motor, ``Ip``, in the motor dynamics. Default is 0.
         time_ramp : float, optional
             Acceleration ramp time [s] for the mechanical speed reference.
             Default is 1.
@@ -1264,6 +1271,7 @@ class ElectricMotor:
             time_step=time_step or (2 * np.pi / frequency_s) / 200,
             load_torque_entrance_time=load_torque_entrance_time,
             load_torque_ratio=load_torque_ratio,
+            Ip_load=Ip_load,
             element=inverter,
         )
 
@@ -1582,7 +1590,6 @@ def motor_example():
         m=10.0,
         Ip=0.0372,
         viscosity_coeff=0.0,
-        Ip_load=0.0,
         voltage_net=127,
         frequency_net=Q_(60.0, "Hz"),
     )
