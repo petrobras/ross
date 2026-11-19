@@ -3380,21 +3380,19 @@ class Rotor(object):
         >>> rotor = rs.rotor_example_amb_general_controllers()
         >>> dt, speed, step = 1e-4, 1000, 1
         >>> t = np.arange(0, 5 * dt, dt)
-        >>> node = [27, 29]
-        >>> mass = [10, 10]
+        >>> node = rotor.disk_elements[0].n
         >>> F = np.zeros((len(t), rotor.ndof))
-        >>> for n, m in zip(node,mass):
-        ...     F[:, 6 * n + 0] = m * np.cos((speed * t))
-        ...     F[:, 6 * n + 1] = (m-5) * np.sin((speed * t))
+        >>> F[:, 6 * node + 0] = 10 * np.cos(speed * t)
+        >>> F[:, 6 * node + 1] = 5 * np.sin(speed * t)
         >>> response = rotor.run_time_response(speed, F, t, method = "newmark")
         Running direct method...
         >>> magnetic_bearings = [brg for brg in rotor.bearing_elements if isinstance(brg, rs.bearing_seal_element.MagneticBearingElement)]
         >>> amb_data = {key: np.zeros((len(t), len(magnetic_bearings) * 2)) for key in ["x_amb", "v_amb", "F_x", "F_v", "I"]}
         >>> magnetic_force = rotor.magnetic_bearing_controller(step, magnetic_bearings, dt, response.yout[-1,:], amb_data=amb_data)
         >>> np.nonzero(magnetic_force)[0]
-        array([ 72,  73, 258, 259])
+        array([ 66,  67, 234, 235])
         >>> magnetic_force[np.nonzero(magnetic_force)[0]]
-        array([-1.77841057e-04,  5.15148204e-06, -2.96097989e-04,  3.35036499e-05])
+        array([-1.66404874e-04,  8.24241062e-06,  1.41010194e-04,  1.98866826e-05])
         """
 
         sens_results = kwargs.get("sensitivity_result_values")
