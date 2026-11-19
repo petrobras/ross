@@ -36,6 +36,16 @@ def test_local_index():
     assert p.dof_local_index().z_0 == 2
 
 
+def test_rotational_point_mass():
+    p = PointMass(n=2, mx=1, my=2, mz=3, Ixx=4, Iyy=5, Izz=6)
+
+    assert p.M().shape == (6, 6)
+    assert_allclose(np.diag(p.M()), [1, 2, 3, 4, 5, 6])
+    assert p.dof_mapping()["alpha_0"] == 3
+    assert p.dof_mapping()["beta_0"] == 4
+    assert p.dof_mapping()["theta_0"] == 5
+
+
 def test_pickle():
     p = PointMass(n=0, m=10.0, tag="pointmass")
     p_pickled = pickle.loads(pickle.dumps(p))
