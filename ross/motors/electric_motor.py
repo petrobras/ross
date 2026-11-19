@@ -93,11 +93,6 @@ class ElectricMotor:
         short-circuit impedance. The direct-on-line supply voltage is the
         `voltage_net` argument of ``.run_direct_on_line()``.
         Default is None, which adopts the motor's rated voltage (`voltage_rated`).
-    frequency_net : float, optional, pint.Quantity
-        Electrical frequency of Power Supply [rad/s]. It is stored but not used
-        in the simulation; the direct-on-line supply frequency is the
-        `frequency_net` argument of ``.run_direct_on_line()``.
-        Default is None, which adopts the motor's rated frequency (`frequency_rated`).
     initial_angle_net : float, optional, pint.Quantity
         Initial angular phase frequency of Power Supply [rad].
         Default is 20 degrees.
@@ -160,7 +155,6 @@ class ElectricMotor:
     ...     Ip=0.0372,
     ...     viscosity_coeff=0.0,
     ...     voltage_net=127,
-    ...     frequency_net=Q_(60.0, "Hz"),
     ... )
 
     >>> motor.power_rated
@@ -192,7 +186,6 @@ class ElectricMotor:
         n_poles=4,
         viscosity_coeff=0.0,
         voltage_net=None,
-        frequency_net=None,
         initial_angle_net=None,
         short_circuit_ratio_net=50.0,
         XR_ratio_net=80.0,
@@ -271,11 +264,6 @@ class ElectricMotor:
             self.voltage_net = self.voltage_rated
         else:
             self.voltage_net = float(voltage_net)
-
-        if frequency_net is None:
-            self.frequency_net = self.frequency_rated
-        else:
-            self.frequency_net = float(frequency_net)
 
         if initial_angle_net is None:
             self.initial_angle_net = Q_(20.0, "deg").to("rad").m
@@ -378,7 +366,6 @@ class ElectricMotor:
             f"Ip={self.Ip:{0}.{5}}, "
             f"viscosity_coeff={self.viscosity_coeff:{0}.{5}}, "
             f"voltage_net={self.voltage_net:{0}.{5}}, "
-            f"frequency_net={self.frequency_net:{0}.{5}}, "
             f"initial_angle_net={self.initial_angle_net:{0}.{5}}, "
             f"short_circuit_ratio_net={self.short_circuit_ratio_net:{0}.{5}}, "
             f"XR_ratio_net={self.XR_ratio_net:{0}.{5}}, "
@@ -427,7 +414,6 @@ class ElectricMotor:
             f"\nViscosity Coefficient (Pa.s):       {self.viscosity_coeff:{2}.{5}}"
             f"\n----- Power Supply Parameters (SCIP) -----"
             f"\nSupply Voltage (V):                 {self.voltage_net:{2}.{5}}"
-            f"\nSupply Frequency (Hz):              {Q_(self.frequency_net, 'rad/s').to('Hz').m:{2}.{5}}"
             f"\nInitial Phase Angle (deg):          {Q_(self.initial_angle_net, 'rad').to('deg').m:{2}.{5}}"
             f"\nShort-Circuit Ratio (ad):           {self.short_circuit_ratio_net:{2}.{5}}"
             f"\nX/R Ratio (ad):                     {self.XR_ratio_net:{2}.{5}}"
@@ -1591,7 +1577,6 @@ def motor_example():
         Ip=0.0372,
         viscosity_coeff=0.0,
         voltage_net=127,
-        frequency_net=Q_(60.0, "Hz"),
     )
 
 

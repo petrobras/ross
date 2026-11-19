@@ -72,7 +72,6 @@ def motor_high_inertia():
         Ip=0.0372 * 10000,
         viscosity_coeff=0.0,
         voltage_net=127,
-        frequency_net=Q_(60.0, "Hz"),
     )
 
 
