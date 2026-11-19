@@ -92,6 +92,24 @@ def settings(model):
     return model_settings.defaults(_source(model))
 
 
+def analysis_parameters(model):
+    """Return the model's `input_parameters.json`, or `None` when it has none.
+
+    These are the hyperparameters of the balancing analysis: the search
+    bounds of the Kalman factors, the limits of the resultant force, the
+    number of points of the signal. They are tuned per machine and belong to
+    the Digital Twin app, not to ROSS, so they are read from the model folder
+    and never copied here. Without them the analysis runs on the library
+    defaults of rossml, which answer a different estimate.
+    """
+    _check_name(model)
+    path = os.path.join(APP_DIR, "models_files", model, "input_parameters.json")
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
 def model_for(tag):
     """Return the model name of a tag, refusing tags outside settings.json."""
     current = load_settings()

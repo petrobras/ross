@@ -88,6 +88,7 @@
                         </div>
                         <div class="form-box">
                             <h4 data-i18n="dtBalancingPlanes">Planos de balanceamento</h4>
+                            <div class="input-group"><label data-i18n="dtRadius">Raio da massa (mm)</label><input id="dt-balancing-radius" type="number" step="any" min="0" value="100"></div>
                             <div class="dt-plane-picker">
                                 <div class="input-group"><label data-i18n="dtNode">Nó</label><select id="dt-balancing-node"></select></div>
                                 <button type="button" class="btn-secondary" data-action="dt-plane-add" data-kind="balancing" title="Adicionar" data-i18n-title="dtAdd"><i class="fas fa-plus"></i></button>
@@ -96,6 +97,27 @@
                             <p class="dt-plane-list" id="dt-balancing-list"></p>
                         </div>
                         <p class="panel-hint" id="dt-sensors-status"></p>
+                        <div class="form-box">
+                            <h4 data-i18n="dtRunTitle">Análise de balanceamento</h4>
+                            <p class="panel-hint" id="dt-run-refusal"></p>
+                            <div class="input-group"><label data-i18n="dtIterations">Nº de iterações extras</label><input id="dt-iterations" type="number" step="1" min="0" max="20" value="0"></div>
+                            <div class="input-group"><label data-i18n="dtPopulation">População</label><input id="dt-population" type="number" step="1" min="1" max="50" value="1"></div>
+                            <div class="input-group">
+                                <label data-i18n="dtOptimizePlanes">Otimização de planos de balanceamento</label>
+                                <select id="dt-optimize">
+                                    <option value="no" data-i18n="dtNo">Não</option>
+                                    <option value="yes" data-i18n="dtYes">Sim</option>
+                                </select>
+                            </div>
+                            <p class="panel-hint" data-i18n="dtOptimizeHint">A otimização escolhe o subconjunto de planos que melhor explica os sinais e triplica o tempo de execução.</p>
+                            <div class="input-group">
+                                <label for="dt-parameters-file" data-i18n="dtParametersFile">Parâmetros da máquina (input_parameters.json)</label>
+                                <input id="dt-parameters-file" type="file" accept=".json,.JSON">
+                            </div>
+                            <button type="button" class="btn-secondary" id="dt-parameters-apply" data-action="dt-parameters-apply"><i class="fas fa-file-import"></i> <span data-i18n="dtApply">Aplicar</span></button>
+                            <p class="panel-hint" id="dt-parameters-status"></p>
+                            <button type="button" id="dt-run" class="btn-primary" data-action="dt-run-balancing" disabled><i class="fas fa-play"></i> <span data-i18n="dtRunAnalysis">Executar análise</span></button>
+                        </div>
                     </div>
                 </div>
 
@@ -120,6 +142,29 @@
                     <div class="analysis-body" id="dt-sensors-body">
                         <p class="panel-hint" data-i18n="dtSensorsHint">Para cada plano de medição, envie o sinal (.csv separado por ;) dos sensores X e Y e clique em Aplicar. O sensor Y fica 90° depois do sensor X.</p>
                         <div id="dt-sensors" class="dt-sensor-grid"></div>
+                    </div>
+                </div>
+
+                <div class="analysis-card" id="dt-balancing-card" style="display: none;">
+                    <div class="analysis-header" data-action="dt-collapse" data-target="dt-balancing-body">
+                        <span class="analysis-title"><i class="fas fa-balance-scale"></i> <span data-i18n="dtBalancingResult">Resultado do balanceamento</span></span>
+                        <span class="analysis-actions"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="analysis-body" id="dt-balancing-body">
+                        <p class="panel-hint" id="dt-balancing-summary"></p>
+                        <div class="dt-polar-controls">
+                            <div class="input-group">
+                                <label for="dt-polar-sensor" data-i18n="dtReferenceSensor">Sensor de referência</label>
+                                <select id="dt-polar-sensor" data-action="dt-polar-change"></select>
+                            </div>
+                            <div class="input-group">
+                                <label for="dt-polar-view" data-i18n="dtPlanView">Plano de vista</label>
+                                <select id="dt-polar-view" data-action="dt-polar-change"></select>
+                            </div>
+                        </div>
+                        <div id="dt-balancing-result"></div>
+                        <p class="panel-hint" data-i18n="dtPolarHint">O gráfico é orientado pelo sensor de referência: o desbalanceamento em azul, a correção em verde.</p>
+                        <div id="dt-polar" class="dt-polar-grid"></div>
                     </div>
                 </div>
 

@@ -25,6 +25,17 @@ const HELP = {
                     <li><b>Criar modelo</b> monta o rotor a partir dos dados de processo e salva o arquivo <b>.toml</b> na sessão.</li>
                     <li><b>Abrir no Rotor Hub</b> adiciona o rotor à biblioteca da interface, onde ele pode ser editado e analisado como qualquer outro.</li>
                     <li>A primeira criação demora alguns segundos enquanto o ROSS é importado.</li>
+                </ul>
+                <h4>4. Balanceamento</h4>
+                <ul>
+                    <li>Os <b>planos de medição</b> são os nós onde há sensores. Cada um recebe dois sensores, X e Y, e o sensor Y fica 90° depois do X, então só o ângulo do X é informado. São necessários pelo menos dois planos.</li>
+                    <li>Um <b>plano de balanceamento</b> é um nó e o <b>raio</b>, em milímetros, onde a massa de correção será colocada: a estimativa é massa × raio, e o raio a transforma em massa.</li>
+                    <li>No cartão <b>Sensores</b>, envie o sinal de cada sensor em <b>.csv</b> e clique em <b>Aplicar</b>. O arquivo deve ser o exportado pelo sistema de medição, com o cabeçalho que traz a velocidade e as unidades: é de lá que a análise lê a rotação dos sinais.</li>
+                    <li><b>Executar análise</b> estima o desbalanceamento com o filtro de Kalman do <code>rossml</code> e mostra, por plano, a massa de correção e a fase. A fase da correção é a do desbalanceamento mais 180°.</li>
+                    <li>Os <b>parâmetros da máquina</b> (<code>input_parameters.json</code>) são os limites de busca do filtro de Kalman, o limite da força resultante e o número de pontos do sinal. Um modelo pré-estabelecido traz o seu; para um rotor do Rotor Hub, envie o arquivo. Sem ele a análise roda nos padrões da biblioteca do <code>rossml</code>, que são outros números: o resultado não reproduz o do app de referência, e o painel avisa isso.</li>
+                    <li><b>Iterações extras</b> e <b>população</b> controlam o otimizador; as iterações padrão são 24 × (1 + extras). A <b>otimização de planos</b> escolhe o subconjunto de planos que melhor explica os sinais e triplica o tempo.</li>
+                    <li>O cartão <b>Resultado do balanceamento</b> traz a tabela por plano e o <b>gráfico polar</b>: azul é o desbalanceamento estimado, verde é a correção. O gráfico é orientado pelo ângulo de um sensor, então escolha o <b>sensor de referência</b>; o <b>plano de vista</b> diz de onde a máquina é vista (do acionado para o acionador, ou o contrário). A fase da tabela acompanha o sensor escolhido; a massa não depende dele.</li>
+                    <li>A análise precisa do pacote <code>rossml</code> instalado. Sem ele, o botão fica desabilitado e o painel diz o que falta.</li>
                 </ul>`,
         },
         en: {
@@ -48,6 +59,17 @@ const HELP = {
                     <li><b>Create model</b> builds the rotor from the process data and saves the <b>.toml</b> file in the session.</li>
                     <li><b>Open in Rotor Hub</b> adds the rotor to the interface's library, where it is edited and analysed like any other.</li>
                     <li>The first creation takes a few seconds while ROSS is imported.</li>
+                </ul>
+                <h4>4. Balancing</h4>
+                <ul>
+                    <li>The <b>measuring planes</b> are the nodes with sensors. Each one takes two sensors, X and Y, and the Y sensor sits 90° after the X sensor, so only the X angle is given. At least two planes are needed.</li>
+                    <li>A <b>balancing plane</b> is a node and the <b>radius</b>, in millimetres, where the correction mass goes: the estimate is a mass times a radius, and the radius turns it into a mass.</li>
+                    <li>In the <b>Sensors</b> card, send each sensor's signal as a <b>.csv</b> and click <b>Apply</b>. The file must be the one the measuring system exports, with the header that carries the speed and the units: that is where the analysis reads the speed of the signals from.</li>
+                    <li><b>Run analysis</b> estimates the unbalance with the Kalman filter of <code>rossml</code> and shows, per plane, the correction mass and its phase. The correction's phase is the unbalance's plus 180°.</li>
+                    <li>The <b>machine parameters</b> (<code>input_parameters.json</code>) are the search bounds of the Kalman filter, the limit of the resultant force and the number of points of the signal. A pre-established model carries its own; for a Rotor Hub rotor, send the file. Without it the analysis runs on the library defaults of <code>rossml</code>, which are different numbers: the result does not reproduce the reference app's, and the panel says so.</li>
+                    <li><b>Extra iterations</b> and <b>population</b> drive the optimizer; its own iterations are 24 × (1 + extra). The <b>plane optimization</b> picks the subset of planes that explains the signals best and triples the running time.</li>
+                    <li>The <b>Balancing result</b> card carries the table per plane and the <b>polar chart</b>: blue is the estimated unbalance, green the correction. The chart is turned to one sensor's angle, so choose the <b>reference sensor</b>; the <b>plan view</b> says where the machine is seen from (from the driven machine towards the driver, or the other way). The phase in the table follows the sensor chosen; the mass does not depend on it.</li>
+                    <li>The analysis needs the <code>rossml</code> package installed. Without it the button stays off and the panel says what is missing.</li>
                 </ul>`,
         },
     },

@@ -203,6 +203,11 @@
     cursor: not-allowed;
 }
 
+#screen-dt .panel-hint.dt-warning {
+    color: var(--accent-danger);
+    font-weight: 600;
+}
+
 #screen-dt .dt-network-note {
     color: var(--accent-danger);
     font-weight: 600;
@@ -227,6 +232,92 @@
     width: auto;
     margin-top: 0;
     flex: 0 0 auto;
+}
+
+/* The box over a result while it is computed (components/loader.js). It is
+   placed inside the panel the result sits in, which is why that panel is the
+   positioned ancestor. */
+:is(#screen-dt, #screen-dt-analysis) .dt-loader {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    color: var(--text-main);
+    background: var(--bg-card);
+    padding: 15px 25px;
+    border-radius: var(--radius-ui);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--border-color);
+}
+
+:is(#screen-dt, #screen-dt-analysis) .dt-loader-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+:is(#screen-dt, #screen-dt-analysis) .dt-loader .fa-sync {
+    color: var(--accent-primary);
+}
+
+:is(#screen-dt, #screen-dt-analysis) .dt-loader-label {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+/* The card holds the loader, so it is the frame the loader is centred in. */
+#screen-dt #dt-balancing-card {
+    position: relative;
+}
+
+#screen-dt .dt-polar-controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+#screen-dt .dt-polar-controls .input-group {
+    flex: 1 1 220px;
+}
+
+/* One polar chart per balancing plane, side by side where the panel is wide
+   enough. A polar chart is read as a circle, so it keeps a square-ish box. */
+#screen-dt .dt-polar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+#screen-dt .dt-polar-chart {
+    min-height: 420px;
+}
+
+#screen-dt .dt-polar-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 4px;
+}
+
+#screen-dt .dt-result-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+#screen-dt .dt-result-table th,
+#screen-dt .dt-result-table td {
+    border-bottom: 1px solid var(--border-color);
+    padding: 6px 8px;
+    text-align: right;
+}
+
+#screen-dt .dt-result-table th:first-child,
+#screen-dt .dt-result-table td:first-child {
+    text-align: left;
 }
 
 #screen-dt .dt-plane-list {

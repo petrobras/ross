@@ -409,7 +409,30 @@ def test_a_closed_port_is_not_reachable():
     assert not network.reachable("127.0.0.1", 9, timeout=0.5)
 
 
-WAVEFORM = "time;amplitude\n0.0;1.0\n0.001;0.5\n0.002;-0.2\n"
+# The format the measuring system exports and `rossml` reads: a title line,
+# nine lines of `name;value`, the line that names the columns, and then the
+# samples with a comma for the decimal point. `rossml` looks the speed and the
+# units up by name and reads the samples with `skiprows=11`
+# (rossml/datapipeline/methods.py), so a file without this header cannot be
+# used for the analysis.
+WAVEFORM = (
+    "Machine Name;RIG\n"
+    "Point Name;XT-1-X\n"
+    "Wf Amp;1,0\n"
+    "Number of Revs;16\n"
+    "X-Axis Unit;ms\n"
+    "Y-Axis Unit;um\n"
+    "Sample Speed;840 rpm\n"
+    "Sample Status;Valid\n"
+    "Timestamp;01/01/2026 00:00:00\n"
+    "Variable;Disp Wf\n"
+    "X-Axis Value;Y-Axis Value\n"
+    "0;0,134\n"
+    "0,5;0,210\n"
+    "1;-0,180\n"
+)
+
+PLANE = {"node": 2, "radius": 100.0}
 
 
 @pytest.fixture
@@ -424,13 +447,17 @@ def modelled(fake_app):
 def test_planes_wait_for_the_model(fake_app):
     current = session.create()
     with pytest.raises(ValueError, match="Create the model"):
-        measurement.set_planes(current.id, [1, 3], [2])
+        measurement.set_planes(current.id, [1, 3], [PLANE])
 
 
 def test_planes_are_rotor_nodes_each_at_most_once(modelled):
-    step = measurement.set_planes(modelled.id, [1, 3], [2])
+    step = measurement.set_planes(modelled.id, [3, 1], [PLANE])
     assert step["nodes"] == 5
-    assert step["measuring"] == [1, 3] and step["balancing"] == [2]
+    # The measuring nodes are sorted: `rossml` matches the signal files to the
+    # sensors in the order the file names sort, so the order they were added
+    # in cannot decide which signal lands on which node.
+    assert step["measuring"] == [1, 3]
+    assert step["balancing"] == [{"node": 2, "radius": 100.0}]
     assert step["pending"] == ["1 X", "1 Y", "3 X", "3 Y"]
     assert not step["complete"]
     for measuring in ([1, 1], [5], [-1], ["1"], [True], "1"):
@@ -438,8 +465,16 @@ def test_planes_are_rotor_nodes_each_at_most_once(modelled):
             measurement.set_planes(modelled.id, measuring, [])
 
 
+def test_a_balancing_plane_needs_a_radius(modelled):
+    # The analysis estimates a mass times a radius, so without the radius
+    # there is no correction mass to report.
+    for balancing in ([2], [{"node": 2}], [{"node": 2, "radius": 0}], [{"radius": 1}]):
+        with pytest.raises(ValueError):
+            measurement.set_planes(modelled.id, [1, 3], balancing)
+
+
 def test_sensors_write_the_waveforms_and_place_y_after_x(modelled):
-    measurement.set_planes(modelled.id, [1, 3], [2])
+    measurement.set_planes(modelled.id, [1, 3], [PLANE])
     for node in (1, 3):
         for plane in ("X", "Y"):
             step = measurement.apply_sensor(
@@ -468,8 +503,10 @@ def test_a_sensor_needs_a_valid_csv_the_first_time(modelled):
         measurement.apply_sensor(modelled.id, 1, "X", 0.0)
     with pytest.raises(ValueError, match=".csv"):
         measurement.apply_sensor(modelled.id, 1, "X", 0.0, "signal.txt", WAVEFORM)
-    with pytest.raises(ValueError, match="no rows"):
-        measurement.apply_sensor(modelled.id, 1, "X", 0.0, "signal.csv", "a;b\n")
+    with pytest.raises(ValueError, match="format of the measuring system"):
+        measurement.apply_sensor(
+            modelled.id, 1, "X", 0.0, "signal.csv", "time;amplitude\n0;1\n"
+        )
     with pytest.raises(ValueError, match="not a measuring plane"):
         measurement.apply_sensor(modelled.id, 2, "X", 0.0, "signal.csv", WAVEFORM)
     with pytest.raises(ValueError, match="X or Y"):
@@ -490,7 +527,7 @@ def test_the_planes_routes(modelled):
     client = create_app().test_client()
     planes = client.post(
         "/api/dt/planes",
-        json={"session": modelled.id, "measuring": [0, 4], "balancing": [2]},
+        json={"session": modelled.id, "measuring": [0, 4], "balancing": [PLANE]},
         headers=HEADERS,
     )
     assert planes.status_code == 200
@@ -549,7 +586,7 @@ def test_a_hub_rotor_is_the_model_and_the_planes_follow_it(hub_project):
     assert answer["measurement"]["nodes"] == len(reference.nodes)
     assert os.path.isfile(os.path.join(current.session_files, "user_rotor.toml"))
 
-    step = measurement.set_planes(current.id, [2, 4], [3])
+    step = measurement.set_planes(current.id, [2, 4], [{"node": 3, "radius": 50.0}])
     assert step["measuring"] == [2, 4]
 
 

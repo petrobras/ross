@@ -8,6 +8,7 @@ import { openCustomAlert, openCustomConfirm } from '/components/modals.js';
 import { escapeHtml } from '/core/dom.js';
 import { onLanguageChanged, t } from '/core/i18n.js';
 import { apiJson } from '../core/api.js';
+import { showLoader } from '../components/loader.js';
 
 // What each card asks for. `label` is an i18n key; the server reads the same
 // `id`s and validates them (services/analysis/*.py).
@@ -196,7 +197,7 @@ async function runCard(id) {
     const params = cardParameters(id, card.type);
     const token = (card.token || 0) + 1;
     card.token = token;
-    const stopLoader = showLoader(id, plot);
+    const stopLoader = showLoader(id, plot, { label: t('updating') });
     try {
         const result = await apiJson('/api/dt/analysis', { session: state.sessionId, type: card.type, params });
         if (card.token !== token) return;
@@ -207,38 +208,6 @@ async function runCard(id) {
     } finally {
         if (card.token === token) stopLoader();
     }
-}
-
-// The reference card's loader: a box over the chart, with the seconds running.
-function showLoader(id, plot) {
-    plot.style.opacity = '0.4';
-    let loader = document.getElementById('loading-' + id);
-    if (!loader) {
-        loader = document.createElement('div');
-        loader.id = 'loading-' + id;
-        loader.innerHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
-                <i class="fas fa-sync fa-spin fa-2x" style="color: var(--accent-primary);"></i>
-                <span style="font-weight: 600; font-size: 13px;">${escapeHtml(t('updating'))}</span>
-                <span id="loading-when-${id}" class="job-elapsed"></span>
-            </div>`;
-        Object.assign(loader.style, {
-            position: 'absolute', top: '200px', left: '50%', transform: 'translate(-50%, -50%)',
-            zIndex: '10', color: 'var(--text-main)', background: 'var(--bg-card)', padding: '15px 25px',
-            borderRadius: 'var(--radius-ui)', boxShadow: 'var(--shadow-card)', border: '1px solid var(--border-color)',
-        });
-        plot.parentElement.appendChild(loader);
-    }
-    const started = Date.now();
-    const when = document.getElementById('loading-when-' + id);
-    const timer = setInterval(() => {
-        when.textContent = Math.round((Date.now() - started) / 1000) + ' s';
-    }, 1000);
-    return () => {
-        clearInterval(timer);
-        loader.remove();
-        plot.style.opacity = '1';
-    };
 }
 
 function drawResult(id, plot, result) {

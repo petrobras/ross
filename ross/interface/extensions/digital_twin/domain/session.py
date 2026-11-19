@@ -39,8 +39,11 @@ class Session:
         self.components = None
         self.campbell = None
         self.measuring_nodes = []
-        self.balancing_nodes = []
+        self.balancing_planes = []
         self.sensors_plans = {}
+        self.balancing = None
+        self.balancing_polar = None
+        self.balancing_parameters = None
 
     @property
     def directory(self):
@@ -49,6 +52,10 @@ class Session:
     @property
     def database(self):
         return os.path.join(self.directory, "database")
+
+    @property
+    def results(self):
+        return os.path.join(self.directory, "results")
 
     @property
     def session_files(self):

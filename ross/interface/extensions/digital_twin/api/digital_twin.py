@@ -16,6 +16,12 @@ from ross.interface.extensions.digital_twin.services.digital_twin import (
     model_settings_for,
     rotor_project,
 )
+from ross.interface.extensions.digital_twin.services.balancing_analysis import (
+    polar_for,
+    run_balancing,
+    set_parameters,
+    settings_for,
+)
 from ross.interface.extensions.digital_twin.services.measurement import (
     apply_sensor,
     set_planes,
@@ -126,6 +132,47 @@ def planes():
     return jsonify(
         set_planes(
             body.get("session"), body.get("measuring", []), body.get("balancing", [])
+        )
+    )
+
+
+@digital_twin.route("/api/dt/balancing-settings")
+def balancing_settings():
+    """Tell whether the balancing analysis can run, and return its last result."""
+    return jsonify(settings_for(request.args.get("session")))
+
+
+@digital_twin.route("/api/dt/balancing", methods=["POST"])
+def balancing():
+    """Run the rossml balancing estimate on the session."""
+    body = _body()
+    return jsonify(
+        run_balancing(
+            body.get("session"),
+            body.get("iterations", 0),
+            body.get("population", 1),
+            body.get("optimize", False),
+        )
+    )
+
+
+@digital_twin.route("/api/dt/balancing-parameters", methods=["POST"])
+def balancing_parameters():
+    """Keep the machine's input_parameters.json for the analysis."""
+    body = _body()
+    return jsonify(
+        set_parameters(body.get("session"), body.get("filename"), body.get("content"))
+    )
+
+
+@digital_twin.route("/api/dt/balancing-polar")
+def balancing_polar():
+    """Return the polar chart of each balancing plane, for one view and sensor."""
+    return jsonify(
+        polar_for(
+            request.args.get("session"),
+            request.args.get("view"),
+            request.args.get("sensor"),
         )
     )
 
