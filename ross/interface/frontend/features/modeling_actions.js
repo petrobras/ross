@@ -19,7 +19,8 @@ import {
 import { switchMultiRotorTarget } from './multirotor.js';
 import { clearListFilter, filterBy, toggleListFilter } from './list_filter.js';
 import {
-    frameRotor, toggleBench, toggleCategory3d, toggleDimensions, toggleElement3d, toggleMeasure, togglePan,
+    frameRotor, openViewsMenu, toggleBench, toggleCategory3d, toggleDimensions, toggleElement3d, toggleMeasure,
+    togglePan,
 } from './rotor3d.js';
 import { getActiveData, state } from '../core/state.js';
 
@@ -66,7 +67,8 @@ export const MODELING_ACTIONS = {
     // the figure
     'set-vertical-scale': element => setVerticalScale(element.value),
     'set-rotor-view': element => setRotorView(element.dataset.view),
-    'frame-rotor': () => frameRotor(),
+    'frame-rotor': () => frameRotor(true),
+    'open-views': element => openViewsMenu(element),
     'toggle-bench': () => toggleBench(),
     'toggle-dimensions': () => toggleDimensions(),
     'toggle-measure': () => toggleMeasure(),
