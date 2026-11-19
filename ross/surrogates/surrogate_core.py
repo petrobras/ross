@@ -219,7 +219,9 @@ class CoefficientSurrogate:
 
         xinput = xinput.T.astype(float)
 
-        _first_coef = inputs.get("coef_names", CoefficientSurrogate._default_coef_names)[0]
+        _first_coef = inputs.get(
+            "coef_names", CoefficientSurrogate._default_coef_names
+        )[0]
         index_none = [i for i, v in enumerate(coefs[_first_coef]) if v is None]
         index_error = np.sort(index_none).astype(int)
 
@@ -261,7 +263,7 @@ class CoefficientSurrogate:
                         coef_data.append(float(parsed))
                 except (ValueError, SyntaxError):
                     val_clean = val.strip().lower()
-                    if 'nan' in val_clean:
+                    if "nan" in val_clean:
                         coef_data.append(np.nan)
                     else:
                         coef_data.append(float(val))
@@ -338,246 +340,215 @@ class CoefficientSurrogate:
 
         print("### Finished training (Gaussian Process) ###")
 
-    def save(self, name="example"):
-        """Save the metamodel in .zip.
+    def save(self, file):
+        """Save the trained metamodels in a .zip file.
+
+        The file holds one pickle per coefficient and a compressed description of
+        the model (inputs and training samples). The metamodels of the object are
+        not modified.
 
         Parameters
         ----------
-        name : str or pathlib.Path
+        file : str, pathlib.Path
+            Name of the file. The ``.zip`` extension is added if missing.
 
         Examples
         --------
         >>> from tempfile import tempdir
         >>> from pathlib import Path
         >>> import ross.surrogates as sg
-        >>> file = Path(tempdir) / 'example1'
-        >>> _radial_clearance = [1.75e-4, 2.05e-4]
-        >>> _journal_temperature = [303.15, 323.15]
-        >>> bearing = sg.MaxBrgSurrogate(
-        ...        metamodel="KGR",
-        ...        name="example1",
-        ...        num_inital_samples=30,
-        ...        step_num_inital_samples=None,
-        ...        coef_R2=0.01,
-        ...        input_variable=["radial_clearance", "journal_temperature"],
-        ...        n=0,
-        ...        frequency=Q_([900, 1100], "RPM"),
-        ...        probes=[(1, 80, Q_(3.93701e-2, "in")), (2, 80, Q_(3.93701e-2, "in"))],
-        ...        total_ex_film=10,
-        ...        total_ey_film=6,
-        ...        total_ez_film=4,
-        ...        total_ey_pad=4,
-        ...        bearing_type="fixed_geometry",
-        ...        operating_type="regular_flooded",
-        ...        thermal_type="full",
-        ...        temp_j_type="averaged_film_temperature",
-        ...        deform_type="pad_mechanical_thermal_shaft_shell_thermal",
-        ...        equilibrium_type="match_load",
-        ...        sump_type="supply_temperature",
-        ...        journal_diameter=Q_(15.748, "in"),
-        ...        radial_clearance=_radial_clearance,
-        ...        pad_thickness=Q_(5.89034, "in"),
-        ...        pivot_angle=Q_([90, 270], "deg"),
-        ...        pad_arc=Q_([176, 176], "deg"),
-        ...        pad_axial_length=Q_([10.36, 10.36], "in"),
-        ...        preload=[0, 0],
-        ...        offset=[0.5, 0.5],
-        ...        lubricant="TEST",
-        ...        pivot_type="rocker_back",
-        ...        ambient_temperature="supply_temperature",
-        ...        pad_convection=Q_(0.00025, "BTU/(s*in²*degF)"),
-        ...        pad_E=Q_(30000000, "psi"),
-        ...        pad_poisson=0.3,
-        ...        pad_conductivity=Q_(0.00067, "BTU/(in*s*degF)"),
-        ...        pad_expansion=Q_(6.5e-6, "1/degF"),
-        ...        pad_density=Q_(7.322e-4, "lbf*s²/in⁴"),
-        ...        journal_expansion=Q_(6.5e-6, "1/degF"),
-        ...        shell_expansion=Q_(6.5e-6, "1/degF"),
-        ...        weight=Q_(25361.8, "lbf"),
-        ...        oil_flow_v=Q_(2.64172e1, "gallon/min"),
-        ...        ambient_pressure_1=Q_(14.504, "psi"),
-        ...        ambient_pressure_2=Q_(14.504, "psi"),
-        ...        oil_supply_temperature=Q_(121.73, "degF"),
-        ...        shell_id=Q_(1, "in"),
-        ...        shell_od=Q_(2, "in"),
-        ...        journal_temperature=_journal_temperature,
-        ...        starv_number=2,
-        ...        print_result=True,
-        ...        print_time=True,)
-        >>> bearing.save(file)
+        >>> file = Path(tempdir) / "tilting_pad_surrogate"
+        >>> surrogate = sg.TiltingPadSurrogate(...)  # doctest: +SKIP
+        >>> surrogate.save(file)  # doctest: +SKIP
         """
-        _coefs = self._get_coef_names()
-        files = [
-            f"{coef}.pkl" for coef in _coefs
-        ]  # ["description.lzma", "kxx.pkl", "kxy.pkl", "kyx.pkl", "kyy.pkl", "cxx.pkl", "cxy.pkl", "cyx.pkl", "cyy.pkl"]
-        files.append("description.lzma")
+        file = Path(file)
+        if file.suffix != ".zip":
+            file = file.with_name(file.name + ".zip")
 
-        newpath = Path(f"{name}")
-        if not newpath.exists():
-            newpath.mkdir()
-        description_path = newpath / f"{files[-1]}"
+        coef_names = self._get_coef_names()
+        description = dict(self.inputs_model)
+        for coef in coef_names:
+            description[coef] = self.out_coefs[coef]
 
-        for coef in _coefs:
-            self.inputs_model[coef] = self.out_coefs[coef]
-            model_obj = getattr(self, f"sm_{coef}")
+        with zipfile.ZipFile(file, mode="w") as archive:
+            for coef in coef_names:
+                model = getattr(self, f"sm_{coef}")
+                if isinstance(model, GaussianProcessSurrogate):
+                    model = model.prediction_only_copy()
+                elif isinstance(model, KRG):
+                    model = self._stripped_kriging_copy(model)
+                archive.writestr(f"{coef}.pkl", pickle.dumps(model))
 
-            if isinstance(model_obj, KRG):
-                # Strip large SMT-internal caches before pickling (KRG-specific).
-                model_obj.D = np.array([])
-                model_obj.theta0 = np.array([])
-                model_obj.optimal_par["sigma2"] = np.array([])
-                model_obj.F = np.array([])
-                model_obj.optimal_par["C"] = np.array([])
-                model_obj.optimal_par["Q"] = np.array([])
-                model_obj.optimal_par["Ft"] = np.array([])
-                model_obj.F = np.array([])
-                model_obj.ij = np.array([])
-                model_obj.training_points = {}
-                model_obj._correlation_class = {}
-                model_obj._train = {}
-                model_obj._new_train = {}
-                model_obj.corr._abc_impl = {}
-                model_obj._abc_impl = {}
-                model_obj._check_F = {}
-                model_obj._check_param = {}
-                model_obj._compute_sigma2 = {}
-                model_obj._correct_distances_cat_decreed = {}
-                model_obj._final_initialize = {}
-                model_obj._initialize = {}
-                model_obj._initialize_theta = {}
-                model_obj._internal_predict_variance = {}
-                model_obj._matrix_data_corr = {}
-                model_obj._optimize_hyperparam = {}
-                model_obj._post_predict = {}
-                model_obj._pre_predict = {}
-                model_obj._predict_derivatives = {}
-                model_obj._predict_output_derivatives = {}
-                model_obj._predict_variance_derivatives = {}
-                model_obj._predict_variance_gradient = {}
-                model_obj._predict_variances = {}
-                model_obj._reduced_likelihood_function = {}
-                model_obj._reduced_likelihood_gradient = {}
-                model_obj._reduced_likelihood_hessian = {}
-                model_obj._thetaMemory = np.array([])
-                model_obj.design_space._configs_to_x = {}
-                model_obj.design_space._correct_get_acting = {}
-                model_obj.design_space._cs_denormalize_x = {}
-                model_obj.design_space._cs_denormalize_x_ordered = {}
-                model_obj.design_space._design_variables = np.array([])
-                model_obj.design_space._get_correct_config = {}
-                model_obj.design_space._get_design_variables = {}
-                model_obj.design_space._get_n_dim_unfolded = {}
-                model_obj.design_space._get_param = {}
-                model_obj.design_space._get_param2 = {}
-                model_obj.design_space._impute_non_acting = {}
-                model_obj.design_space._is_conditionally_acting = {}
-                model_obj.design_space._normalize_x = {}
-                model_obj.design_space._normalize_x_no_integer = {}
-                model_obj.design_space._round_equally_distributed = {}
-                model_obj.design_space._sample_valid_x = {}
-                model_obj.design_space._to_seed = {}
-
-            if isinstance(model_obj, GaussianProcessSurrogate):
-                # Keep only the variables required by predict_values().
-                model_obj = model_obj.prediction_only_copy()
-
-            filename = newpath / f"{coef}.pkl"
-            with open(filename, "wb") as f:
-                pickle.dump(model_obj, f)
-
-        with lzma.LZMAFile(description_path, mode="w") as f:
-            json = dumps(self.inputs_model)
-            f.write(json.encode("utf-8"))
-
-        with zipfile.ZipFile(f"{name}.zip", mode="w") as archive:
-            for file_path in files:
-                file = newpath / f"{file_path}"
-                archive.write(file, arcname=file_path)
-
-        try:
-            shutil.rmtree(newpath)
-            _metamodel = self.inputs_model["metamodel"]
-            print(f"*** Model {name} with Metamodel {_metamodel}: Save ***")
-        except OSError as o:
-            print(f"Error, {o.strerror}: {newpath}")
+            archive.writestr(
+                "description.lzma", lzma.compress(dumps(description).encode("utf-8"))
+            )
 
     @classmethod
-    def load(self, name="example"):
-        """Rescues parameters and calculated model.
+    def load(cls, file):
+        """Load a surrogate saved with :meth:`save`.
 
-        Parameters:
-        -----------
-        name (str): Name bearning of model. Defaults to "example".
+        Parameters
+        ----------
+        file : str, pathlib.Path
+            Name of the .zip file. The ``.zip`` extension is added if missing.
 
-        Example
+        Returns
         -------
+        surrogate : CoefficientSurrogate
+            Instance of the class that called ``load``, ready for ``predict``.
 
+        Examples
+        --------
         >>> import ross.surrogates as sg
-        >>> bearing = sg.CoefficientSurrogate()
-        >>> model = bearing.load(name="example1")
+        >>> surrogate = sg.TiltingPadSurrogate.load("tilting_pad_surrogate")  # doctest: +SKIP
         """
+        file = Path(file)
+        if file.suffix != ".zip":
+            file = file.with_name(file.name + ".zip")
 
-        try:
-            with zipfile.ZipFile(f"{name}.zip", mode="r") as archive:
-                with archive.open("description.lzma", mode="r") as description:
-                    with lzma.LZMAFile(description, "r") as f:
-                        config = f.read()
-                        self.inputs_model = loads(config.decode("utf-8"))
-            archive.close()
+        surrogate = cls.__new__(cls)
+        CoefficientSurrogate.__init__(surrogate)
 
-            _coefs = self.inputs_model.get("coef_names", self._default_coef_names)
+        with zipfile.ZipFile(file, mode="r") as archive:
+            description = lzma.decompress(archive.read("description.lzma"))
+            surrogate.inputs_model = loads(description.decode("utf-8"))
+            coef_names = surrogate._get_coef_names()
+            surrogate.out_coefs = {
+                coef: surrogate.inputs_model[coef]
+                for coef in coef_names
+                if coef in surrogate.inputs_model
+            }
+            for coef in coef_names:
+                model = pickle_loads(archive.read(f"{coef}.pkl"))
+                setattr(surrogate, f"sm_{coef}", model)
 
-            for coef in _coefs:
-                filename = f"{coef}.pkl"
-                with zipfile.ZipFile(f"{name}.zip", mode="r") as archive:
-                    with archive.open(filename, mode="r") as pkl_file:
-                        setattr(self, f"sm_{coef}", pickle_loads(pkl_file.read()))
-                archive.close()
+        return surrogate
 
-            return self.inputs_model
+    @staticmethod
+    def _stripped_kriging_copy(model):
+        """Return a copy of a Kriging model without the internals not needed to predict.
 
-        except zipfile.BadZipFile as error:
-            print(error)
+        The training matrices grow with the square of the number of samples and
+        dominate the pickle size. They are replaced by empty placeholders while the
+        model is copied, so the original model is untouched and the large arrays are
+        never duplicated.
+        """
+        memo = {}
+        for name in ("D", "F", "ij", "_thetaMemory"):
+            value = getattr(model, name, None)
+            if isinstance(value, np.ndarray):
+                memo[id(value)] = np.array([])
+        memo[id(model.training_points)] = {}
+        for name in ("sigma2", "C", "Q", "Ft"):
+            value = model.optimal_par.get(name)
+            if isinstance(value, np.ndarray):
+                memo[id(value)] = np.array([])
+
+        original = model
+        model = copy.deepcopy(original, memo)
+        model.D = np.array([])
+        model.theta0 = np.array([])
+        model.optimal_par["sigma2"] = np.array([])
+        model.F = np.array([])
+        model.optimal_par["C"] = np.array([])
+        model.optimal_par["Q"] = np.array([])
+        model.optimal_par["Ft"] = np.array([])
+        model.F = np.array([])
+        model.ij = np.array([])
+        model.training_points = {}
+        model._correlation_class = {}
+        model._train = {}
+        model._new_train = {}
+        model.corr._abc_impl = {}
+        model._abc_impl = {}
+        model._check_F = {}
+        model._check_param = {}
+        model._compute_sigma2 = {}
+        model._correct_distances_cat_decreed = {}
+        model._final_initialize = {}
+        model._initialize = {}
+        model._initialize_theta = {}
+        model._internal_predict_variance = {}
+        model._matrix_data_corr = {}
+        model._optimize_hyperparam = {}
+        model._post_predict = {}
+        model._pre_predict = {}
+        model._predict_derivatives = {}
+        model._predict_output_derivatives = {}
+        model._predict_variance_derivatives = {}
+        model._predict_variance_gradient = {}
+        model._predict_variances = {}
+        model._reduced_likelihood_function = {}
+        model._reduced_likelihood_gradient = {}
+        model._reduced_likelihood_hessian = {}
+        model._thetaMemory = np.array([])
+        model.design_space._configs_to_x = {}
+        model.design_space._correct_get_acting = {}
+        model.design_space._cs_denormalize_x = {}
+        model.design_space._cs_denormalize_x_ordered = {}
+        model.design_space._design_variables = np.array([])
+        model.design_space._get_correct_config = {}
+        model.design_space._get_design_variables = {}
+        model.design_space._get_n_dim_unfolded = {}
+        model.design_space._get_param = {}
+        model.design_space._get_param2 = {}
+        model.design_space._impute_non_acting = {}
+        model.design_space._is_conditionally_acting = {}
+        model.design_space._normalize_x = {}
+        model.design_space._normalize_x_no_integer = {}
+        model.design_space._round_equally_distributed = {}
+        model.design_space._sample_valid_x = {}
+        model.design_space._to_seed = {}
+        return model
 
     @check_units
     def predict(
         self,
-        name="example",
-        print_result=False,
-        print_prediction=False,
         frequency=None,
         verify_limits=False,
+        print_result=False,
+        print_prediction=False,
         **kwargs,
     ):
         """Predict the bearing coefficients with the trained metamodels.
 
         Parameters
         ----------
-        name : str, optional
-            Name of the model, used only in the printed output.
-        print_result : bool, optional
-            If True, print the resulting element and the prediction time.
-        print_prediction : bool, optional
-            If True, print the raw prediction of each metamodel.
         frequency : array, pint.Quantity
             Rotational speeds at which the coefficients are predicted. Default
             unit is rad/s.
         verify_limits : bool, optional
             If True, warn when an input is outside the training range.
+        print_result : bool, optional
+            If True, print the resulting element and the prediction time.
+        print_prediction : bool, optional
+            If True, print the raw prediction of each metamodel.
         **kwargs
             Value of each variable listed in ``input_variable`` of the model.
 
         Returns
         -------
-        ross.BearingElement
+        bearing : ross.BearingElement
             Bearing element holding the predicted coefficients. Thrust bearings
             return only ``kzz`` and ``czz``.
+
+        Examples
+        --------
+        >>> import ross.surrogates as sg
+        >>> from ross.units import Q_
+        >>> surrogate = sg.TiltingPadSurrogate.load("tilting_pad_surrogate")  # doctest: +SKIP
+        >>> bearing = surrogate.predict(
+        ...     frequency=Q_(1000, "RPM"),
+        ...     radial_clearance=75e-6,
+        ...     oil_supply_temperature=313.15,
+        ... )  # doctest: +SKIP
         """
         coef_names = self._get_coef_names()
         for coef in coef_names:
             setattr(self, f"prediction_{coef}", [])
 
         start_time = time.time()
+        frequency = np.atleast_1d(frequency)
 
         for speed in frequency:
             inputs = np.array([speed])
@@ -593,7 +564,6 @@ class CoefficientSurrogate:
                 )
 
         node = self.inputs_model["n"]
-
         coefficients = {
             coef: [a.item() for a in getattr(self, f"prediction_{coef}")]
             for coef in coef_names
@@ -614,7 +584,7 @@ class CoefficientSurrogate:
         if print_result:
             print(f"Metamodel used: {self.inputs_model['metamodel']}")
             print(result)
-            print(f"Time {name}: {(time.time() - start_time) * 1000:.2f} ms")
+            print(f"Prediction time: {(time.time() - start_time) * 1000:.2f} ms")
 
         if verify_limits:
             self.verify_limits_predict(frequency, kwargs)
@@ -623,64 +593,54 @@ class CoefficientSurrogate:
 
     @check_units
     def verify_limits_predict(self, frequency=None, args=None):
-        """Verify if the input variables are within the training range.
+        """Warn when the inputs of a prediction are outside the training range.
 
-        Parameters:
-        -----------
-        frequency: array, pint.Quantity
-            Frequency trained in the metamodel
-        kwargs:
-            arg1 : Changed argument for template creation.
-            arg2 : Changed argument for template creation.
+        Parameters
+        ----------
+        frequency : array, pint.Quantity
+            Rotational speeds of the prediction. Default unit is rad/s.
+        args : dict
+            Value of each variable listed in ``input_variable`` of the model.
 
         Returns
         -------
-        tuple
-            Frequencies and input variables outside the training range.
+        frequency : numpy.ndarray
+            Speeds outside the training range.
+        inputs : dict
+            Input variables outside the training range.
 
         Examples
         --------
         >>> import ross.surrogates as sg
-        >>> bearing = sg.TiltingPadSurrogate()
-        >>> freq, inputs = bearing.verify_limits_predict(
-        ...     frequency=Q_([900, 1100], "RPM"),
-        ...     args={"radial_clearance": 2.05e-4},
+        >>> from ross.units import Q_
+        >>> surrogate = sg.TiltingPadSurrogate.load("tilting_pad_surrogate")  # doctest: +SKIP
+        >>> speeds, inputs = surrogate.verify_limits_predict(
+        ...     frequency=Q_([900, 5000], "RPM"),
+        ...     args={"radial_clearance": 75e-6, "oil_supply_temperature": 313.15},
         ... )  # doctest: +SKIP
         """
-
-        _index = []
-        for _num in range(len(frequency)):
-            if (
-                frequency[_num] < self.inputs_model["frequency"].min()
-                or frequency[_num] > self.inputs_model["frequency"].max()
-            ):
-                _index.append(_num)
-        if _index:
-            frequency = frequency[np.array(_index)]
-            log_warning(
-                f"Warning: Frequency {frequency[np.array(_index)]} outside the training range: {self.inputs_model['frequency'].min()} to {self.inputs_model['frequency'].max()}"
+        frequency = np.atleast_1d(frequency)
+        trained = np.asarray(self.inputs_model["frequency"])
+        outside = (frequency < trained.min()) | (frequency > trained.max())
+        outside_frequency = frequency[outside]
+        if outside_frequency.size:
+            warnings.warn(
+                f"Frequency {outside_frequency} rad/s outside the training range: "
+                f"{trained.min()} to {trained.max()} rad/s."
             )
-            
-        else:
-            frequency = np.zeros(len(frequency))
 
-        _index_inputs = {}
-        for _num in range(len(self.inputs_model["input_variable"])):
-            if bool(
-                args[self.inputs_model["input_variable"][_num]]
-                < self.inputs_model[self.inputs_model["input_variable"][_num]].min()
-            ) or bool(
-                args[self.inputs_model["input_variable"][_num]]
-                > self.inputs_model[self.inputs_model["input_variable"][_num]].max()
-            ):
-                _index_inputs[self.inputs_model["input_variable"][_num]] = args[
-                    self.inputs_model["input_variable"][_num]
-                ]
-                log_warning(
-                    f"Warning: {self.inputs_model['input_variable'][_num]} - {args[self.inputs_model['input_variable'][_num]]} outside the training range: {np.min(self.inputs_model[self.inputs_model['input_variable'][_num]])} to {np.max(self.inputs_model[self.inputs_model['input_variable'][_num]])}"
+        outside_inputs = {}
+        for variable in self.inputs_model["input_variable"]:
+            trained = np.asarray(self.inputs_model[variable])
+            value = np.atleast_1d(args[variable])
+            if np.any(value < trained.min()) or np.any(value > trained.max()):
+                outside_inputs[variable] = args[variable]
+                warnings.warn(
+                    f"{variable} {args[variable]} outside the training range: "
+                    f"{trained.min()} to {trained.max()}."
                 )
 
-        return frequency, _index_inputs
+        return outside_frequency, outside_inputs
 
     def _size_samples(self, N=5, inputs=None):
         """Generate samples uniformly from past data."""
@@ -899,4 +859,3 @@ class CoefficientSurrogate:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writerow(_sample)
             f.close()
-
