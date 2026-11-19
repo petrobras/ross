@@ -513,6 +513,9 @@ class ElectricMotor:
     summary = Element.summary
     load = Element.__dict__["load"]
 
+    def update_load_inertia(self, value):
+        self.Ip_load = value
+
     def save(self, file, **more_args):
         """Save the motor in a .toml or .json file.
 

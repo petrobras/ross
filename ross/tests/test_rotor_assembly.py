@@ -1,6 +1,6 @@
 import pickle
 import warnings
-from copy import deepcopy
+from copy import deepcopy as copy
 from pathlib import Path
 from tempfile import tempdir
 
@@ -3693,7 +3693,7 @@ def test_refine_renumbers_disks_and_amb_sensors(tmp_path):
 
 def _non_collocated_amb_rotor():
     rotor = rotor_example_amb_simple()
-    bearing_elements = deepcopy(rotor.bearing_elements)
+    bearing_elements = copy(rotor.bearing_elements)
     bearing_elements[0].sensor_node = bearing_elements[0].n + 2
     return Rotor(rotor.shaft_elements, rotor.disk_elements, bearing_elements)
 
@@ -4048,6 +4048,49 @@ def test_run_with_motor_with_shaft_elements_applies_the_torque_at_the_joint(side
     )
 
     assert np.isfinite(results.yout).all()
+
+
+@pytest.mark.parametrize("structure", ["lumped", "fem-left", "fem-right"])
+@pytest.mark.parametrize("operation", ["none", "add_elements", "concatenate"])
+def test_run_with_motor_uses_the_inertia_of_the_load_rotor(structure, operation):
+    # Reference: the motor alone, simulated with Ip_load equal to the polar
+    # inertia of the load rotor built without the motor.
+    load = rotor_example()
+    extra_disk = DiskElement(n=3, m=10, Id=0.1, Ip=0.2)
+    expected_load_inertia = load.Ip
+
+    rotor = _rotor_with_motor(structure)
+    if operation == "add_elements":
+        rotor = rotor.add_elements([extra_disk])
+        expected_load_inertia += extra_disk.Ip
+    elif operation == "concatenate":
+        other = rotor_example()
+        rotor = Rotor.concatenate([rotor, other])
+        expected_load_inertia += other.Ip
+
+    t = np.arange(0, 0.3 + 1e-3, 1e-3)
+    results = rotor.run_with_motor(
+        t=t,
+        node=[2],
+        unbalance_magnitude=[5e-4],
+        unbalance_phase=[0.0],
+        drive_mode="DOL",
+        load_torque_entrance_time=0.1,
+        load_torque_ratio=1.0,
+    )
+
+    motor = copy(rotor.motor)
+    motor.update_load_inertia(expected_load_inertia)
+    reference = motor.run_direct_on_line(
+        t, load_torque_entrance_time=0.1, load_torque_ratio=1.0
+    )
+
+    assert_allclose(
+        results.motor_results.sample_at("speed", t),
+        reference.sample_at("speed", t),
+        rtol=1e-8,
+    )
+    assert rotor.motor.Ip_load == 0.0
 
 
 def _rotor_with_motor(structure):

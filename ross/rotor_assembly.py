@@ -1684,6 +1684,7 @@ class Rotor(object):
 
         else:
             motor_rotor = motor.mechanical_model
+
             if motor.n == min(self.nodes):
                 rotors = [motor_rotor, self]
                 joint_node = max(motor_rotor.nodes)
@@ -5433,8 +5434,9 @@ class Rotor(object):
         (electric torque minus load torque) is applied to the torsional DOF
         at the motor node. Shaft speed is taken from the motor simulation, so
         the unbalance force is time-varying. The motor mass ``m`` and inertia
-        ``Ip`` enter the rotor matrices as a disk. The motor simulation uses the inertia
-        of the motor (``Ip`` and ``Ip_load``), not the inertia of the whole rotor.
+        ``Ip`` enter the rotor matrices as a disk. The motor simulation uses the
+        inertia of the motor plus the polar inertia of the rest of the rotor, that is,
+        ``rotor.Ip - motor.Ip``. The ``Ip_load`` of the motor is replaced by this value.
 
         Available plotting methods:
             .plot_1d()
@@ -5561,7 +5563,8 @@ class Rotor(object):
         if self.motor is None:
             raise ValueError("No motor elements found in the rotor.")
 
-        motor = self.motor
+        motor = copy(self.motor)
+        motor.update_load_inertia(self.Ip - motor.Ip)
 
         if load_torque_entrance_time is None:
             load_torque_entrance_time = t[len(t) // 2]
