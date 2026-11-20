@@ -2441,9 +2441,7 @@ def flow_rates_jit(
     by the 0-based position counter ``n``. Mutates ``q_*`` and ``t_average`` in
     place.
     """
-    # SI: ``lube_density [kg/m^3] * lube_cp [J/(kg K)]`` gives J/(m^3 K) directly.
-    # The imperial *3600/2545 (BTU/s -> hp / degF -> degR equivalent) factor is
-    # gone after Phase 3.
+    # ``lube_density [kg/m^3] * lube_cp [J/(kg K)]`` gives J/(m^3 K).
     enth_coeff = lube_density * lube_cp
 
     u_average = np.zeros(dim_xz + 1, dtype=np.float64)

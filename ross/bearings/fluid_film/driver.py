@@ -45,15 +45,14 @@ from ross.bearings.fluid_film.state import (
 # would silently shift every "no thermal data" temperature they see.
 ZERO_TEMPERATURE_SENTINEL = 255.3722222222222
 
-# Output-gating floors. Each is the exact SI equivalent of a legacy
-# unit-system epsilon (1e-6 in^3/s, 1e-6 in, 1e-6 lbf/in, 1e-6 lbf) so the
-# same operating points trigger the same output branches as before; rounding
-# them would flip the gating on borderline cases.
-_SUPPLY_FLOW_FLOOR = 1.0e-6 * 0.0254**3
-_CRUSH_FLOOR = 1.0e-6 * 0.0254
-_MIDPLANE_TOL = 1.0e-6 * 0.0254
-_STIFFNESS_FLOOR = 1.0e-6 * (4.4482216152605 / 0.0254)
-_FORCE_FLOOR = 1.0e-6 * 4.4482216152605
+# Output-gating floors, in SI units: supply flows (m^3/s), crush (m), the
+# mid-plane position test (m), principal stiffness and damping (N/m, N*s/m)
+# and forces (N) below them are treated as zero.
+_SUPPLY_FLOW_FLOOR = 1.0e-11
+_CRUSH_FLOOR = 1.0e-8
+_MIDPLANE_TOL = 1.0e-8
+_STIFFNESS_FLOOR = 1.0e-4
+_FORCE_FLOOR = 1.0e-6
 
 # Gravity constant used by the rigid-rotor stability threshold. The threshold
 # formula was calibrated with g = 386.0 in/s^2 (not the standard 386.088);
@@ -540,9 +539,7 @@ def power_loss(
             mesh,
             tao,
         )
-        # SI: speed_surface [m/s] * inte_tao [N] = W directly. The
-        # imperial /9336 (in*lbf/s -> BTU/s) and *3600/2545 (BTU/s -> hp)
-        # are no longer needed.
+        # speed_surface [m/s] * inte_tao [N] gives W.
         total_power_loss += speed_surface * inte_tao
 
     return total_power_loss, total_power_loss
