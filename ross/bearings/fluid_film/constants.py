@@ -16,7 +16,7 @@ VIS_REF = 2.0e-6
 # meshes, so the tolerance must stay far below that height (a tolerance of
 # 1e-6 m took the first film layer for solid) and above the round-off of the
 # node coordinates.
-INTERFACE_TOL = 2.54e-8
+INTERFACE_TOL = 1.0e-8
 
 # --------------------------------------------------------------------------- #
 # Type-flag vocabularies                                                      #
