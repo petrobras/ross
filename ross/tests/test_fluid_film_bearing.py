@@ -6,6 +6,7 @@ import pytest
 from numpy.testing import assert_allclose
 from plotly import graph_objects as go
 
+from ross.bearings.fixed_geometry import FixedGeometryBearing
 from ross.bearings.fluid_film_bearing import (
     FluidFilmBearing,
     fluid_film_bearing_example,
@@ -352,3 +353,67 @@ def test_2d_frequency_table_save_load(tmp_path):
         loaded.K(frequency=60.0, speed=speed[0]),
         bearing.K(frequency=60.0, speed=speed[0]),
     )
+
+
+def fitzgerald_neal_bearing(rpm, ey_film):
+    """Build the two-axial-groove bearing of Fitzgerald and Neal (1992), full thermal."""
+    inch = 0.0254
+    lbf = 4.4482216152605
+    reyn = lbf / inch**2
+    return FixedGeometryBearing(
+        n=0,
+        speed=Q_([rpm], "RPM"),
+        bearing_type="fixed_geometry",
+        thermal_type="full",
+        journal_diameter=3.0 * inch,
+        radial_clearance=0.003 * inch,
+        pad_thickness=0.374 * inch,
+        pivot_angle=Q_([90.0, 270.0], "deg"),
+        pad_arc=Q_([151.3, 151.3], "deg"),
+        pad_axial_length=[1.5 * inch, 1.5 * inch],
+        preload=[0.0, 0.0],
+        offset=[0.5, 0.5],
+        lubricant={
+            "liquid_viscosity1": 4.13e-6 * reyn,
+            "temperature1": Q_(100.0, "degF").to("K").m,
+            "liquid_viscosity2": 6.8e-7 * reyn,
+            "temperature2": Q_(210.0, "degF").to("K").m,
+            "liquid_density": 855.0,
+            "liquid_specific_heat": 1884.0,
+            "liquid_thermal_conductivity": 0.13,
+        },
+        oil_supply_temperature=Q_(122.0, "degF"),
+        oil_flow_v=Q_(10.0, "gallon/min"),
+        weight=1220.0 * lbf,
+        fxs_load=0.0,
+        fys_load=0.0,
+        hot_oil_lambda=0.8,
+        total_ex_film=20,
+        total_ey_film=ey_film,
+        total_ez_film=10,
+        total_ey_pad=10,
+    )
+
+
+@pytest.mark.parametrize(
+    "rpm, ey_coarse, ey_fine",
+    [(2000.0, 12, 14), (4000.0, 16, 18), (6000.0, 18, 22), (8000.0, 20, 24)],
+)
+def test_full_thermal_first_film_layer_keeps_dissipation(rpm, ey_coarse, ey_fine):
+    """Refining the cross-film mesh past h_min / total_ey_film = 1 um is smooth.
+
+    At each speed the coarse mesh puts the first film node more than 1 um
+    above the pad at the minimum film thickness, and the fine mesh less than
+    1 um. When the film/pad interface test used a tolerance of 1e-6 m, the
+    first film layer of the fine mesh was taken for solid and lost its viscous
+    dissipation: between the two meshes the peak pad temperature dropped by
+    0.7 to 1.0 K and the power loss rose by 0.4 to 0.9 %. With the interface
+    found correctly the same refinement moves them by less than 0.02 K and
+    0.1 %. The bounds sit between the two.
+    """
+    coarse = fitzgerald_neal_bearing(rpm, ey_coarse)._results.outputs[0]
+    fine = fitzgerald_neal_bearing(rpm, ey_fine)._results.outputs[0]
+    assert min(fine["h_min"][0]) / ey_fine < 1.0e-6
+    assert min(coarse["h_min"][0]) / ey_coarse > 1.0e-6
+    assert_allclose(fine["tpad_max"][0], coarse["tpad_max"][0], atol=0.05)
+    assert_allclose(fine["power_loss"][0], coarse["power_loss"][0], rtol=2.0e-3)

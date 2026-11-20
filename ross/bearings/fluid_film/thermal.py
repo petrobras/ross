@@ -55,6 +55,7 @@ from ross.bearings.fluid_film._numba_kernels import (
     trapezoid_jit,
     update_vis_jit,
 )
+from ross.bearings.fluid_film.constants import INTERFACE_TOL
 
 # Viscous-dissipation unit-conversion factor. SI units are coherent (watts,
 # joule/(m^3 K), ...) so no conversion is needed; the factor is kept as a
@@ -1188,7 +1189,7 @@ def energy_coeffs_axial_flow(
             q1 = 2.0 * lube.density * lube.cp * temp_supply * abs(inte4) / al**2
             q_n[node] = -q1 - _trapezoid(t, f5, 0, limit) / al
 
-        if abs(y - pad_thickness) < 1.0e-6:
+        if abs(y - pad_thickness) < INTERFACE_TOL:
             kx_n[node] = -(pad_conduct * lube.conduct) / (pad_conduct + lube.conduct)
             for j in range(1, limit + 1):
                 m = energy_mesh.match_nodes_xy[node, j - 1]
@@ -1344,7 +1345,7 @@ def energy_coeffs_high_ambient(
             else:
                 _parab(node, interface=False)
 
-        if abs(y - pad_thickness) < 1.0e-6:
+        if abs(y - pad_thickness) < INTERFACE_TOL:
             kx_n[node] = -(pad_conduct * lube.conduct) / (pad_conduct + lube.conduct)
             if tz_type[pad, node] == 0:
                 _const(node, interface=True)
@@ -1597,14 +1598,14 @@ def element_temp(
     # Leading edge of the pad (x = 0) in the solid.
     if abs(energy_mesh.x[pad, n1]) < 1.0e-6 and (
         energy_mesh.y[pad, n3] < pad_thickness
-        or abs(energy_mesh.y[pad, n3] - pad_thickness) < 1.0e-6
+        or abs(energy_mesh.y[pad, n3] - pad_thickness) < INTERFACE_TOL
     ):
         _add_line(-convec_edges, r_fixed=-1.0)
 
     # Trailing edge of the pad (x = pad_length) in the solid.
     if abs(energy_mesh.x[pad, n3] - pad_length[pad]) < 1.0e-6 and (
         energy_mesh.y[pad, n3] < pad_thickness
-        or abs(energy_mesh.y[pad, n3] - pad_thickness) < 1.0e-6
+        or abs(energy_mesh.y[pad, n3] - pad_thickness) < INTERFACE_TOL
     ):
         _add_line(-convec_edges, r_fixed=1.0)
 
@@ -2029,7 +2030,7 @@ def expand_film_temp_axial_flow(
     for i in range(energy_mesh.total_nodes):
         node = energy_mesh.n_index[i]
         y = energy_mesh.y[pad, node]
-        if y > pad_thickness or abs(y - pad_thickness) < 1.0e-6:
+        if y > pad_thickness or abs(y - pad_thickness) < INTERFACE_TOL:
             for j in range(1, total_e_z_film + 1 + 1):
                 m = energy_mesh.match_nodes_xy[node, j - 1]
                 if p_first > p_last:
@@ -2079,7 +2080,7 @@ def expand_film_temp_high_ambient(
     for i in range(energy_mesh.total_nodes):
         node = energy_mesh.n_index[i]
         y = energy_mesh.y[pad, node]
-        if y > pad_thickness or abs(y - pad_thickness) < 1.0e-6:
+        if y > pad_thickness or abs(y - pad_thickness) < INTERFACE_TOL:
             if tz_type[pad, node] == 0:
                 for j in range(1, total_e_z_film + 1 + 1):
                     m = energy_mesh.match_nodes_xy[node, j - 1]
