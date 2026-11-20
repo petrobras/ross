@@ -10,6 +10,14 @@ import numpy as np
 PI = np.pi
 VIS_REF = 2.0e-6
 
+# Tolerance, in m, of the tests that decide whether an energy-mesh node lies
+# on the film/pad interface. The first film node sits h / total_ey_film above
+# the pad surface, which is below 1 um for thin films on fine cross-film
+# meshes, so the tolerance must stay far below that height (a tolerance of
+# 1e-6 m took the first film layer for solid) and above the round-off of the
+# node coordinates.
+INTERFACE_TOL = 1.0e-8
+
 # --------------------------------------------------------------------------- #
 # Type-flag vocabularies                                                      #
 # --------------------------------------------------------------------------- #

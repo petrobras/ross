@@ -28,6 +28,8 @@ counters and are unrelated to the 0-based mesh numbering.
 import numpy as np
 from numba import njit
 
+from ross.bearings.fluid_film.constants import INTERFACE_TOL
+
 
 @njit(cache=True, fastmath=False)
 def trapezoid_jit(t, f, start, stop):
@@ -442,7 +444,7 @@ def temp_xy_assemble_all_jit(
         # Dissipation is zero in the solid (back-of-pad nodes).
         if (
             y_energy[pad, n3] < pad_thickness
-            or abs(y_energy[pad, n3] - pad_thickness) < 1.0e-6
+            or abs(y_energy[pad, n3] - pad_thickness) < INTERFACE_TOL
         ):
             p_e = 0.0
             q_e = 0.0
@@ -618,7 +620,7 @@ def temp_xy_boundary_all_jit(
 
         in_solid = (
             y_energy[pad, n3] < pad_thickness
-            or abs(y_energy[pad, n3] - pad_thickness) < 1.0e-6
+            or abs(y_energy[pad, n3] - pad_thickness) < INTERFACE_TOL
         )
         on_le = abs(x_energy[pad, n1]) < 1.0e-6 and in_solid
         on_te = abs(x_energy[pad, n3] - pad_length_p) < 1.0e-6 and in_solid
@@ -1699,12 +1701,15 @@ def mesh_3d_jit(
     for i in range(total_n_energy):
         nei = n_index_energy[i]
         yei = y_energy[0, nei]
-        if yei > pad_thickness or abs(yei - pad_thickness) < 1.0e-6:
+        if yei > pad_thickness or abs(yei - pad_thickness) < INTERFACE_TOL:
             xei = x_energy[0, nei]
             kc = 0
             for jj in range(total_n_3d):
                 n3 = n_index_3d[jj]
-                if abs(x_3d[0, n3] - xei) < 1.0e-6 and abs(y_3d[0, n3] - yei) < 1.0e-6:
+                if (
+                    abs(x_3d[0, n3] - xei) < 1.0e-6
+                    and abs(y_3d[0, n3] - yei) < INTERFACE_TOL
+                ):
                     match_nodes_xy[nei, kc] = n3
                     kc += 1
 
@@ -1976,7 +1981,7 @@ def expand_film_temp_flooded_jit(
     for i in range(total_n_energy):
         node = n_index_energy[i]
         y = y_energy[pad, node]
-        if y > pad_thickness or abs(y - pad_thickness) < 1.0e-6:
+        if y > pad_thickness or abs(y - pad_thickness) < INTERFACE_TOL:
             for j in range(1, total_e_z_film + 1 + 1):
                 m = match_nodes_xy[node, j - 1]
                 temp_3d[pad, m] = temp_full[pad, node]
@@ -2236,7 +2241,7 @@ def film_thickness_rebuild_jit(
             y_energy[p, ne] = y1
             if (
                 y_energy[p, ne] > pad_thickness
-                or abs(y_energy[p, ne] - pad_thickness) < 1.0e-6
+                or abs(y_energy[p, ne] - pad_thickness) < INTERFACE_TOL
             ):
                 for k in range(1, total_e_z_film + 1 + 1):
                     y_3d[p, match_nodes_xy[ne, k - 1]] = y_energy[p, ne]
@@ -2761,7 +2766,7 @@ def energy_coeffs_flooded_jit(
             my_n[node] = lube_density * lube_cp * i3 / al
             q_n[node] = -i4 / al
 
-        if abs(y - pad_thickness) < 1.0e-6:
+        if abs(y - pad_thickness) < INTERFACE_TOL:
             kx_n[node] = -(pad_conduct * lube_conduct) / (pad_conduct + lube_conduct)
             for j in range(1, limit + 1):
                 m = match_nodes_xy[node, j - 1]
