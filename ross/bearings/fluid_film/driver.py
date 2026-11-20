@@ -39,26 +39,21 @@ from ross.bearings.fluid_film.state import (
     Turbulence,
 )
 
-# "No data" sentinel for temperature outputs whose thermal model did not run:
-# the zero of the Fahrenheit scale expressed in kelvin. Downstream consumers
-# have always received this exact placeholder for isoviscous runs; changing it
-# would silently shift every "no thermal data" temperature they see.
-ZERO_TEMPERATURE_SENTINEL = 255.3722222222222
+# "No data" value, in K, of the temperature outputs whose thermal model did
+# not run.
+ZERO_TEMPERATURE_SENTINEL = 0.0
 
-# Output-gating floors. Each is the exact SI equivalent of a legacy
-# unit-system epsilon (1e-6 in^3/s, 1e-6 in, 1e-6 lbf/in, 1e-6 lbf) so the
-# same operating points trigger the same output branches as before; rounding
-# them would flip the gating on borderline cases.
-_SUPPLY_FLOW_FLOOR = 1.0e-6 * 0.0254**3
-_CRUSH_FLOOR = 1.0e-6 * 0.0254
-_MIDPLANE_TOL = 1.0e-6 * 0.0254
-_STIFFNESS_FLOOR = 1.0e-6 * (4.4482216152605 / 0.0254)
-_FORCE_FLOOR = 1.0e-6 * 4.4482216152605
+# Output-gating floors, in SI units: supply flows (m^3/s), crush (m), the
+# mid-plane position test (m), principal stiffness and damping (N/m, N*s/m)
+# and forces (N) below them are treated as zero.
+_SUPPLY_FLOW_FLOOR = 1.0e-11
+_CRUSH_FLOOR = 1.0e-8
+_MIDPLANE_TOL = 1.0e-8
+_STIFFNESS_FLOOR = 1.0e-4
+_FORCE_FLOOR = 1.0e-6
 
-# Gravity constant used by the rigid-rotor stability threshold. The threshold
-# formula was calibrated with g = 386.0 in/s^2 (not the standard 386.088);
-# keep the exact equivalent so threshold speeds reproduce.
-_GRAVITY = 386.0 * 0.0254
+# Standard gravity, m/s^2, used by the rigid-rotor stability threshold.
+_GRAVITY = 9.80665
 
 # Deformation modes whose thermal growth of journal and shell is reported.
 _THERMAL_GROWTH_DEFORM_TYPES = (
@@ -540,9 +535,7 @@ def power_loss(
             mesh,
             tao,
         )
-        # SI: speed_surface [m/s] * inte_tao [N] = W directly. The
-        # imperial /9336 (in*lbf/s -> BTU/s) and *3600/2545 (BTU/s -> hp)
-        # are no longer needed.
+        # speed_surface [m/s] * inte_tao [N] gives W.
         total_power_loss += speed_surface * inte_tao
 
     return total_power_loss, total_power_loss

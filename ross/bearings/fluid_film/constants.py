@@ -84,15 +84,12 @@ PIVOT_TYPES = (
 )
 
 
-# Convergence criteria for the iterative solution. The temperature thresholds
-# were calibrated in degF, so they carry an explicit 1/1.8 factor to reach the
-# same iteration count in kelvin. The shear-stress threshold is the SI
-# equivalent of 0.01 lbf/in^2.
+# Convergence criteria for the iterative solution: shear stress in Pa,
+# temperatures in K.
 MAX_ITERATION = 100
-SHEAR_ERROR = 6.89476e1
-TEMP_ERROR = 1.0e-2 / 1.8
-JTEMP_ERROR = 1.0e-1 / 1.8
-TEMP_INLET_ERROR = 0.5 / 1.8
-# Sump-temperature outer-loop convergence, in K like the others.
-SUMP_TEMP_ERROR = 1.0 / 1.8
+SHEAR_ERROR = 70.0
+TEMP_ERROR = 5.0e-3
+JTEMP_ERROR = 5.0e-2
+TEMP_INLET_ERROR = 0.25
+SUMP_TEMP_ERROR = 0.5
 DEFORM_ERROR = 1.0e-3

@@ -408,11 +408,8 @@ def thermohydrodynamics(
             elif d_tj > 0.95 * d_tj_old and jtemp_index > 1 and diverge_tj > 10:
                 converged_tj = True
 
-            # Limit the journal temperature change to 10 degF per iteration.
-            # Everything here is in kelvin, so that is 10/1.8 K; a bare 10.0
-            # would cap at 10 K (= 18 degF) and under-relax large early
-            # temperature swings.
-            jtemp_step_limit = 10.0 / 1.8
+            # Limit the journal temperature change to 5 K per iteration.
+            jtemp_step_limit = 5.0
             if abs(d_tj) > jtemp_step_limit:
                 relax_tj = jtemp_step_limit / abs(d_tj)
             else:
@@ -810,7 +807,7 @@ def temp_journal_zero_flux(
     ``scale_dissip * (T_j - T_film) / dy`` at the film/journal interface for
     every Reynolds node, surface-integrates it over each pad, and moves the
     bracket so the summed flux goes to zero. The search stops when the bracket
-    is narrower than ``0.1 / 1.8`` K.
+    is narrower than 0.05 K.
 
     Parameters
     ----------
@@ -867,12 +864,10 @@ def temp_journal_zero_flux(
             )
             sum_flux += inte_flux
 
-        # Bisection bracket tolerance: 0.1 degF, i.e. 0.1/1.8 K here. A bare
-        # 0.1 would stop the bisection a step early (0.1 K ~= 0.18 degF),
-        # coarser than the enclosing journal-temperature loop's own
-        # JTEMP_ERROR, leaving temp_j under-resolved for the
+        # Stop at the JTEMP_ERROR of the enclosing journal-temperature loop;
+        # a wider bracket would leave temp_j under-resolved for the
         # "no heat flux into journal" mode.
-        if abs(bound_upper - bound_lower) < 0.1 / 1.8:
+        if abs(bound_upper - bound_lower) < JTEMP_ERROR:
             break
 
         if sum_flux < 0.0:
