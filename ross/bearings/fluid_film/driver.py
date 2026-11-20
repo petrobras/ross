@@ -39,11 +39,9 @@ from ross.bearings.fluid_film.state import (
     Turbulence,
 )
 
-# "No data" sentinel for temperature outputs whose thermal model did not run:
-# the zero of the Fahrenheit scale expressed in kelvin. Downstream consumers
-# have always received this exact placeholder for isoviscous runs; changing it
-# would silently shift every "no thermal data" temperature they see.
-ZERO_TEMPERATURE_SENTINEL = 255.3722222222222
+# "No data" value, in K, of the temperature outputs whose thermal model did
+# not run.
+ZERO_TEMPERATURE_SENTINEL = 0.0
 
 # Output-gating floors, in SI units: supply flows (m^3/s), crush (m), the
 # mid-plane position test (m), principal stiffness and damping (N/m, N*s/m)
