@@ -54,10 +54,8 @@ _MIDPLANE_TOL = 1.0e-8
 _STIFFNESS_FLOOR = 1.0e-4
 _FORCE_FLOOR = 1.0e-6
 
-# Gravity constant used by the rigid-rotor stability threshold. The threshold
-# formula was calibrated with g = 386.0 in/s^2 (not the standard 386.088);
-# keep the exact equivalent so threshold speeds reproduce.
-_GRAVITY = 386.0 * 0.0254
+# Standard gravity, m/s^2, used by the rigid-rotor stability threshold.
+_GRAVITY = 9.80665
 
 # Deformation modes whose thermal growth of journal and shell is reported.
 _THERMAL_GROWTH_DEFORM_TYPES = (
