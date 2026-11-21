@@ -75,7 +75,7 @@ def _fd_journal(inputs, x0, y0, step, **kwargs):
 def tilting_pad_equilibrium():
     """``tilt_5pad_isoviscous`` at its equilibrium, with the unreduced blocks."""
     inputs = _inputs("tilt_5pad_isoviscous")
-    out = run_case(**inputs, diagnostics=True, _coefficient_blocks=True)
+    out = run_case(**inputs, diagnostics=True, pad_matrices=True)
     assert out["convergence"][0]["converged"]
     cb = inputs["radial_clearance"]
     return inputs, out, out["xj_cb"][0] * cb, out["yj_cb"][0] * cb
@@ -219,18 +219,13 @@ def test_stiffness_with_cavitation_stays_near_the_film_force_derivative(case, bo
     assert np.max(np.abs(_stiffness(out) - k_fd)) < bound * np.max(np.abs(k_fd))
 
 
-def _pad_matrix(blocks, k):
-    """Stiffness of pad ``k`` on ``[x, y, tilt_k]``."""
-    m = np.zeros((3, 3))
-    m[:2, :2] = [[blocks.xxi[k], blocks.xyi[k]], [blocks.yxi[k], blocks.yyi[k]]]
-    m[:2, 2] = [blocks.xdelta[k], blocks.ydelta[k]]
-    m[2, :2] = [blocks.deltax[k], blocks.deltay[k]]
-    m[2, 2] = blocks.deltadelta[k]
-    return m
+def _pad_matrix(pads, k):
+    """Stiffness of pad ``k`` on ``[x, y, tilt_k]`` (``PadMatrices``, rigid pivot)."""
+    return np.asarray(pads.K[k])
 
 
-def _loaded_pads(blocks):
-    return [k for k in range(len(blocks.deltadelta)) if blocks.deltadelta[k] != 0.0]
+def _loaded_pads(pads):
+    return [k for k in range(len(pads.K)) if pads.K[k][2, 2] != 0.0]
 
 
 def test_tilting_pad_unreduced_blocks_match_the_film_force_derivative(
@@ -251,7 +246,7 @@ def test_tilting_pad_unreduced_blocks_match_the_film_force_derivative(
     derivative to compare and their engine blocks are zero.
     """
     inputs, out, x0, y0 = tilting_pad_equilibrium
-    blocks = out["_coefficient_blocks"][0]["stiffness"]
+    blocks = out["pad_matrices"][0]
     loaded = _loaded_pads(blocks)
     assert loaded == [2, 3, 4]
     cb = inputs["radial_clearance"]
@@ -297,7 +292,7 @@ def test_tilting_pad_resolved_tilt_derivative_is_the_static_condensation(
     20 x 10 mesh).
     """
     inputs, out, x0, y0 = tilting_pad_equilibrium
-    blocks = out["_coefficient_blocks"][0]["stiffness"]
+    blocks = out["pad_matrices"][0]
     loaded = _loaded_pads(blocks)
     k_static, _ = condense_static(
         [_pad_matrix(blocks, k) for k in loaded], [np.zeros((3, 3))] * len(loaded), 2
@@ -332,8 +327,8 @@ def test_tilting_pad_block_gap_shrinks_with_the_mesh(tilting_pad_equilibrium):
             total_e_x_film=ex,
             total_e_z_film=ez,
         )
-        out = run_case(**inputs, _coefficient_blocks=True)
-        blocks = out["_coefficient_blocks"][0]["stiffness"]
+        out = run_case(**inputs, pad_matrices=True)
+        blocks = out["pad_matrices"][0]
         cb = inputs["radial_clearance"]
         tilts = np.asarray(out["tilt_angle"][0])
         _, k_pad, _ = _fd_journal(

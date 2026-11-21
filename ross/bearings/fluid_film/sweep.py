@@ -91,7 +91,7 @@ def film_force_at(inputs, speed, xj, yj, tilts="solve", tolerance_scale=1.0):
     cb = float(kw["radial_clearance"])
     kw["frequency"] = [float(speed)]
     kw["_tolerance_scale"] = float(tolerance_scale)
-    for name in ("_film_force_only", "_held_tilts", "_coefficient_blocks"):
+    for name in ("_film_force_only", "_held_tilts", "pad_matrices", "whirl_ratios"):
         kw.pop(name, None)
 
     held = None

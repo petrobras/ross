@@ -431,6 +431,11 @@ def test_no_converged_speed_keeps_every_row(three_speed_kwargs, monkeypatch):
 
 
 def test_two_dimensional_table_drops_the_whole_speed_row(monkeypatch):
+    """A failed speed of a 2-D table drops its row; its pairs share the failure.
+
+    Each speed is solved once and condensed at every frequency, so both
+    (speed, frequency) pairs of the failed speed are reported failed.
+    """
     from ross.tests.test_fluid_film_bearing import bearing_kwargs_from_fixture
 
     kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous")
@@ -440,8 +445,7 @@ def test_two_dimensional_table_drops_the_whole_speed_row(monkeypatch):
 
     def budget(kw):
         speed = float(np.ravel(kw["frequency"])[0])
-        ratio = float(np.ravel(kw["excit_ratios"])[0])
-        if abs(speed - 110.0) < 1e-9 and abs(ratio * speed - 50.0) < 1e-9:
+        if abs(speed - 110.0) < 1e-9:
             return CaseBudget(max_reynolds_solves=1)
         return original(kw)
 
@@ -452,7 +456,7 @@ def test_two_dimensional_table_drops_the_whole_speed_row(monkeypatch):
         )
     assert_allclose(bearing.speed, [80.0])
     assert np.asarray(bearing.kxx).shape == (1, 2)
-    assert bearing.results.converged.tolist() == [True, True, False, True]
+    assert bearing.results.converged.tolist() == [True, True, False, False]
     assert_allclose(bearing.operating_results.frequency, [50.0, 90.0, 50.0, 90.0])
 
 

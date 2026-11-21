@@ -1177,6 +1177,13 @@ class FluidFilmBearingResults(BearingResults):
         ``viscosity_supply`` (Pa*s, at the supply temperature),
         ``density`` (kg/m**3), ``thermal_type`` and ``load`` (the applied
         load ``(F_x, F_y)``, N). Default is None.
+    pad_matrices : list of PadMatrices, optional
+        Unreduced pad matrices of each case
+        (:class:`~ross.bearings.fluid_film.padmatrices.PadMatrices`); the
+        cases of one speed share one object. Default is None.
+    speed_index : array_like of int, optional
+        Index of each case's speed in the bearing's ``speed`` array. Default
+        is one speed per case (``0, 1, ...``).
 
     Examples
     --------
@@ -1184,6 +1191,9 @@ class FluidFilmBearingResults(BearingResults):
     >>> bearing = fluid_film_bearing_example()
     >>> fig = bearing.plot_pressure_2d()
     >>> bool(bearing.results.converged[0])
+    True
+    >>> K, C = bearing.results.coefficients(0, frequency=50.0)
+    >>> bool(K[0, 0] == bearing.kxx[0])  # a fixed-geometry film: any whirl
     True
     """
 
@@ -1214,6 +1224,8 @@ class FluidFilmBearingResults(BearingResults):
         whirl_frequency=None,
         pad_forces=None,
         bearing_data=None,
+        pad_matrices=None,
+        speed_index=None,
     ):
         super().__init__(
             frequency=frequency,
@@ -1236,6 +1248,12 @@ class FluidFilmBearingResults(BearingResults):
         )
         self.pad_forces = pad_forces
         self.bearing_data = bearing_data
+        self._pad_matrices = pad_matrices
+        self.speed_index = (
+            np.arange(n_cases)
+            if speed_index is None
+            else np.asarray(speed_index, dtype=int)
+        )
         self.film_thickness_fields = film_thickness_fields
         self.theta_grids = theta_grids
         self.z_grids = z_grids
@@ -1255,6 +1273,81 @@ class FluidFilmBearingResults(BearingResults):
         self.cxy = cxy
         self.cyx = cyx
         self.cyy = cyy
+
+    def _first_case(self, speed_index):
+        """Index of the first case solved at ``speed_index``."""
+        if self._pad_matrices is None:
+            raise ValueError(
+                "these results hold no pad matrices (build them by solving a "
+                "FluidFilmBearing)"
+            )
+        cases = np.flatnonzero(self.speed_index == int(speed_index))
+        if cases.size == 0:
+            raise IndexError(
+                f"speed_index {speed_index} is not a solved speed (valid: "
+                f"{sorted(set(self.speed_index.tolist()))})"
+            )
+        return int(cases[0])
+
+    def pad_matrices(self, speed_index):
+        """Unreduced pad matrices solved at a speed.
+
+        Parameters
+        ----------
+        speed_index : int
+            Index of the speed in the bearing's ``speed`` array.
+
+        Returns
+        -------
+        PadMatrices
+            Stiffness, damping and mass matrices of the journal and pad
+            coordinates, see
+            :class:`~ross.bearings.fluid_film.padmatrices.PadMatrices`.
+
+        Raises
+        ------
+        IndexError
+            If ``speed_index`` is not a solved speed.
+        """
+        return self._pad_matrices[self._first_case(speed_index)]
+
+    def coefficients(self, speed_index, frequency=None):
+        """Stiffness and damping condensed exactly at any whirl frequency.
+
+        The pad coordinates of the case solved at the speed are condensed at
+        ``frequency`` (no interpolation, no new film solve), so a damped
+        tilting-pad bearing can be evaluated at frequencies the coefficient
+        table does not hold. The element's
+        :meth:`~ross.bearings.fluid_film_bearing.FluidFilmBearing.coefficients`
+        interpolates the table instead, as the rotor does.
+
+        Parameters
+        ----------
+        speed_index : int
+            Index of the speed in the bearing's ``speed`` array.
+        frequency : float or array_like, optional
+            Whirl frequencies, rad/s, >= 0. Default is the speed
+            (synchronous).
+
+        Returns
+        -------
+        K, C : numpy.ndarray
+            ``[[kxx, kxy], [kyx, kyy]]`` (N/m) and ``[[cxx, cxy], [cyx,
+            cyy]]`` (N*s/m), shape ``(2, 2)``, or ``(n, 2, 2)`` for an array
+            of frequencies.
+
+        Raises
+        ------
+        IndexError
+            If ``speed_index`` is not a solved speed.
+        SingularPadStiffness
+            At ``frequency = 0`` when a pad is free to move (singular pad
+            stiffness).
+        """
+        case = self._first_case(speed_index)
+        if frequency is None:
+            frequency = float(self.frequency[case])
+        return self._pad_matrices[case].condense(frequency)
 
     @property
     def operating_results(self):

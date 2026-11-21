@@ -66,7 +66,7 @@ DEFORM_TYPES = (
     "pad_pivot_mechanical",
 )
 # Deformation modes that include pivot flexibility: these need ``k_pivot``
-# from ``deform_pivots`` and use the ``dynamic_reduction_pivot`` reduction.
+# from ``deform_pivots`` and add the pivot coordinate to the pad matrices.
 PIVOT_FLEX_DEFORM_TYPES = (
     "pad_mechanical_thermal_shaft_shell_thermal_pivot_mechanical",
     "pad_pivot_mechanical",
