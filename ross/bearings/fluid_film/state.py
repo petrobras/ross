@@ -425,7 +425,8 @@ class CoefficientBlock:
     Holds either stiffness (N/m) or damping (N*s/m); the layout is the same
     for both, so :func:`~ross.bearings.fluid_film.coefficients.jacobian` and
     :func:`~ross.bearings.fluid_film.coefficients.damping` both return one of these
-    and the dynamic reduction consumes them interchangeably.
+    and :meth:`~ross.bearings.fluid_film.padmatrices.PadMatrices.from_blocks`
+    consumes them interchangeably.
 
     Attributes
     ----------
@@ -435,9 +436,9 @@ class CoefficientBlock:
         Coupling between the journal translation and the pad tilt degrees of
         freedom, per pad.
     xxi, yxi, xyi, yyi : numpy.ndarray or None
-        Per-pad direct blocks, needed only by
-        :func:`~ross.bearings.fluid_film.coefficients.dynamic_reduction_pivot` when
-        the pivot is flexible. ``None`` for the rigid-pivot reduction.
+        Per-pad direct journal blocks (they add up to ``xx`` ... ``yy``).
+        Without them the pad matrices carry the summed journal block in a
+        separate entry; a flexible pivot needs them.
     """
 
     xx: float

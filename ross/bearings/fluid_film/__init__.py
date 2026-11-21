@@ -29,9 +29,11 @@ Module                      Responsibility
 ``deform``                  Elastic and thermal deformation of the pads and
                             the pivot flexibility.
 ``coefficients``            Perturbation solves for the stiffness and damping
-                            coefficients, the journal-equilibrium Jacobian,
-                            and the dynamic reduction over the pad tilt (and
-                            pivot) degrees of freedom.
+                            coefficients and the journal-equilibrium Jacobian.
+``padmatrices``             Unreduced journal, pad tilt and pivot matrices
+                            (``PadMatrices``), the pad inertia about the
+                            pivot, and their exact condensation at any whirl
+                            frequency (``film.condense``).
 ``diagnostics``             Convergence records of every loop of a case
                             (``LoopMonitor``), the Reynolds-solve and time
                             budget (``CaseBudget``) and

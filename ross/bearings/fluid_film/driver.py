@@ -1112,13 +1112,23 @@ def run_case(**kw):
     film solve of the search. When the Newton search runs out of iterations
     its last action is a position update with no film solve, so ``xj_cb`` and
     ``yj_cb`` then hold the next iterate, one relaxed Newton step past the
-    position of the coefficients, forces and pressure. Private keywords used by
+    position of the coefficients, forces and pressure.
+
+    The coefficients are the exact condensation of the unreduced pad
+    matrices (:class:`~ross.bearings.fluid_film.padmatrices.PadMatrices`) at
+    the whirl frequency ``excit_ratios * speed``. ``whirl_ratios`` (array of
+    whirl-to-speed ratios) condenses the same solved state at several whirl
+    frequencies: every output list then has one entry per ratio, and the
+    entries share the equilibrium outputs (the same objects) and differ only
+    in the coefficients, ``threshold_rpm``, ``whirl_frequency_ratio`` and the
+    ``y_k..``, ``y_c..``, ``y_kb..``, ``y_cb..`` keys. ``pad_matrices=True``
+    adds a ``"pad_matrices"`` key with the ``PadMatrices`` of the case.
+
+    Private keywords used by
     :func:`~ross.bearings.fluid_film.sweep.film_force_at` and its tests:
-    ``_held_tilts`` (pad tilts, rad, held instead of solved),
+    ``_held_tilts`` (pad tilts, rad, held instead of solved) and
     ``_film_force_only`` (return the film force, pad moments and cavitated
-    mask instead of the outputs above) and ``_coefficient_blocks`` (add the
-    unreduced stiffness and damping blocks, one
-    :class:`~ross.bearings.fluid_film.state.CoefficientBlock` pair per case).
+    mask instead of the outputs above).
 
     The internal state dict ``g`` carries SI values across every solver
     module.
@@ -1530,8 +1540,8 @@ def run_case(**kw):
                     g.setdefault(name, np.zeros(shape))
                 g.setdefault("deform_pivot_old", np.zeros(total_pads))
                 # Pivot-flexibility buffer: ``deform_pivots`` writes per-pad
-                # k_pivot here; ``dynamic_reduction_pivot`` (deformation modes 4
-                # and 5) then reads it (0-based natural, slots 0..total_pads-1).
+                # k_pivot here; ``_pad_matrices`` (deformation modes 4 and 5)
+                # then reads it (0-based natural, slots 0..total_pads-1).
                 g.setdefault("k_pivot", np.zeros(total_pads))
 
             for sump_index in range(1, MAX_ITERATION + 1):
@@ -1779,32 +1789,24 @@ def run_case(**kw):
     # (the converged equilibrium, or the last iterate of a failed case).
     stiffness = jacobian_fn(g)
     damping_block = _adapt(_coeff.damping, g, helpers=helpers)
-    if g["deform_type"] in PIVOT_FLEX_DEFORM_TYPES:
-        # Pivot flexibility on: condense the
-        # 2*total_pads tilt/pivot block with dynamic_reduction_pivot.
-        reduced = _coeff.dynamic_reduction_pivot(
-            total_pads,
-            g["pads"],
-            g["pad_density"],
-            np.zeros(total_pads),
-            stiffness,
-            damping_block,
-            g["k_pivot"],
-            g["excit_rad"],
-            g["k_rotate"],
-        )
-    else:
-        reduced = _coeff.dynamic_reduction(
-            total_pads,
-            stiffness,
-            damping_block,
-            g["pads"],
-            g["pad_density"],
-            g["excit_rad"],
-            np.zeros(total_pads),
-            g["k_rotate"],
-        )
-    outputs = _assemble_outputs(g, hp, reduced)
+    pad_matrices = _pad_matrices(g, stiffness, damping_block)
+    whirl_ratios = kw.get("whirl_ratios")
+    if whirl_ratios is None:
+        whirl_ratios = [g["excit_ratio"]]
+    reductions = [
+        _reduce(pad_matrices, float(ratio) * g["speed_rpm"] * PI / 30.0, monitor)
+        for ratio in np.atleast_1d(np.asarray(whirl_ratios, dtype=float))
+    ]
+    outputs = _assemble_outputs(g, hp, reductions[0])
+    n_whirl = len(reductions)
+    if n_whirl > 1:
+        # One entry per whirl frequency: the equilibrium outputs are the same
+        # objects in every entry, only the condensed coefficients differ.
+        entries = [outputs] + [
+            {**outputs, **_coefficient_outputs(g, reduced)}
+            for reduced in reductions[1:]
+        ]
+        outputs = {key: [entry[key][0] for entry in entries] for key in outputs}
     h_min = np.asarray(g["h_min"], dtype=float)[:total_pads]
     if np.any(h_min <= 0.0):
         monitor.stop(
@@ -1818,17 +1820,82 @@ def run_case(**kw):
     if non_finite:
         monitor.stop("non_finite", "non-finite " + ", ".join(non_finite))
     if diagnostics:
-        outputs["non_convergence"] = [monitor.message()]
+        outputs["non_convergence"] = [monitor.message()] * n_whirl
         outputs["convergence"] = [
             monitor.summary(budget, wall_time=time.perf_counter() - case_start)
-        ]
+        ] * n_whirl
     if field_outputs:
-        outputs["fields"] = [_assemble_field_outputs(g)]
-    if kw.get("_coefficient_blocks", False):
-        outputs["_coefficient_blocks"] = [
-            {"stiffness": stiffness, "damping": damping_block}
-        ]
+        outputs["fields"] = [_assemble_field_outputs(g)] * n_whirl
+    if kw.get("pad_matrices", False):
+        outputs["pad_matrices"] = [pad_matrices] * n_whirl
     return outputs
+
+
+def _pad_matrices(g, stiffness, damping_block):
+    """Unreduced pad matrices of the case (see :class:`PadMatrices`).
+
+    Tilting pads get the tilt coordinate with the inertia of the annular
+    pad sector about the pivot; the pivot-flexibility deformation types add
+    the pivot coordinate with ``k_pivot``.
+    """
+    from ross.bearings.fluid_film.padmatrices import (
+        PadMatrices,
+        pad_inertia_about_pivot,
+    )
+
+    total_pads = g["total_pads"]
+    pads = g["pads"]
+    mass, inertia, coupling = pad_inertia_about_pivot(
+        pads.journal_radius,
+        g["cp"],
+        pads.pad_thickness,
+        pads.arc_length_rad,
+        pads.axial_length,
+        g["pad_density"],
+        g["offset"],
+    )
+    tilting = g["bearing_type"] in TILTING_PAD_TYPES
+    flexible = g["deform_type"] in PIVOT_FLEX_DEFORM_TYPES
+    return PadMatrices.from_blocks(
+        stiffness,
+        damping_block,
+        pad_mass=mass,
+        pad_inertia=inertia if tilting else None,
+        pad_coupling=coupling,
+        k_rotate=np.asarray(g["k_rotate"], dtype=float)[:total_pads],
+        k_pivot=np.asarray(g["k_pivot"], dtype=float)[:total_pads]
+        if flexible
+        else None,
+        pivot_direction=np.asarray(pads.leading_angle_rad, dtype=float)[:total_pads]
+        + np.asarray(pads.x_pivot_rad, dtype=float)[:total_pads],
+    )
+
+
+def _reduce(pad_matrices, frequency, monitor):
+    """Condense the pad matrices at one whirl frequency, rad/s.
+
+    Returns ``(kxx, kxy, kyx, kyy, cxx, cxy, cyx, cyy)``. A pad with a
+    singular stiffness block at ``frequency = 0`` (free to move, e.g. on an
+    unloaded pivot) stops the case with reason ``"pivot_unloaded"`` and
+    gives NaN coefficients.
+    """
+    from ross.bearings.fluid_film.padmatrices import SingularPadStiffness
+
+    try:
+        K, C = pad_matrices.condense(frequency)
+    except SingularPadStiffness as error:
+        monitor.stop("pivot_unloaded", str(error))
+        K = C = np.full((2, 2), np.nan)
+    return (
+        float(K[0, 0]),
+        float(K[0, 1]),
+        float(K[1, 0]),
+        float(K[1, 1]),
+        float(C[0, 0]),
+        float(C[0, 1]),
+        float(C[1, 0]),
+        float(C[1, 1]),
+    )
 
 
 def _film_force_outputs(g, monitor, budget, case_start, integrate_xz):
@@ -2120,7 +2187,7 @@ def _rigid_rotor_stability(g, reduced):
     principal coefficient is below the reporting floor, the load or rotor
     weight vanishes, or the threshold is not finite and positive.
     """
-    kxx, kxy, kyx, kyy, cxx, cxy, cyx, cyy, _ip = reduced
+    kxx, kxy, kyx, kyy, cxx, cxy, cyx, cyy = reduced
     f_total = g["f_total"]
     cb = g["cb"]
     weight = g["weight_case"]
@@ -2240,7 +2307,6 @@ def _assemble_outputs(g, hp, reduced):
     strings have always been returned empty and stay that way.
     """
     xj, yj, cb = g["xj"], g["yj"], g["cb"]
-    kxx_r, kxy_r, kyx_r, kyy_r, cxx_r, cxy_r, cyx_r, cyy_r, _ip = reduced
     total_pads = g["total_pads"]
     thermal_on = g.get("thermal_type") in ("adiabatic", "full")
     zeros_pad = [0.0] * total_pads
@@ -2346,8 +2412,6 @@ def _assemble_outputs(g, hp, reduced):
     else:
         sommerfeld = 0.0
 
-    threshold, whirl, kbxx, kbyy, cbxx, cbyy = _rigid_rotor_stability(g, reduced)
-
     eccentricity = float(np.sqrt((xj / cb) ** 2 + (yj / cb) ** 2))
     attitude = _attitude_rad(xj, yj)
     omega = g["speed_rpm"] * PI / 30.0
@@ -2355,7 +2419,8 @@ def _assemble_outputs(g, hp, reduced):
     # One entry per speed case. Callers expect a list even for a single case,
     # so every scalar is wrapped in a 1-element list and every per-pad or
     # per-node array in a 1-element list of lists.
-    return {
+    coefficients = _coefficient_outputs(g, reduced)
+    outputs = {
         "xj_cb": [xj / cb],
         "yj_cb": [yj / cb],
         "eccentricity": [eccentricity],
@@ -2369,16 +2434,16 @@ def _assemble_outputs(g, hp, reduced):
         "deform_journal": [deform_journal],
         "deform_shell": [deform_shell],
         "cb_crush": [cb_crush],
-        "kxx": [kxx_r],
-        "kxy": [kxy_r],
-        "kyx": [kyx_r],
-        "kyy": [kyy_r],
-        "cxx": [cxx_r],
-        "cxy": [cxy_r],
-        "cyx": [cyx_r],
-        "cyy": [cyy_r],
-        "threshold_rpm": [threshold],
-        "whirl_frequency_ratio": [whirl],
+        "kxx": coefficients["kxx"],
+        "kxy": coefficients["kxy"],
+        "kyx": coefficients["kyx"],
+        "kyy": coefficients["kyy"],
+        "cxx": coefficients["cxx"],
+        "cxy": coefficients["cxy"],
+        "cyx": coefficients["cyx"],
+        "cyy": coefficients["cyy"],
+        "threshold_rpm": coefficients["threshold_rpm"],
+        "whirl_frequency_ratio": coefficients["whirl_frequency_ratio"],
         # Convergence-message strings: the output surface has always
         # returned these empty; convergence is judged from the numbers.
         "non_convergence": [""],
@@ -2427,18 +2492,18 @@ def _assemble_outputs(g, hp, reduced):
         "x_tot_ld": [f_total],
         "x_spec_ld": [f_specific],
         "x_oil": [float(g["q_supply"])],
-        "y_kxx": [kxx_r],
-        "y_kxy": [kxy_r],
-        "y_kyx": [kyx_r],
-        "y_kyy": [kyy_r],
-        "y_cxx": [cxx_r],
-        "y_cxy": [cxy_r],
-        "y_cyx": [cyx_r],
-        "y_cyy": [cyy_r],
-        "y_kbxx": [kbxx],
-        "y_kbyy": [kbyy],
-        "y_cbxx": [cbxx],
-        "y_cbyy": [cbyy],
+        "y_kxx": coefficients["y_kxx"],
+        "y_kxy": coefficients["y_kxy"],
+        "y_kyx": coefficients["y_kyx"],
+        "y_kyy": coefficients["y_kyy"],
+        "y_cxx": coefficients["y_cxx"],
+        "y_cxy": coefficients["y_cxy"],
+        "y_cyx": coefficients["y_cyx"],
+        "y_cyy": coefficients["y_cyy"],
+        "y_kbxx": coefficients["y_kbxx"],
+        "y_kbyy": coefficients["y_kbyy"],
+        "y_cbxx": coefficients["y_cbxx"],
+        "y_cbyy": coefficients["y_cbyy"],
         "y_ecc": [eccentricity],
         "y_phi": [attitude],
         "y_flow": [q_diff],
@@ -2448,3 +2513,41 @@ def _assemble_outputs(g, hp, reduced):
         "y_max_t": [y_max_t],
         "y_max_p": [press_max_all],
     }
+    return outputs
+
+
+def _coefficient_outputs(g, reduced):
+    """Outputs that depend on the condensed coefficients of one whirl frequency.
+
+    Parameters
+    ----------
+    g : dict
+        Solver state at output time.
+    reduced : tuple of float
+        ``(kxx, kxy, kyx, kyy, cxx, cxy, cyx, cyy)``, N/m and N*s/m.
+
+    Returns
+    -------
+    dict
+        The coefficients (``kxx`` ... ``cyy`` and their ``y_`` copies), the
+        rigid-rotor ``threshold_rpm`` and ``whirl_frequency_ratio`` and the
+        dimensionless ``y_kbxx``, ``y_kbyy``, ``y_cbxx``, ``y_cbyy``, each as a
+        1-element list.
+    """
+    threshold, whirl, kbxx, kbyy, cbxx, cbyy = _rigid_rotor_stability(g, reduced)
+    names = ("kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy")
+    out = {name: [value] for name, value in zip(names, reduced, strict=True)}
+    out.update(
+        {f"y_{name}": [value] for name, value in zip(names, reduced, strict=True)}
+    )
+    out.update(
+        {
+            "threshold_rpm": [threshold],
+            "whirl_frequency_ratio": [whirl],
+            "y_kbxx": [kbxx],
+            "y_kbyy": [kbyy],
+            "y_cbxx": [cbxx],
+            "y_cbyy": [cbyy],
+        }
+    )
+    return out

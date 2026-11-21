@@ -197,11 +197,12 @@ lemon = rs.EllipticalBearing(
 
 ### Whirl-Dependent (2-D) Tables
 
-One engine case runs per entry of `speed`, reducing the film to the 2x2
-matrices at whirl ratio `excitation_ratio` (default 1, synchronous). Passing
-`frequency=` as well runs one case per `(speed, frequency)` pair with whirl
-ratio `frequency / speed` (`excitation_ratio` is ignored; speeds must be
-nonzero) and stores a 2-D table:
+One engine case runs per entry of `speed`, condensing the film and pad
+coordinates to the 2x2 matrices at whirl ratio `excitation_ratio` (default 1,
+synchronous; 0 gives the static condensation). Passing `frequency=` as well
+condenses the state solved at each speed at every frequency (one solve per
+speed, `excitation_ratio` is ignored; speeds must be nonzero) and stores a 2-D
+table:
 
 ```python
 tpb_2d = rs.TiltingPad(
@@ -222,14 +223,35 @@ tpb_2d = rs.TiltingPad(
     lubricant="ISOVG32",
     oil_supply_temperature=Q_(40, "degC"),
     oil_flow_v=Q_(10, "l/min"),
-    num_processes=4,  # 6 engine cases here
+    num_processes=2,  # one engine case per speed
 )
 np.array(tpb_2d.kxx).shape  # (2, 3)
 ```
 
-Tilting pads condense the pad degrees of freedom at the whirl frequency, so
-their reduced coefficients genuinely change along the frequency axis; a rigid
-fixed-geometry film gives the same coefficients at every whirl ratio.
+Tilting pads condense the pad degrees of freedom (tilt and, with pivot
+flexibility, pivot displacement, with the pad mass and inertia about the pivot)
+at the whirl frequency, so their reduced coefficients genuinely change along
+the frequency axis; a rigid fixed-geometry film gives the same coefficients at
+every whirl ratio. `bearing.results` keeps one entry per `(speed, frequency)`
+pair, sharing the equilibrium of the speed, and the unreduced matrices of each
+solved speed (`i` indexes `speed`):
+
+```python
+res = tpb_2d.results
+K, C = res.coefficients(0, frequency=Q_(2200, "RPM").to("rad/s").m)  # 2x2, exact
+K0, C0 = res.coefficients(0, frequency=0)  # static limit (pad tilts in equilibrium)
+pads = res.pad_matrices(
+    0
+)  # PadMatrices: K, C, M per pad, labels, pad_mass, pad_inertia
+D = pads.impedance(-20.0 + 300.0j)  # 2x2 complex D(s) at a damped eigenvalue s
+```
+
+`results.coefficients` condenses at any frequency without a new solve (the
+element's `coefficients()` still interpolates its table, as the rotor does).
+`impedance(s)` gives `D(s) = sum_k Z_uu - Z_ue Z_ee^-1 Z_eu` for complex `s`, the
+bearing at a damped rotor eigenvalue (`run_modal(matched_whirl=True)` uses
+`K(w) + i w C(w)` at the damped natural frequency, which is exact only for an
+undamped mode).
 
 Inputs are checked before any case is solved: a `ValueError` names the
 argument for speeds that are not finite and positive, negative whirl
@@ -321,7 +343,7 @@ Useful knobs and post-processing:
 - `lubricant`: a key of `rs.lubricants_dict` (`"ISOVG32"`, `"ISOVG46"`, `"ISOVG68"`, ...)
 - `thermal_type`: `None` (isoviscous), `"adiabatic"` or `"full"` (pad conduction)
 - `deform_type`: `None` (rigid pads, default) or one of the `"pad_mechanical*"` options for pad/pivot elasticity (full TEHD)
-- `num_processes`: solve the speed table (or the `(speed, frequency)` grid) in parallel
+- `num_processes`: solve the speeds in parallel
 - `bearing.coefficients(speed, frequency=None)` returns `(kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)` interpolated at a rotor speed (and whirl frequency for 2-D tables)
 - Plots: `plot_pressure_2d()`, `plot_pressure_3d()`, `plot_temperature_2d()`, `plot_film_temperature_3d()`, `plot_film_thickness_2d()`; `show_results()` prints a per-case summary table
 - `plot_pad_temperature_3d()` draws the pads as real geometry colored by the solid pad conduction field, resolved through the pad thickness (`thermal_type="full"` only)

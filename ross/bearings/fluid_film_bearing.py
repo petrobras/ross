@@ -102,6 +102,28 @@ def _lubricant_properties(lubricant):
     }
 
 
+def _whirl_entries(outputs):
+    """Split the outputs of one engine case into one dict per whirl frequency.
+
+    Parameters
+    ----------
+    outputs : dict
+        Outputs of :func:`ross.bearings.fluid_film.driver.run_case` for one
+        speed, each value a list with one entry per whirl frequency.
+
+    Returns
+    -------
+    list of dict
+        One output dict per whirl frequency, each value a 1-element list.
+        Values shared by the frequencies (the equilibrium outputs, fields,
+        pad matrices) are the same objects in every dict.
+    """
+    n_entries = len(outputs["kxx"])
+    return [
+        {key: [value[j]] for key, value in outputs.items()} for j in range(n_entries)
+    ]
+
+
 def _solve_case(inputs):
     """Run one solver case; module-level so it can cross process boundaries.
 
@@ -154,11 +176,11 @@ class FluidFilmBearing(BearingElement):
         Rotor speeds, rad/s, finite and positive. One solver case runs per
         entry.
     frequency : array_like, pint.Quantity, optional
-        Excitation (whirl) frequencies, rad/s. When given, one solver case
-        runs per (speed, frequency) pair with the whirl ratio
-        ``frequency / speed``, and the element carries a 2-D coefficient
-        table of shape ``(len(speed), len(frequency))`` interpolated on both
-        axes (``excitation_ratio`` is ignored). Finite and >= 0.
+        Excitation (whirl) frequencies, rad/s. When given, the state solved
+        at each speed is condensed at every frequency (one solve per speed),
+        and the element carries a 2-D coefficient table of shape
+        ``(len(speed), len(frequency))`` interpolated on both axes
+        (``excitation_ratio`` is ignored). Finite and >= 0.
         Default is None (1-D table over the speed axis, whirl ratio
         ``excitation_ratio``).
     journal_diameter : float, pint.Quantity
@@ -306,8 +328,8 @@ class FluidFilmBearing(BearingElement):
         from the leading edge, and radial distance from the pad surface
         (m, accepts pint). Default is no probes.
     excitation_ratio : float, optional
-        Whirl-to-rotation frequency ratio for the dynamic reduction, >= 0.
-        Default is 1 (synchronous).
+        Whirl-to-rotation frequency ratio for the dynamic reduction, >= 0;
+        0 gives the static condensation. Default is 1 (synchronous).
     initial_position : tuple of float, optional
         Initial journal position guess ``(x, y)`` as fractions of the
         radial clearance (held fixed for ``"match_eccentricity"``).
@@ -398,6 +420,17 @@ class FluidFilmBearing(BearingElement):
     reason ``"budget"`` (``"time_limit"``) and its outputs are evaluated at
     the last Newton iterate of the journal position, with the temperature
     fields of the last completed thermal pass.
+
+    Frequency dependence. Each solved speed keeps the unreduced stiffness,
+    damping and mass matrices of the journal and pad coordinates
+    (``results.pad_matrices(i)``): the pad tilt and, with pivot
+    flexibility, the pivot displacement, with the pad mass and inertia of
+    the annular pad sector about the pivot. The coefficients are their
+    exact condensation at the whirl frequency, so tilting pads depend on
+    it; ``results.coefficients(i, frequency)`` condenses at any other
+    frequency without a new solve (``frequency=0`` gives the static
+    limit). Fixed-geometry films have no pad coordinates and do not depend
+    on the whirl frequency.
 
     Full 360 deg pad. When the first pad spans exactly 2 pi, the engine
     drops the circumferential pressure flow and the leading/trailing-edge
@@ -600,7 +633,11 @@ class FluidFilmBearing(BearingElement):
         if kwargs.get("kxx") is None:
             self._validate_inputs()
             initial_time = time.time()
-            case_outputs = self._solve_all(num_processes, self._engine_cases())
+            case_outputs = [
+                entry
+                for out in self._solve_all(num_processes, self._engine_cases())
+                for entry in _whirl_entries(out)
+            ]
             final_time = time.time()
             convergence = [out.pop("convergence")[0] for out in case_outputs]
             converged = np.array([c["converged"] for c in convergence], dtype=bool)
@@ -634,10 +671,13 @@ class FluidFilmBearing(BearingElement):
         if case_outputs is not None:
             case_speeds = self.speed_range
             case_frequencies = self.excitation_ratio * self.speed_range
+            speed_index = np.arange(self.speed_range.size)
             if self.frequency_range is not None:
                 case_speeds = np.repeat(self.speed_range, self.frequency_range.size)
                 case_frequencies = np.tile(self.frequency_range, self.speed_range.size)
+                speed_index = np.repeat(speed_index, self.frequency_range.size)
             fields = [out.pop("fields")[0] for out in case_outputs]
+            pad_matrices = [out.pop("pad_matrices")[0] for out in case_outputs]
 
             def case_values(name):
                 return np.array([out[name][0] for out in case_outputs], dtype=float)
@@ -672,6 +712,8 @@ class FluidFilmBearing(BearingElement):
                 whirl_frequency=case_frequencies,
                 pad_forces=[f["pad_force"] for f in fields],
                 bearing_data=self._bearing_data(),
+                pad_matrices=pad_matrices,
+                speed_index=speed_index,
             )
 
     @property
@@ -1010,18 +1052,18 @@ class FluidFilmBearing(BearingElement):
         Returns
         -------
         list of dict
-            One :meth:`_engine_inputs` dict per rotor speed (1-D table) or per
-            (speed, frequency) pair in row-major order (2-D table).
+            One :meth:`_engine_inputs` dict per rotor speed. For a 2-D table
+            each case condenses its solved state at every whirl ratio
+            ``frequency / speed``.
         """
         if self.frequency_range is None:
             return [self._engine_inputs(w) for w in self.speed_range]
         return [
-            self._engine_inputs(w, excitation_ratio=f / w)
+            self._engine_inputs(w, whirl_ratios=[f / w for f in self.frequency_range])
             for w in self.speed_range
-            for f in self.frequency_range
         ]
 
-    def _engine_inputs(self, speed, excitation_ratio=None):
+    def _engine_inputs(self, speed, excitation_ratio=None, whirl_ratios=None):
         """Assemble the solver keyword arguments for one rotor speed.
 
         Parameters
@@ -1031,6 +1073,10 @@ class FluidFilmBearing(BearingElement):
         excitation_ratio : float, optional
             Whirl-to-rotation ratio of the dynamic reduction. Default is the
             element's ``excitation_ratio``.
+        whirl_ratios : list of float, optional
+            Whirl-to-rotation ratios at which the solved state is condensed,
+            one output entry each (overrides ``excitation_ratio``). Default is
+            None (one entry, at ``excitation_ratio``).
 
         Returns
         -------
@@ -1048,6 +1094,7 @@ class FluidFilmBearing(BearingElement):
             "frequency": float(speed),
             "field_outputs": True,
             "diagnostics": True,
+            "pad_matrices": True,
             "max_reynolds_solves": self.max_reynolds_solves,
             "time_limit": self.time_limit,
             # meshes
@@ -1124,6 +1171,7 @@ class FluidFilmBearing(BearingElement):
             "r_location": np.array([p[2] for p in self.probes], dtype=float),
             # solution controls
             "excit_ratios": float(excitation_ratio),
+            "whirl_ratios": whirl_ratios,
             "xj": float(xj),
             "yj": float(yj),
             "starve_number": int(self.starvation_number),

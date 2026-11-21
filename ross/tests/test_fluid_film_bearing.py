@@ -297,7 +297,7 @@ def test_example_with_pint_units():
 
 
 def test_2d_frequency_table():
-    """2-D (speed, frequency) generation runs one engine case per pair."""
+    """2-D (speed, frequency) table: one results entry per pair."""
     kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous")
     speed = np.atleast_1d(np.asarray(kwargs.pop("speed"), dtype=float))
     kwargs.pop("excitation_ratio", None)
