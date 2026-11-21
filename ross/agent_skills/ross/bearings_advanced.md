@@ -326,5 +326,7 @@ Useful knobs and post-processing:
 - Plots: `plot_pressure_2d()`, `plot_pressure_3d()`, `plot_temperature_2d()`, `plot_film_temperature_3d()`, `plot_film_thickness_2d()`; `show_results()` prints a per-case summary table
 - `plot_pad_temperature_3d()` draws the pads as real geometry colored by the solid pad conduction field, resolved through the pad thickness (`thermal_type="full"` only)
 - `bearing.save(file)` stores the solved coefficient table, 2-D included (reloads as a plain `BearingElement`, no re-solve)
+- `cavitation_pressure` (Pa, gauge): the film never falls below it and the cavitated film is held at it
+- Film force at a prescribed journal position (no equilibrium search, no coefficients), e.g. for a force map or a finite-difference check: `from ross.bearings.fluid_film.sweep import film_force_at`; `film_force_at(inputs, speed, xj, yj, tilts="solve")` takes the `run_case` keyword dict of the engine (`bearing._engine_inputs(speed)`), positions in m, and returns `fx`, `fy`, per-pad forces and pivot moments; `tilts="frozen"` holds the tilts of the equilibrium, an array holds given tilts
 
 See `docs/user_guide/tutorial_bearings_part_2.ipynb` for the full tour.
