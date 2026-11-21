@@ -2881,7 +2881,7 @@ def flow_regime_jit(
     if re_max_track < re_lower:
         flow_regime_track_p = 0
         scale_turb_track_p = 0.0
-    elif re_lower < re_max_track < re_upper:
+    elif re_lower <= re_max_track < re_upper:
         flow_regime_track_p = 1
         scale_turb_track_p = (
             1.0
@@ -2894,7 +2894,7 @@ def flow_regime_jit(
     if re_max_dam < re_lower:
         flow_regime_dam_p = 0
         scale_turb_dam_p = 0.0
-    elif re_lower < re_max_dam < re_upper:
+    elif re_lower <= re_max_dam < re_upper:
         flow_regime_dam_p = 1
         scale_turb_dam_p = (
             1.0 - ((re_upper - re_max_dam) / (re_upper - re_lower)) ** turb_scal_fac_exp

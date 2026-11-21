@@ -1022,12 +1022,13 @@ def _flow_regime(
 ):
     """Return ``(flow_regime, turbulence_scale)`` from the max Reynolds number.
 
-    Laminar (0) below ``re_lower``, transitional (1) with a power-law blend up
-    to ``re_upper``, turbulent (2) above.
+    Laminar (0) below ``re_lower``, transitional (1) with a power-law blend
+    from ``re_lower`` (included, scale 0) up to ``re_upper``, turbulent (2)
+    from ``re_upper`` on.
     """
     if re_max < turbulence.re_lower:
         return 0, 0.0
-    if turbulence.re_lower < re_max < turbulence.re_upper:
+    if turbulence.re_lower <= re_max < turbulence.re_upper:
         scale = (
             1.0
             - (
@@ -1702,17 +1703,16 @@ def _mesh_deform():
 
 
 def _attitude_rad(xj, yj):
-    """Quadrant-resolved attitude angle, in radians."""
-    if xj == 0.0 or yj == 0.0:
+    """Attitude angle of the journal centre, in radians, in ``(-pi, pi]``.
+
+    Measured from the ``-y`` axis towards ``+x``: ``arctan2(xj, -yj)``. The
+    journal at the bearing centre gives 0. Adding ``0.0`` turns a negative
+    zero into a positive one, so the ``+y`` axis gives ``+pi`` (the limit from
+    ``xj -> 0+``).
+    """
+    if xj == 0.0 and yj == 0.0:
         return 0.0
-    a = np.arctan(abs(xj) / abs(yj))
-    if xj > 0.0 and yj > 0.0:
-        return PI - a
-    if xj < 0.0 and yj > 0.0:
-        return -PI + a
-    if xj < 0.0 and yj < 0.0:
-        return -a
-    return a
+    return float(np.arctan2(xj + 0.0, -yj + 0.0))
 
 
 def _max_nodal_pressure(g):

@@ -394,8 +394,20 @@ def _newton_step(kxx_e, kxy_e, kyx_e, kyy_e, fx_net, fy_net, cb):
 
     Handles near-singular / decoupled stiffness, inverts the 2x2 system
     otherwise, and limits the step length to ``0.2 * cb``. Returns ``(None, None)`` for the
-    fully singular case so the caller applies the special reset.
+    fully singular case so the caller applies the special reset. A non-finite
+    stiffness, or a zero direct stiffness that the decoupled branches below
+    would divide by (``kyy_e == 0``, or ``kxx_e == 0`` with
+    ``|kyy_e| <= 1e-6``), is treated as singular: it occurs when no pad carries
+    a film force, e.g. every pad pushed out of contact by a soft pivot. A zero
+    ``kxx_e`` with a finite ``|kyy_e| > 1e-6`` keeps the decoupled y-step.
     """
+    stiffness = (kxx_e, kxy_e, kyx_e, kyy_e)
+    if (
+        not np.all(np.isfinite(stiffness))
+        or kyy_e == 0.0
+        or (kxx_e == 0.0 and abs(kyy_e) <= 1.0e-6)
+    ):
+        return None, None
     if abs(kxx_e / kyy_e) < 1.0e-4 and abs(kyy_e) > 1.0e-6:
         delta_xj = 0.0
         delta_yj = fy_net / kyy_e

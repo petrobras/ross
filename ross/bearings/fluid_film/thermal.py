@@ -712,7 +712,7 @@ def _update_flow_regime(
     if re_max < turbulence.re_lower:
         flow_regime[pad] = 0
         scale_turb[pad] = 0.0
-    elif turbulence.re_lower < re_max < turbulence.re_upper:
+    elif turbulence.re_lower <= re_max < turbulence.re_upper:
         flow_regime[pad] = 1
         scale_turb[pad] = (
             1.0

@@ -1,4 +1,5 @@
 import json
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -417,3 +418,546 @@ def test_full_thermal_first_film_layer_keeps_dissipation(rpm, ey_coarse, ey_fine
     assert min(coarse["h_min"][0]) / ey_coarse > 1.0e-6
     assert_allclose(fine["tpad_max"][0], coarse["tpad_max"][0], atol=0.05)
     assert_allclose(fine["power_loss"][0], coarse["power_loss"][0], rtol=2.0e-3)
+
+
+class _SolverCalled(Exception):
+    """Raised by the patched solver: a test reached the first solve."""
+
+
+@pytest.fixture
+def no_solve(monkeypatch):
+    """Make any solver call fail, to show that a check runs before it."""
+    import ross.bearings.fluid_film_bearing as module
+
+    def solve(inputs):
+        raise _SolverCalled
+
+    monkeypatch.setattr(module, "_solve_case", solve)
+
+
+# Inputs for the range checks: pivot data, a zero speed in a 1-D table,
+# preload, pad layout and the other arguments. The valid range
+# of each argument follows from the solver's formulas, not from a run: the pad
+# clearance radial_clearance / (1 - preload) is infinite at preload 1, the
+# Hertz pivot formulas divide by house_diameter - pivot_diameter, the
+# user-specified pivot deflection is force / pivot_stiffness, and the leading
+# edge of a pad is pivot_angle - offset * pad_arc.
+def _pads(pivot_angle_deg, pad_arc_deg):
+    """Per-pad inputs of a layout with ``len(pivot_angle_deg)`` plain lands."""
+    n_pads = len(pivot_angle_deg)
+    per_pad = dict(
+        pivot_angle=np.radians(pivot_angle_deg),
+        pad_arc=np.radians(pad_arc_deg),
+        pad_axial_length=[0.2] * n_pads,
+        preload=[0.0] * n_pads,
+        offset=[0.5] * n_pads,
+        pad_convection=735.9,
+    )
+    for name in (
+        "track_arc",
+        "track_axial_length",
+        "track_depth",
+        "taper_depth_le",
+        "taper_arc_le",
+        "taper_depth_te",
+        "taper_arc_te",
+    ):
+        per_pad[name] = None
+    return per_pad
+
+
+INVALID_INPUTS = [
+    ("speed", dict(speed=[0.0, 300.0]), "nonzero speeds"),
+    ("speed", dict(speed=[300.0, -10.0]), "nonzero speeds"),
+    ("speed", dict(speed=[np.nan]), "nonzero speeds"),
+    ("speed", dict(speed=[np.inf]), "nonzero speeds"),
+    ("frequency", dict(speed=[300.0], frequency=[-1.0, 100.0]), "frequency"),
+    ("frequency", dict(speed=[300.0], frequency=[np.nan]), "frequency"),
+    ("excitation_ratio", dict(excitation_ratio=-0.5), "excitation_ratio"),
+    ("excitation_ratio", dict(excitation_ratio=np.nan), "excitation_ratio"),
+    ("journal_diameter", dict(journal_diameter=0.0), "journal_diameter"),
+    ("radial_clearance", dict(radial_clearance=-1e-4), "radial_clearance"),
+    ("radial_clearance", dict(radial_clearance=np.nan), "radial_clearance"),
+    ("pad_thickness", dict(pad_thickness=None), "pad_thickness"),
+    ("pad_thickness", dict(pad_thickness=0.0), "pad_thickness"),
+    ("oil_flow_v", dict(oil_flow_v=0.0), "oil_flow_v"),
+    ("pad_density", dict(pad_density=0.0), "pad_density"),
+    ("pad_axial_length", dict(pad_axial_length=[0.2, 0.0]), "pad_axial_length"),
+    ("pad_arc", dict(pad_arc=[np.radians(176), 0.0]), "pad_arc"),
+    ("preload", dict(preload=[1.0, 1.0]), "preload"),
+    ("preload", dict(preload=[0.0, -0.1]), "preload"),
+    ("offset", dict(offset=[0.5, 1.2]), "offset"),
+    ("offset", dict(offset=[-0.1, 0.5]), "offset"),
+    # three 170 deg pads and two 200 deg pads (more than 360 deg in total)
+    ("pad_arc", _pads([60, 180, 300], [170] * 3), "more than 360 deg"),
+    ("pad_arc", dict(pad_arc=np.radians([200, 200])), "more than 360 deg"),
+    # two 100 deg pads centred 90 deg apart overlap by 10 deg (total 200 deg)
+    (
+        "pad_arc",
+        dict(pivot_angle=np.radians([90, 180]), pad_arc=np.radians([100, 100])),
+        "overlaps",
+    ),
+    # the offset moves the leading edge: centred pads 180 deg apart with 170 deg
+    # arcs fit, but offset 0 on pad 1 moves its arc 85 deg forwards into pad 2
+    (
+        "pad_arc",
+        dict(pad_arc=np.radians([170, 170]), offset=[0.0, 0.5]),
+        "overlaps",
+    ),
+    # the leading edge is pivot - offset * arc (not +): pads at 90 and 200 deg,
+    # 100 deg arcs, offsets 0.5 and 1 span [40, 140] and [100, 200] deg; with
+    # "+" they would span [140, 240] and [300, 400] and fit
+    (
+        "pad_arc",
+        dict(
+            pivot_angle=np.radians([90, 200]),
+            pad_arc=np.radians([100, 100]),
+            offset=[0.5, 1.0],
+        ),
+        "overlaps",
+    ),
+    # an overlap of 1e-6 rad with the total arc under 360 deg: half-circle land
+    # from 2e-6 rad to pi + 2e-6 rad, and a land from pi + 1e-6 rad to 2 pi
+    (
+        "pad_arc",
+        dict(
+            pivot_angle=[np.pi / 2 + 2e-6, 3 * np.pi / 2],
+            pad_arc=[np.pi, np.pi - 2e-6],
+        ),
+        "overlaps",
+    ),
+    # pivot models without the data they need
+    (
+        "pivot_stiffness",
+        dict(
+            deform_type="pad_pivot_mechanical",
+            pivot_type="user_specified_stiffness",
+            pivot_stiffness=0.0,
+        ),
+        "pivot_stiffness",
+    ),
+    (
+        "pivot_stiffness",
+        dict(
+            deform_type="pad_pivot_mechanical",
+            pivot_type="user_specified_stiffness",
+            pivot_stiffness=-1e8,
+        ),
+        "pivot_stiffness",
+    ),
+    (
+        "pivot_diameter",
+        dict(deform_type="pad_pivot_mechanical", pivot_type="ball_in_socket"),
+        "pivot_diameter",
+    ),
+    (
+        "pivot_diameter",
+        dict(
+            deform_type="pad_mechanical_thermal_shaft_shell_thermal_pivot_mechanical",
+            pivot_type="button",
+            pivot_diameter=0.4,
+            house_diameter=0.4,
+        ),
+        "house_diameter",
+    ),
+    (
+        "pivot_diameter",
+        dict(
+            deform_type="pad_pivot_mechanical",
+            pivot_type="ball_in_socket",
+            pivot_diameter=0.42,
+            house_diameter=0.4,
+        ),
+        "house_diameter",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "argument, overrides, match",
+    INVALID_INPUTS,
+    ids=[f"{case[0]}-{i}" for i, case in enumerate(INVALID_INPUTS)],
+)
+def test_invalid_inputs_raise_before_solving(no_solve, argument, overrides, match):
+    """Each input outside the solver's range raises before the first solve."""
+    kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous", **overrides)
+    with pytest.raises(ValueError, match=match) as error:
+        FluidFilmBearing(**kwargs)
+    assert argument in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        # pivot data that the formulas accept: no pivot flexibility selected
+        dict(pivot_type="ball_in_socket"),
+        dict(
+            deform_type="pad_mechanical",
+            pivot_type="user_specified_stiffness",
+            pivot_stiffness=0.0,
+        ),
+        # a single 360 deg land, and two lands that meet exactly
+        _pads([180], [360]),
+        _pads([60, 180, 300], [119.99] * 3),
+        dict(pad_arc=np.radians([180, 180])),
+        # a pivot angle beyond 360 deg is the same layout
+        dict(pivot_angle=np.radians([90 + 360, 270])),
+        # offset 1 puts the arc behind the pivot, [-10, 90] deg, clear of the
+        # second pad [220, 320] deg (with "+" it would be [190, 290] deg)
+        dict(
+            pivot_angle=np.radians([90, 270]),
+            pad_arc=np.radians([100, 100]),
+            offset=[1.0, 0.5],
+        ),
+        # a gap of 1e-6 rad: [2e-6, pi + 2e-6] and [pi + 3e-6, 2 pi] rad
+        dict(
+            pivot_angle=[np.pi / 2 + 2e-6, 3 * np.pi / 2 + 1e-6],
+            pad_arc=[np.pi, np.pi - 4e-6],
+        ),
+        dict(preload=[0.99, 0.0], offset=[0.0, 1.0], pad_arc=np.radians([90, 90])),
+        dict(speed=[300.0], frequency=[0.0, 100.0]),
+        dict(excitation_ratio=0.0),
+    ],
+)
+def test_valid_inputs_reach_the_solver(no_solve, overrides):
+    """Inputs at the edges of the valid ranges pass the checks."""
+    kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous", **overrides)
+    with pytest.raises(_SolverCalled):
+        FluidFilmBearing(**kwargs)
+
+
+@pytest.mark.parametrize(
+    "load",
+    [dict(fys_load=-500.0), dict(fxs_load=200.0), dict(weight=1e3)],
+)
+def test_match_eccentricity_with_load_warns(no_solve, load):
+    """The held-eccentricity equilibrium does not use the load."""
+    loads = {"weight": 0.0, "fxs_load": 0.0, "fys_load": 0.0} | load
+    kwargs, _ = bearing_kwargs_from_fixture(
+        "fixed_isoviscous",
+        equilibrium_type="match_eccentricity",
+        ambient_pressure_1=0.0,
+        ambient_pressure_2=0.0,
+        **loads,
+    )
+    with pytest.warns(UserWarning, match="match_load"):
+        with pytest.raises(_SolverCalled):
+            FluidFilmBearing(**kwargs)
+
+    kwargs["equilibrium_type"] = "match_load"
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        with pytest.raises(_SolverCalled):
+            FluidFilmBearing(**kwargs)
+
+
+@pytest.mark.parametrize(
+    "operating_type, pressures, warns",
+    [
+        ("regular_flooded", (100001.56, 100001.56), True),
+        ("regular_flooded", (0.0, 2e5), True),
+        ("regular_flooded", (0.0, 0.0), False),
+        ("high_ambient_pressure", (2e5, 2e5), False),
+        ("axial_flow", (1e5, 0.0), False),
+    ],
+)
+def test_flooded_ambient_pressure_warns(no_solve, operating_type, pressures, warns):
+    """The flooded mode puts the axial edges at gauge 0 (pressure.py)."""
+    kwargs, _ = bearing_kwargs_from_fixture(
+        "fixed_isoviscous",
+        operating_type=operating_type,
+        ambient_pressure_1=pressures[0],
+        ambient_pressure_2=pressures[1],
+    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        with pytest.raises(_SolverCalled):
+            FluidFilmBearing(**kwargs)
+    messages = [str(w.message) for w in caught if "ambient_pressure" in str(w.message)]
+    assert bool(messages) is warns
+    # the groove pressure is still applied in flooded mode (see the test below)
+    assert all("groove" in m and "not used" not in m for m in messages)
+
+
+def test_flooded_groove_pressure_acts_as_a_constant_load():
+    """In flooded mode the ambient pressures still load the grooves.
+
+    Two lands of 160 and 100 deg (pivots 90 and 240 deg, offset 0.5) leave
+    grooves of 20 and 80 deg. The groove pressure p = 2e5 Pa pushes on the
+    journal with F = -p R L * integral of (cos, sin) over the groove arcs,
+    integrated here by quadrature. The build with p must therefore match the
+    build at p = 0 with F added to the applied load.
+    """
+    from scipy.integrate import quad
+
+    p = 2e5
+    layout = dict(
+        pivot_angle=np.radians([90.0, 240.0]),
+        pad_arc=np.radians([160.0, 100.0]),
+        offset=[0.5, 0.5],
+        operating_type="regular_flooded",
+    )
+    kwargs, _ = bearing_kwargs_from_fixture(
+        "fixed_isoviscous", ambient_pressure_1=p, ambient_pressure_2=p, **layout
+    )
+    radius = kwargs["journal_diameter"] / 2
+    length = kwargs["pad_axial_length"][0]
+    grooves = np.radians([(170.0, 190.0), (290.0, 370.0)])
+    fx, fy = (
+        -sum(p * radius * length * quad(f, a, b)[0] for a, b in grooves)
+        for f in (np.cos, np.sin)
+    )
+    assert abs(np.hypot(fx, fy)) > 1e3  # the asymmetric grooves do not cancel
+
+    with pytest.warns(UserWarning, match="groove"):
+        loaded = FluidFilmBearing(**kwargs)
+    kwargs.update(
+        ambient_pressure_1=0.0,
+        ambient_pressure_2=0.0,
+        fxs_load=float(kwargs["fxs_load"]) + fx,
+        fys_load=float(kwargs["fys_load"]) + fy,
+    )
+    shifted = FluidFilmBearing(**kwargs)
+    out_loaded = loaded._results.outputs[0]
+    out_shifted = shifted._results.outputs[0]
+    for key in ("eccentricity", "attitude"):
+        assert_allclose(out_loaded[key][0], out_shifted[key][0], rtol=1e-9)
+    for coef in ("kxx", "kxy", "kyx", "kyy", "cxx", "cyy"):
+        assert_allclose(
+            getattr(loaded, coef), getattr(shifted, coef), rtol=1e-9, err_msg=coef
+        )
+    # and differs from the p = 0 build without the extra load
+    kwargs.update(
+        fxs_load=float(kwargs["fxs_load"]) - fx, fys_load=float(kwargs["fys_load"]) - fy
+    )
+    unloaded = FluidFilmBearing(**kwargs)
+    assert abs(unloaded.kyy[0] / loaded.kyy[0] - 1) > 5e-3
+
+
+def _blend(re_max, re_lower, re_upper, exponent):
+    """Transition-regime turbulence scale, written out from its definition."""
+    return 1.0 - ((re_upper - re_max) / (re_upper - re_lower)) ** exponent
+
+
+TURBULENCE_LIMITS = [(1000.0, 2000.0, 0.5), (500.0, 1000.0, 0.125), (3.0, 7.0, 1.0)]
+
+
+@pytest.mark.parametrize("re_lower, re_upper, exponent", TURBULENCE_LIMITS)
+def test_flow_regime_at_the_laminar_limit(re_lower, re_upper, exponent):
+    """Re = re_lower is the laminar end of the blend, (1, 0.0), in both paths.
+
+    Reference: the blend 1 - ((re_upper - Re) / (re_upper - re_lower)) ** n is 0
+    at re_lower, so the regime is continuous there; before the fix the value
+    re_lower itself was sent to the turbulent regime (2, 1.0).
+    """
+    from types import SimpleNamespace
+
+    from ross.bearings.fluid_film.driver import _flow_regime
+    from ross.bearings.fluid_film.thermal import _update_flow_regime
+
+    turbulence = SimpleNamespace(
+        re_lower=re_lower, re_upper=re_upper, scale_factor_exponent=exponent
+    )
+
+    def thermal_path(re_max):
+        regime = np.full(2, -1, dtype=np.int64)
+        scale = np.full(2, -1.0)
+        _update_flow_regime(regime, scale, 1, re_max, turbulence)
+        return int(regime[1]), float(scale[1])
+
+    below = np.nextafter(re_lower, -np.inf)
+    above = re_lower * (1 + 1e-9)
+    inside = 0.5 * (re_lower + re_upper)
+
+    def driver_path(re_max):
+        return _flow_regime(re_max, turbulence)
+
+    for path in (driver_path, thermal_path):
+        regime, scale = path(re_lower)
+        assert (regime, scale) == (1, 0.0)
+        assert path(below) == (0, 0.0)
+        regime, scale = path(above)
+        assert regime == 1
+        assert_allclose(scale, _blend(above, re_lower, re_upper, exponent), rtol=1e-12)
+        assert scale < 1e-6
+        regime, scale = path(inside)
+        assert regime == 1
+        assert_allclose(scale, _blend(inside, re_lower, re_upper, exponent), rtol=1e-12)
+        assert path(re_upper) == (2, 1.0)
+
+
+def _one_node_flow_regime(region, re_lower, re_upper, exponent):
+    """Call the numba flow-regime kernel on a one-node, one-pad film.
+
+    The node sits in the pocket (track) when ``region == "track"`` and in the
+    dam otherwise; the film is 1e-4 m thick with a uniform viscosity.
+    """
+    from ross.bearings.fluid_film._numba_kernels import flow_regime_jit
+
+    pad_thickness = 0.01
+    h = 1.0e-4
+    length_track = 1.0 if region == "track" else 0.0
+    return flow_regime_jit(
+        0,
+        3,
+        0,
+        0,
+        2,
+        1,
+        np.array([0], dtype=np.int64),
+        np.array([[0, 1, 2]], dtype=np.int64),
+        np.array([2.0]),
+        np.array([1.0]),
+        np.array([1.0]),
+        np.array([0.0]),
+        np.array([length_track]),
+        np.array([0.0]),
+        pad_thickness,
+        np.array([[0.5]]),
+        np.array([[0.5]]),
+        850.0,
+        40.0,
+        re_lower,
+        re_upper,
+        np.full((1, 3), 0.02),
+        np.array([[pad_thickness, pad_thickness + h / 2, pad_thickness + h]]),
+        np.array([[h]]),
+        np.zeros((1, 1)),
+        exponent,
+    )
+
+
+@pytest.mark.parametrize("region", ["track", "dam"])
+@pytest.mark.parametrize("exponent", [0.5, 0.125])
+def test_numba_flow_regime_at_the_laminar_limit(region, exponent):
+    """Re = re_lower in the numba kernel, for the track and the dam regions."""
+    re_node = _one_node_flow_regime(region, 1e9, 2e9, exponent)[4]
+    # rho U h / mu with the inputs above
+    assert_allclose(re_node, 850.0 * 40.0 * 1.0e-4 / 0.02, rtol=1e-12)
+
+    index = (0, 1) if region == "track" else (2, 3)
+
+    def regime(re_lower):
+        out = _one_node_flow_regime(region, re_lower, 2 * re_node, exponent)
+        return int(out[index[0]]), float(out[index[1]])
+
+    assert regime(re_node) == (1, 0.0)
+    assert regime(np.nextafter(re_node, np.inf)) == (0, 0.0)
+    regime_below, scale_below = regime(re_node * (1 - 1e-9))
+    assert regime_below == 1
+    assert_allclose(
+        scale_below,
+        _blend(re_node, re_node * (1 - 1e-9), 2 * re_node, exponent),
+        rtol=1e-6,
+    )
+    assert scale_below < 1e-6
+
+
+def _attitude_quadrants(xj, yj):
+    """Attitude angle as computed before this check was added (0 on both axes)."""
+    if xj == 0.0 or yj == 0.0:
+        return 0.0
+    a = np.arctan(abs(xj) / abs(yj))
+    if xj > 0.0 and yj > 0.0:
+        return np.pi - a
+    if xj < 0.0 and yj > 0.0:
+        return -np.pi + a
+    if xj < 0.0 and yj < 0.0:
+        return -a
+    return a
+
+
+def _same_angle(a, b, atol=1e-9):
+    return abs(np.angle(np.exp(1j * (a - b)))) < atol
+
+
+@pytest.mark.parametrize(
+    "position, expected, off_axis",
+    [
+        ((0.0, -0.3), 0.0, (1e-12, -0.3)),
+        ((0.0, 0.3), np.pi, (1e-12, 0.3)),
+        ((-0.0, 0.3), np.pi, (1e-12, 0.3)),
+        ((0.3, 0.0), np.pi / 2, (0.3, -1e-12)),
+        ((0.3, -0.0), np.pi / 2, (0.3, -1e-12)),
+        ((-0.3, 0.0), -np.pi / 2, (-0.3, -1e-12)),
+    ],
+)
+def test_attitude_on_the_axes(position, expected, off_axis):
+    """The attitude is arctan2(x, -y), continuous onto the axes.
+
+    Reference: the quadrant formula used before the fix, evaluated just off
+    the axis (it returned 0 on the axes themselves). The +y axis takes the
+    limit from x -> 0+ (+pi).
+    """
+    from ross.bearings.fluid_film.driver import _attitude_rad
+
+    attitude = _attitude_rad(*position)
+    assert attitude == pytest.approx(expected, abs=1e-15)
+    assert _same_angle(attitude, _attitude_quadrants(*off_axis), atol=1e-11)
+
+
+def test_attitude_off_the_axes():
+    from ross.bearings.fluid_film.driver import _attitude_rad
+
+    assert _attitude_rad(0.0, 0.0) == 0.0
+    assert _attitude_rad(-0.0, -0.0) == 0.0
+    rng = np.random.default_rng(1705)
+    radius = rng.uniform(1e-6, 1.5, 200)
+    angle = rng.uniform(-np.pi, np.pi, 200)
+    for xj, yj in zip(radius * np.cos(angle), radius * np.sin(angle), strict=True):
+        new = _attitude_rad(xj, yj)
+        assert -np.pi < new <= np.pi
+        assert _same_angle(new, _attitude_quadrants(xj, yj), atol=1e-12)
+
+
+@pytest.mark.parametrize(
+    "stiffness",
+    [
+        (0.0, 0.0, 0.0, 0.0),
+        (1e8, 0.0, 0.0, 0.0),
+        (0.0, 1e3, -1e3, 0.0),
+        (0.0, 0.0, 0.0, 1e-7),
+        (np.nan, 0.0, 0.0, 1e8),
+        (1e8, np.inf, 0.0, 1e8),
+    ],
+)
+def test_newton_step_treats_zero_or_nonfinite_stiffness_as_singular(stiffness):
+    """A film with no force on any pad has zero stiffness: no Newton step.
+
+    Before the fix ``kxx / kyy`` raised ZeroDivisionError (soft pivot) and
+    a non-finite stiffness produced a NaN journal position.
+    """
+    from ross.bearings.fluid_film.hydrodynamics import _newton_step
+
+    assert _newton_step(*stiffness, 0.0, -2800.0, 75e-6) == (None, None)
+
+
+@pytest.mark.parametrize("kxy, kyx", [(0.0, 0.0), (1e3, -1e3)])
+def test_newton_step_zero_kxx_keeps_the_decoupled_step(kxy, kyx):
+    """``kxx = 0`` with a finite ``kyy`` is not singular: y-step ``fy / kyy``.
+
+    This is the step the solver took before the soft-pivot fix; only
+    ``kyy = 0`` divided by zero.
+    """
+    from ross.bearings.fluid_film.hydrodynamics import _newton_step
+
+    step = _newton_step(0.0, kxy, kyx, 1e8, 30.0, -200.0, 75e-6)
+    assert step == (0.0, -200.0 / 1e8)
+
+
+@pytest.mark.parametrize(
+    "stiffness, force",
+    [
+        ((1.2e8, 3e7, -2e7, 1.5e8), (10.0, -200.0)),
+        ((5e8, -1e8, 2e8, 4e8), (-50.0, 40.0)),
+        ((2e8, 1e-7, 1e-7, 3e8), (100.0, -100.0)),
+    ],
+)
+def test_newton_step_regular_system(stiffness, force):
+    """Within the step limit the step solves K d = F (numpy as reference)."""
+    from ross.bearings.fluid_film.hydrodynamics import _newton_step
+
+    kxx, kxy, kyx, kyy = stiffness
+    step = _newton_step(kxx, kxy, kyx, kyy, *force, 75e-6)
+    reference = np.linalg.solve([[kxx, kxy], [kyx, kyy]], force)
+    assert_allclose(step, reference, rtol=1e-12)

@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -217,3 +219,129 @@ def test_tilting_pad_coefficients_depend_on_whirl():
     assert_allclose(
         float(bearing.kxx_interpolated(0.3 * speed[0], speed[0])), reference.kxx[0]
     )
+
+
+def _five_pad(**overrides):
+    """Coarse isoviscous 5-pad bearing for the input checks (load on a pad)."""
+    kwargs = dict(
+        n=1,
+        speed=Q_([3000], "RPM"),
+        thermal_type=None,
+        journal_diameter=101.6e-3,
+        radial_clearance=74.9e-6,
+        pad_thickness=12.7e-3,
+        pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
+        pad_arc=Q_([60] * 5, "deg"),
+        pad_axial_length=[50.8e-3] * 5,
+        preload=[0.5] * 5,
+        offset=[0.5] * 5,
+        lubricant="ISOVG32",
+        oil_supply_temperature=Q_(40, "degC"),
+        oil_flow_v=Q_(10, "l/min"),
+        total_ex_film=20,
+        total_ez_film=10,
+        total_ey_pad=10,
+        total_ey_film=10,
+    )
+    kwargs.update(overrides)
+    return kwargs
+
+
+def test_default_equilibrium_with_load_warns():
+    """The default match_eccentricity holds the journal and ignores the load."""
+    with pytest.warns(UserWarning, match="match_load"):
+        held = TiltingPad(**_five_pad(fys_load=-500.0))
+    # the journal stays at the default eccentricity 0.3 whatever the load
+    assert_allclose(held._results.outputs[0]["eccentricity"][0], 0.3, rtol=1e-6)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        TiltingPad(**_five_pad(fys_load=-500.0, equilibrium_type="match_load"))
+        TiltingPad(**_five_pad())
+
+
+@pytest.mark.parametrize(
+    "overrides, argument",
+    [
+        # the pivot defaults (pivot_stiffness 0, Hertz diameters 0)
+        (dict(deform_type="pad_pivot_mechanical"), "pivot_stiffness"),
+        (
+            dict(deform_type="pad_pivot_mechanical", pivot_type="ball_in_socket"),
+            "pivot_diameter",
+        ),
+        (
+            dict(
+                deform_type="pad_pivot_mechanical",
+                pivot_type="button",
+                pivot_diameter=0.02,
+            ),
+            "house_diameter",
+        ),
+    ],
+)
+def test_pivot_defaults_raise(overrides, argument):
+    with pytest.raises(ValueError, match=argument):
+        TiltingPad(**_five_pad(equilibrium_type="match_load", **overrides))
+
+
+def test_stiff_pivot_builds():
+    """k_piv = 1e8 N/m: a valid neighbour of the soft pivot below."""
+    bearing = TiltingPad(
+        **_five_pad(
+            equilibrium_type="match_load",
+            fys_load=-2.8e3,
+            deform_type="pad_pivot_mechanical",
+            pivot_stiffness=1e8,
+        )
+    )
+    out = bearing._results.outputs[0]
+    assert_allclose(out["k_pivot"][0], [1e8] * 5)
+    # the film carries the load: |F_film - W| / W within the Newton tolerance
+    assert abs(out["fy_hydro"][0] - 2.8e3) / 2.8e3 < 2e-3
+    # pad deflection = pad force / pivot stiffness (user-specified model)
+    assert max(out["deform_pivot"][0]) > 0.0
+    # so the pivot spring forces k * deflection, acting along the pivot radii
+    # (18, 90, ..., 306 deg), must carry the 2.8 kN load on the housing
+    pivot = np.radians([18, 90, 162, 234, 306])
+    spring = 1e8 * np.asarray(out["deform_pivot"][0])
+    resultant = [np.sum(spring * np.cos(pivot)), np.sum(spring * np.sin(pivot))]
+    assert np.hypot(resultant[0], resultant[1] + 2.8e3) / 2.8e3 < 2e-3
+
+
+def test_soft_pivot_does_not_crash(monkeypatch):
+    """k_piv = 1e7 N/m used to raise ZeroDivisionError in the Newton step.
+
+    The pivot deflection under the pad load (about 230 um on the loaded pads)
+    is larger than the pad clearance (150 um), so the pivot iteration pushes
+    every pad out of the film and the film stiffness becomes exactly zero. The
+    Newton step now treats that as a singular system. The outer loops are
+    capped at three iterations here so that the test only runs through the
+    first collapse; reporting such a case as not converged is left to
+    the convergence report.
+    """
+    # ``thd`` binds MAX_ITERATION at import time and ``driver.run_case``
+    # imports it lazily: import it here and patch its copy too, so that the
+    # cap does not stay in ``thd`` after the test (monkeypatch restores both).
+    from ross.bearings.fluid_film import constants, hydrodynamics, thd
+
+    singular = []
+    newton_step = hydrodynamics._newton_step
+
+    def spy(*args):
+        step = newton_step(*args)
+        if step[0] is None:
+            singular.append(args[:4])
+        return step
+
+    monkeypatch.setattr(hydrodynamics, "_newton_step", spy)
+    monkeypatch.setattr(constants, "MAX_ITERATION", 3)
+    monkeypatch.setattr(thd, "MAX_ITERATION", 3)
+    TiltingPad(
+        **_five_pad(
+            equilibrium_type="match_load",
+            fys_load=-2.8e3,
+            deform_type="pad_pivot_mechanical",
+            pivot_stiffness=1e7,
+        )
+    )
+    assert any(k[0] == 0.0 or k[3] == 0.0 for k in singular)

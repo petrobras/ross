@@ -231,6 +231,30 @@ Tilting pads condense the pad degrees of freedom at the whirl frequency, so
 their reduced coefficients genuinely change along the frequency axis; a rigid
 fixed-geometry film gives the same coefficients at every whirl ratio.
 
+Inputs are checked before any case is solved: a `ValueError` names the
+argument for speeds that are not finite and positive, negative whirl
+frequencies or `excitation_ratio`, non-positive geometry, density or oil flow,
+`preload` outside `[0, 1)`, `offset` outside `[0, 1]`, pads that overlap
+(leading edge at `pivot_angle - offset * pad_arc`) or cover more than 360 deg,
+and pivot flexibility without its data (`pivot_stiffness > 0` for
+`"user_specified_stiffness"`, `0 < pivot_diameter < house_diameter` for
+`"ball_in_socket"` and `"button"`).
+
+`TiltingPad` defaults to `equilibrium_type="match_eccentricity"`: the journal
+is held at `eccentricity` / `attitude_angle` and the load is not used (a
+`UserWarning` says so when a load is given). Pass
+`equilibrium_type="match_load"` to solve the position for the load, as in the
+examples above. `TiltingPad` also has its own thermal and mesh defaults
+(`pad_conductivity=116`, `edges_convection=1500`, `relax_temperature=0.5`,
+mesh 30/30/16); `FluidFilmBearing` uses 50, 73.59, 1 and 40/20/20.
+
+Pressures are gauge, relative to the drain. `ambient_pressure_1/2` set the
+film boundaries in `"axial_flow"`, `"high_ambient_pressure"` and the starved
+and oil-ring modes. In every mode the inter-pad grooves carry their mean, which
+adds a net force on the journal for an asymmetric pad layout. In the default
+`"regular_flooded"` mode the axial film edges stay at 0 and a nonzero ambient
+pressure warns.
+
 Useful knobs and post-processing:
 
 - `lubricant`: a key of `rs.lubricants_dict` (`"ISOVG32"`, `"ISOVG46"`, `"ISOVG68"`, ...)

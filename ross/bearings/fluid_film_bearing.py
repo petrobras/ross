@@ -14,10 +14,13 @@ geometry into the per-pad arrays this class consumes.
 """
 
 import multiprocessing
+import os
 import time
+import warnings
 
 import numpy as np
 
+import ross.units
 from ross.bearing_seal_element import BearingElement
 from ross.bearings.bearing_results import FluidFilmBearingResults
 from ross.bearings.fluid_film.constants import (
@@ -47,6 +50,10 @@ _LUBRICANT_FIELDS = {
     "lube_cp": "liquid_specific_heat",
     "lube_conduct": "liquid_thermal_conductivity",
 }
+
+# Frames skipped when a warning is attributed to the caller: the bearing
+# classes and the unit-conversion decorator that wraps their constructors.
+_INTERNAL_FILES = (os.path.dirname(__file__) + os.sep, ross.units.__file__)
 
 _TYPE_FLAGS = {
     "bearing_type": BEARING_TYPES,
@@ -138,13 +145,14 @@ class FluidFilmBearing(BearingElement):
     n : int
         Node in which the bearing will be located.
     speed : array_like, pint.Quantity
-        Rotor speeds, rad/s. One solver case runs per entry.
+        Rotor speeds, rad/s, finite and positive. One solver case runs per
+        entry.
     frequency : array_like, pint.Quantity, optional
         Excitation (whirl) frequencies, rad/s. When given, one solver case
         runs per (speed, frequency) pair with the whirl ratio
         ``frequency / speed``, and the element carries a 2-D coefficient
         table of shape ``(len(speed), len(frequency))`` interpolated on both
-        axes (``excitation_ratio`` is ignored). Requires nonzero speeds.
+        axes (``excitation_ratio`` is ignored). Finite and >= 0.
         Default is None (1-D table over the speed axis, whirl ratio
         ``excitation_ratio``).
     journal_diameter : float, pint.Quantity
@@ -160,9 +168,12 @@ class FluidFilmBearing(BearingElement):
     pad_axial_length : array_like, pint.Quantity
         Per-pad axial length, m.
     preload : array_like
-        Per-pad preload factor (0 for a cylindrical land).
+        Per-pad preload factor, ``0 <= preload < 1`` (0 for a cylindrical
+        land).
     offset : array_like
-        Per-pad pivot offset fraction (0.5 = centered).
+        Per-pad pivot offset fraction, ``0 <= offset <= 1`` (0.5 = centered).
+        The pad leading edge is at ``pivot_angle - offset * pad_arc``; the
+        pads must not overlap and their arcs must add up to 360 deg or less.
     lubricant : str or dict
         Key of :data:`ross.bearings.lubricants.lubricants_dict` or a dict
         with the same field names (SI).
@@ -199,7 +210,8 @@ class FluidFilmBearing(BearingElement):
         or ``"pad_pivot_mechanical"``.
     equilibrium_type : str, optional
         ``"match_load"`` (default) solves the journal position for the
-        applied load; ``"match_eccentricity"`` holds ``initial_position``.
+        applied load; ``"match_eccentricity"`` holds ``initial_position``
+        and does not use the load (a warning is issued when one is given).
     sump_type : str, optional
         Groove-mixing supply temperature source: ``"supply_temperature"``
         (default) or ``"sump_temperature"``.
@@ -245,18 +257,27 @@ class FluidFilmBearing(BearingElement):
         Sump convection area, m**2 (oil-ring-lubricated operation).
         Default is 0.
     house_diameter, pivot_diameter : float, pint.Quantity, optional
-        Housing / pivot contact diameters for the Hertzian pivot models, m.
+        Housing / pivot contact diameters for the Hertzian pivot models
+        (``"ball_in_socket"``, ``"button"``), m; with a pivot deformation
+        type they must satisfy ``0 < pivot_diameter < house_diameter``.
         Default is 0.
     pivot_stiffness : float, pint.Quantity, optional
-        Pivot stiffness for ``"user_specified_stiffness"``, N/m.
-        Default is 0.
+        Pivot stiffness for ``"user_specified_stiffness"``, N/m; positive
+        when ``deform_type`` includes pivot flexibility. Default is 0.
     crush_fit : float, pint.Quantity, optional
         Shell crush (shrink) fit, m. Default is 0.
     shell_id, shell_od : float, pint.Quantity, optional
         Shell inner/outer diameter for the shell thermal growth model, m.
         Default is 0.
     ambient_pressure_1, ambient_pressure_2 : float, pint.Quantity, optional
-        Ambient (edge) pressures, Pa. Default is 0.
+        Ambient pressures at the two axial edges, Pa, gauge (relative to the
+        drain pressure). ``"axial_flow"``, ``"high_ambient_pressure"`` and
+        the starved and oil-ring modes apply them to the film boundaries. In
+        every mode the inter-pad grooves carry their mean,
+        ``0.5 * (ambient_pressure_1 + ambient_pressure_2)``, which adds a net
+        force on the journal unless the pad layout is symmetric. In
+        ``"regular_flooded"`` operation the axial film edges stay at 0 and a
+        nonzero value issues a warning. Default is 0.
     cavitation_pressure : float, pint.Quantity, optional
         Cavitation pressure, Pa. Default is 0.
     oil_supply_pressure : float, pint.Quantity, optional
@@ -273,7 +294,7 @@ class FluidFilmBearing(BearingElement):
         from the leading edge, and radial distance from the pad surface
         (m, accepts pint). Default is no probes.
     excitation_ratio : float, optional
-        Whirl-to-rotation frequency ratio for the dynamic reduction.
+        Whirl-to-rotation frequency ratio for the dynamic reduction, >= 0.
         Default is 1 (synchronous).
     initial_position : tuple of float, optional
         Initial journal position guess ``(x, y)`` as fractions of the
@@ -299,6 +320,29 @@ class FluidFilmBearing(BearingElement):
     Returns
     -------
     A FluidFilmBearing object.
+
+    Raises
+    ------
+    ValueError
+        Before any solve, when an input is outside its valid range (the
+        message names the argument): non-positive or non-finite speeds,
+        negative frequencies or ``excitation_ratio``, non-positive
+        geometry, density or flow, preload or offset out of range,
+        overlapping pads, or a pivot model without the data it needs.
+
+    Notes
+    -----
+    Defaults. :class:`ross.bearings.tilting_pad.TiltingPad` uses different
+    defaults from this class: ``equilibrium_type="match_eccentricity"``
+    (here ``"match_load"``), ``pad_conductivity=116`` (here 50),
+    ``edges_convection=1500`` (here 73.59), ``relax_temperature=0.5``
+    (here 1) and the mesh ``total_ex_film=30``, ``total_ez_film=30``,
+    ``total_ey_pad=16`` (here 40, 20, 20). Results built on the defaults of
+    one class are not comparable with the other's unless these arguments
+    are passed explicitly.
+
+    Pressures (ambient, cavitation, supply) are gauge pressures relative to
+    the drain pressure.
 
     Examples
     --------
@@ -471,15 +515,12 @@ class FluidFilmBearing(BearingElement):
             if frequency is None
             else np.atleast_1d(np.asarray(frequency, dtype=float))
         )
-        if self.frequency_range is not None and np.any(self.speed_range == 0):
-            raise ValueError(
-                "A 2-D (speed, frequency) coefficient table requires nonzero speeds"
-            )
 
         coefficient_table = {}
         case_outputs = None
         initial_time = final_time = None
         if kwargs.get("kxx") is None:
+            self._validate_inputs()
             initial_time = time.time()
             case_outputs = self._solve_all(num_processes, self._engine_cases())
             final_time = time.time()
@@ -535,6 +576,183 @@ class FluidFilmBearing(BearingElement):
                 initial_time=initial_time,
                 final_time=final_time,
             )
+
+    def _validate_inputs(self):
+        """Check the solver inputs before any case is solved.
+
+        Raises
+        ------
+        ValueError
+            If an input is outside the range the solver can handle. The
+            message names the argument and the offending value.
+
+        Warns
+        -----
+        UserWarning
+            If a load is given with ``equilibrium_type="match_eccentricity"``
+            (the load is not used), or ambient pressures are given in
+            ``"regular_flooded"`` operation (the axial film edges stay at 0
+            while the grooves carry the mean ambient pressure).
+        """
+        speed = self.speed_range
+        if not np.all(np.isfinite(speed) & (speed > 0)):
+            raise ValueError(
+                "speed must hold finite, positive values: the solver requires "
+                f"nonzero speeds, got {speed[~(np.isfinite(speed) & (speed > 0))]} "
+                "rad/s"
+            )
+        if self.frequency_range is not None:
+            frequency = self.frequency_range
+            bad = ~(np.isfinite(frequency) & (frequency >= 0))
+            if np.any(bad):
+                raise ValueError(
+                    f"frequency must hold finite values >= 0, got {frequency[bad]} "
+                    "rad/s"
+                )
+        if not (np.isfinite(self.excitation_ratio) and self.excitation_ratio >= 0):
+            raise ValueError(
+                "excitation_ratio must be finite and >= 0, got "
+                f"{self.excitation_ratio!r}"
+            )
+
+        for name in (
+            "journal_diameter",
+            "radial_clearance",
+            "pad_thickness",
+            "oil_flow_v",
+            "pad_density",
+            "pad_arc",
+            "pad_axial_length",
+        ):
+            value = getattr(self, name)
+            if value is None:
+                raise ValueError(f"{name} must be informed")
+            value = np.asarray(value, dtype=float)
+            if not np.all(np.isfinite(value) & (value > 0)):
+                raise ValueError(
+                    f"{name} must be finite and positive, got {value.tolist()}"
+                )
+
+        if not np.all(np.isfinite(self.pivot_angle)):
+            raise ValueError(
+                f"pivot_angle must be informed and finite, got "
+                f"{self.pivot_angle.tolist()}"
+            )
+        if not np.all((self.preload >= 0) & (self.preload < 1)):
+            raise ValueError(
+                f"preload must satisfy 0 <= preload < 1 for every pad, got "
+                f"{self.preload.tolist()}"
+            )
+        if not np.all((self.offset >= 0) & (self.offset <= 1)):
+            raise ValueError(
+                f"offset must satisfy 0 <= offset <= 1 for every pad, got "
+                f"{self.offset.tolist()}"
+            )
+        self._validate_pad_layout()
+        self._validate_pivots()
+
+        load = {
+            "weight": float(self.weight),
+            "fxs_load": float(self.fxs_load),
+            "fys_load": float(self.fys_load),
+        }
+        if self.equilibrium_type == "match_eccentricity" and any(load.values()):
+            given = ", ".join(f"{k}={v:g} N" for k, v in load.items() if v)
+            warnings.warn(
+                "equilibrium_type='match_eccentricity' holds the journal at "
+                f"initial_position and does not use the applied load ({given}); "
+                "pass equilibrium_type='match_load' to solve the journal position "
+                "for the load.",
+                UserWarning,
+                skip_file_prefixes=_INTERNAL_FILES,
+            )
+        if self.operating_type == "regular_flooded" and (
+            self.ambient_pressure_1 or self.ambient_pressure_2
+        ):
+            warnings.warn(
+                "operating_type='regular_flooded' keeps the axial film edges at "
+                "gauge 0 (the drain pressure); ambient_pressure_1 and "
+                "ambient_pressure_2 only set the inter-pad groove pressure, "
+                "0.5 * (ambient_pressure_1 + ambient_pressure_2), whose net force "
+                "on the journal cancels only for a symmetric pad layout. Use "
+                "'axial_flow' or 'high_ambient_pressure' to apply them to the film "
+                "edges, or pass gauge pressures (0 for an open drain).",
+                UserWarning,
+                skip_file_prefixes=_INTERNAL_FILES,
+            )
+
+    def _validate_pad_layout(self):
+        """Check that the pads do not overlap and fit in one revolution.
+
+        The leading edge of a pad is ``pivot_angle - offset * pad_arc`` (as in
+        the solver) and its trailing edge is ``pad_arc`` further on. A single
+        360-degree pad is allowed.
+
+        Raises
+        ------
+        ValueError
+            If the total arc exceeds 360 degrees or two pads overlap
+            (tolerance 1e-9 rad).
+        """
+        tolerance = 1e-9
+        total_arc = float(np.sum(self.pad_arc))
+        if total_arc > 2 * np.pi + tolerance:
+            raise ValueError(
+                f"pad_arc: the pads cover {np.degrees(total_arc):.6g} deg in total, "
+                "more than 360 deg"
+            )
+        leading = np.mod(self.pivot_angle - self.offset * self.pad_arc, 2 * np.pi)
+        order = np.argsort(leading, kind="stable")
+        for position, pad in enumerate(order):
+            following = order[(position + 1) % order.size]
+            next_leading = leading[following]
+            if position == order.size - 1:
+                next_leading += 2 * np.pi
+            trailing = leading[pad] + self.pad_arc[pad]
+            if trailing > next_leading + tolerance:
+                raise ValueError(
+                    f"pad_arc / pivot_angle: pad {pad + 1} (leading edge "
+                    f"{np.degrees(leading[pad]):.6g} deg, arc "
+                    f"{np.degrees(self.pad_arc[pad]):.6g} deg) overlaps pad "
+                    f"{following + 1} (leading edge "
+                    f"{np.degrees(leading[following]):.6g} deg); the leading edge "
+                    "is pivot_angle - offset * pad_arc"
+                )
+
+    def _validate_pivots(self):
+        """Check that the pivot flexibility model has the data it needs.
+
+        Raises
+        ------
+        ValueError
+            If ``deform_type`` includes pivot flexibility and
+            ``"user_specified_stiffness"`` has ``pivot_stiffness <= 0``, or
+            the Hertz pivots (``"ball_in_socket"``, ``"button"``) do not have
+            ``0 < pivot_diameter < house_diameter``.
+        """
+        from ross.bearings.fluid_film.constants import PIVOT_FLEX_DEFORM_TYPES
+
+        if self.deform_type not in PIVOT_FLEX_DEFORM_TYPES:
+            return
+        if self.pivot_type == "user_specified_stiffness":
+            stiffness = float(self.pivot_stiffness)
+            if not (np.isfinite(stiffness) and stiffness > 0):
+                raise ValueError(
+                    "pivot_stiffness must be finite and positive for "
+                    "pivot_type='user_specified_stiffness' with deform_type="
+                    f"{self.deform_type!r}, got {stiffness!r} N/m"
+                )
+        elif self.pivot_type in ("ball_in_socket", "button"):
+            pivot_diameter = float(self.pivot_diameter)
+            house_diameter = float(self.house_diameter)
+            if not (0 < pivot_diameter < house_diameter < np.inf):
+                raise ValueError(
+                    f"pivot_diameter and house_diameter must satisfy 0 < "
+                    f"pivot_diameter < house_diameter for pivot_type="
+                    f"{self.pivot_type!r} with deform_type={self.deform_type!r} "
+                    f"(Hertz contact), got pivot_diameter={pivot_diameter!r} m, "
+                    f"house_diameter={house_diameter!r} m"
+                )
 
     def __getattr__(self, name):
         if name.startswith("plot_") or name.startswith("show_"):
