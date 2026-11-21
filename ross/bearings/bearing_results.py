@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
+import pandas as pd
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 from prettytable import PrettyTable
@@ -1153,17 +1154,37 @@ class FluidFilmBearingResults(BearingResults):
         The solver's named-output dict of each frequency (eccentricity,
         attitude, power loss, flows, temperatures, ...).
     kxx, kxy, kyx, kyy : array_like
-        Stiffness coefficient tables, N/m.
+        Stiffness coefficients of each case, N/m.
     cxx, cxy, cyx, cyy : array_like
-        Damping coefficient tables, N*s/m.
+        Damping coefficients of each case, N*s/m.
     initial_time, final_time : float, optional
         Epoch timestamps around the solver run.
+    converged : array_like of bool, optional
+        Whether each case converged. Default is every case.
+    convergence : list of dict, optional
+        Convergence summary of each case (see
+        :meth:`~ross.bearings.fluid_film.diagnostics.LoopMonitor.summary`).
+        Default is None.
+    whirl_frequency : array_like, optional
+        Whirl (excitation) frequency of each case, rad/s. Default is the
+        rotor speed.
+    pad_forces : list of ndarray, optional
+        Film force of each pad along ``x`` and ``y`` (N), shape
+        ``(n_pads, 2)``, one per case. Default is None.
+    bearing_data : dict, optional
+        Case-independent inputs of :attr:`operating_results`:
+        ``journal_diameter``, ``radial_clearance``, ``axial_length`` (m),
+        ``viscosity_supply`` (Pa*s, at the supply temperature),
+        ``density`` (kg/m**3), ``thermal_type`` and ``load`` (the applied
+        load ``(F_x, F_y)``, N). Default is None.
 
     Examples
     --------
     >>> from ross.bearings.fluid_film_bearing import fluid_film_bearing_example
     >>> bearing = fluid_film_bearing_example()
     >>> fig = bearing.plot_pressure_2d()
+    >>> bool(bearing.results.converged[0])
+    True
     """
 
     def __init__(
@@ -1188,6 +1209,11 @@ class FluidFilmBearingResults(BearingResults):
         pad_radial_positions=None,
         initial_time=None,
         final_time=None,
+        converged=None,
+        convergence=None,
+        whirl_frequency=None,
+        pad_forces=None,
+        bearing_data=None,
     ):
         super().__init__(
             frequency=frequency,
@@ -1196,6 +1222,20 @@ class FluidFilmBearingResults(BearingResults):
             initial_time=initial_time,
             final_time=final_time,
         )
+        n_cases = self.frequency.size
+        self.converged = (
+            np.ones(n_cases, dtype=bool)
+            if converged is None
+            else np.asarray(converged, dtype=bool)
+        )
+        self.convergence = convergence
+        self.whirl_frequency = (
+            self.frequency.astype(float)
+            if whirl_frequency is None
+            else np.asarray(whirl_frequency, dtype=float)
+        )
+        self.pad_forces = pad_forces
+        self.bearing_data = bearing_data
         self.film_thickness_fields = film_thickness_fields
         self.theta_grids = theta_grids
         self.z_grids = z_grids
@@ -1215,6 +1255,129 @@ class FluidFilmBearingResults(BearingResults):
         self.cxy = cxy
         self.cyx = cyx
         self.cyy = cyy
+
+    @property
+    def operating_results(self):
+        """Operating quantities of every case, one row per case.
+
+        Columns: ``speed`` and ``frequency`` (whirl, rad/s); ``converged``,
+        ``reason``, ``iterations`` (equilibrium Newton), ``residual``
+        (``|F_net| / |F_ext|``, NaN for a held journal position),
+        ``reynolds_solves``, ``wall_time`` (s); ``eccentricity`` (relative to
+        the bore clearance ``C_b``), ``attitude`` (rad, from ``-y`` towards
+        ``+x``), ``attitude_from_load`` (rad, the same angle measured from the
+        direction of the applied load; NaN without an applied load), ``xj``, ``yj`` (m); ``h_min`` (m,
+        smallest film thickness over the pads) and ``h_min_pad`` (its pad,
+        0-based); ``p_max`` (Pa, largest film pressure, also for the
+        isoviscous model); ``T_max_pad`` (K, largest pad temperature) and
+        ``T_max_film`` (K, largest radially averaged film temperature), NaN
+        for the isoviscous model; ``power_loss`` (W); ``q_supply``,
+        ``q_side`` and ``q_carryover`` (m**3/s: supply flow, total side
+        leakage, hot-oil carry-over summed over the pads); ``sommerfeld``,
+        ``mu N L D / W (R / C_b)**2`` with the supply viscosity and ``N`` in
+        rev/s; ``specific_load`` (Pa), ``W / (L D)``; both with ``L`` the
+        axial length of the first pad; ``re_max`` (largest
+        local film Reynolds number ``rho U h / mu``), ``re_cb``
+        (``rho U C_b / mu`` at the supply viscosity) and ``re_taylor``
+        (``41.2 sqrt(R / C_b)``, Taylor's onset of vortex flow); ``pad_load``
+        (N, film force of each pad) and ``tilt_angle`` (rad, per pad), as
+        lists.
+
+        Returns
+        -------
+        pandas.DataFrame
+        """
+        from ross.bearings.fluid_film.driver import ZERO_TEMPERATURE_SENTINEL
+
+        data = self.bearing_data or {}
+        n_cases = self.frequency.size
+        nan = np.full(n_cases, np.nan)
+
+        def output(name, reduce=None):
+            values = [out[name][0] for out in self.outputs]
+            if reduce is None:
+                return np.asarray(values, dtype=float)
+            return np.array([reduce(np.asarray(v, dtype=float)) for v in values])
+
+        speed = self.frequency.astype(float)
+        cb = data.get("radial_clearance", np.nan)
+        diameter = data.get("journal_diameter", np.nan)
+        length = data.get("axial_length", np.nan)
+        mu = data.get("viscosity_supply", np.nan)
+        rho = data.get("density", np.nan)
+        radius = 0.5 * diameter
+        load = output("x_tot_ld")
+        fx_load, fy_load = data.get("load", (np.nan, np.nan))
+
+        xj = output("xj_cb") * cb
+        yj = output("yj_cb") * cb
+        attitude = output("attitude")
+        if fx_load == 0.0 and fy_load == 0.0:
+            # no applied load (held journal position): no load direction
+            from_load = nan.copy()
+        else:
+            load_angle = np.arctan2(fx_load + 0.0, -fy_load + 0.0)
+            from_load = np.angle(np.exp(1j * (attitude - load_angle)))
+        h_min_pads = [np.asarray(out["h_min"][0], dtype=float) for out in self.outputs]
+        thermal = data.get("thermal_type") is not None
+
+        t_max_pad = output("tpad_max")
+        t_max_pad[
+            np.isclose(t_max_pad, ZERO_TEMPERATURE_SENTINEL, rtol=0, atol=1e-9)
+        ] = np.nan
+        t_max_film = np.array([np.max(t) for t in self.temperature_fields], dtype=float)
+        if not thermal:
+            t_max_pad[:] = np.nan
+            t_max_film[:] = np.nan
+
+        if self.convergence is None:
+            conv = [{} for _ in range(n_cases)]
+        else:
+            conv = self.convergence
+        newton = [c.get("loops", {}).get("newton", {}) for c in conv]
+        if self.pad_forces is None:
+            pad_load = [None] * n_cases
+        else:
+            pad_load = [np.hypot(f[:, 0], f[:, 1]).tolist() for f in self.pad_forces]
+
+        with np.errstate(divide="ignore", invalid="ignore"):
+            sommerfeld = (
+                mu * speed / (2 * np.pi) * length * diameter / load * (radius / cb) ** 2
+            )
+            sommerfeld = np.where(load > 0, sommerfeld, nan)
+        return pd.DataFrame(
+            {
+                "speed": speed,
+                "frequency": self.whirl_frequency,
+                "converged": self.converged,
+                "reason": [c.get("reason", "") for c in conv],
+                "iterations": [n.get("iterations", np.nan) for n in newton],
+                "residual": [n.get("residual", np.nan) for n in newton],
+                "reynolds_solves": [c.get("reynolds_solves", np.nan) for c in conv],
+                "wall_time": [c.get("wall_time", np.nan) for c in conv],
+                "eccentricity": output("eccentricity"),
+                "attitude": attitude,
+                "attitude_from_load": from_load,
+                "xj": xj,
+                "yj": yj,
+                "h_min": [float(np.min(h)) for h in h_min_pads],
+                "h_min_pad": [int(np.argmin(h)) for h in h_min_pads],
+                "p_max": [float(np.max(p)) for p in self.pressure_fields],
+                "T_max_pad": t_max_pad,
+                "T_max_film": t_max_film,
+                "power_loss": output("power_loss"),
+                "q_supply": output("x_oil"),
+                "q_side": output("differential_flow_rate"),
+                "q_carryover": output("q_carry_over", np.sum),
+                "sommerfeld": sommerfeld,
+                "specific_load": load / (length * diameter),
+                "re_max": output("dhc_re_max", np.max),
+                "re_cb": rho * speed * radius * cb / mu,
+                "re_taylor": np.full(n_cases, 41.2 * np.sqrt(radius / cb)),
+                "pad_load": pad_load,
+                "tilt_angle": [list(out["tilt_angle"][0]) for out in self.outputs],
+            }
+        )
 
     def _pad_indices(self, pad_index):
         n_pads = self.pressure_fields[0].shape[0]

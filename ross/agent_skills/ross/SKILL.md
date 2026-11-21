@@ -38,7 +38,7 @@ Concise recipes for rotordynamics analyses with ROSS. Each file is self-containe
 | Harmonic balance (no recipe yet) | — | `run_harmonic_balance_response`: see `help(rs.Rotor.run_harmonic_balance_response)` |
 | AMB sensitivity (no recipe yet) | — | `run_amb_sensitivity`: see `help(rs.Rotor.run_amb_sensitivity)` |
 | AMB sensor-actuator non-collocation (no recipe yet) | — | `run_amb_non_collocation`: see `help(rs.Rotor.run_amb_non_collocation)` |
-| Advanced bearings | [bearings_advanced.md](bearings_advanced.md) | `BearingElement` speed / frequency / 2-D tables, fluid-film bearings |
+| Advanced bearings | [bearings_advanced.md](bearings_advanced.md) | `BearingElement` speed / frequency / 2-D tables, fluid-film bearings, convergence and `operating_results` |
 | Seals | [seals.md](seals.md) | `LabyrinthSeal`, `HolePatternSeal`, `HybridSeal`, whirl-dependent tables, `matched_whirl` |
 | Common gotchas | [gotchas.md](gotchas.md) | — |
 

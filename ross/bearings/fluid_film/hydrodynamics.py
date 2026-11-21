@@ -70,8 +70,10 @@ from ross.bearings.fluid_film._numba_kernels import (
 )
 from ross.bearings.fluid_film.constants import (
     MAX_ITERATION,
+    NEWTON_ERROR,
     PI,
     SHEAR_ERROR,
+    TILT_ERROR,
 )
 
 
@@ -180,16 +182,25 @@ def hydrodynamics(
     total_pads = s["total_pads"]
     operating_type = s["operating_type"]
     total_e_x_film = s["total_e_x_film"]
+    monitor = s.get("_monitor")
+    newton_tolerance = NEWTON_ERROR * s.get("_tolerance_scale", 1.0)
 
     f = 0.0
     f_old = 0.0
     xj_old = s["xj"]
     yj_old = s["yj"]
     hd_converged = 0
+    onset_moves = np.zeros(total_pads, dtype=np.int64)
+    onset_travelling = 0
+    onset_searched = False
 
     for filmonset_index in range(1, total_e_x_film - 1 + 1):
         unconverge_number = 0
         hd_converged = 0
+        newton_residual = np.nan
+        newton_exit = "max_iterations"
+        singular_step = False
+        onset_travelling = 0
 
         # ``equilpost_index`` is a pure iteration counter (compared ``> 1`` and
         # passed through to ``fixed_brg``); kept 1-based for readability.
@@ -223,16 +234,23 @@ def hydrodynamics(
             # With no external load (held-eccentricity cases) the relative
             # force test is meaningless; skip it instead of dividing by zero.
             ext_mag = np.sqrt(fx_ext**2 + fy_ext**2)
+            # Without an external load the relative residual is undefined and
+            # the loop cannot meet its test; it is reported as infinite.
+            newton_residual = (
+                np.sqrt(fx_net**2 + fy_net**2) / ext_mag if ext_mag > 0.0 else np.inf
+            )
             if (
                 ext_mag > 0.0
-                and np.sqrt(fx_net**2 + fy_net**2) / ext_mag < 2.0e-3
+                and np.sqrt(fx_net**2 + fy_net**2) / ext_mag < newton_tolerance
                 and equilpost_index > 1
             ):
                 hd_converged = 0 if unconverge_number > 0 else 1
+                newton_exit = "converged"
                 break
             elif f > f_old and equilpost_index > 1:
                 unconverge_number += 1
                 if unconverge_number > 5:
+                    newton_exit = "diverged"
                     break
                 f_min = f_old
                 xj_min = xj_old
@@ -275,11 +293,13 @@ def hydrodynamics(
                     )
                     if delta_xj is None:
                         # Singular Jacobian fallback.
+                        singular_step = True
                         s["xj"] = 0.0
                         s["yj"] = 0.0
                         delta_xj = 0.0
                         delta_yj = -0.2 * s["cb"]
                 elif equilibrium_type == "match_eccentricity":
+                    newton_exit = "not_applicable"
                     break
 
                 xj_old = s["xj"]
@@ -288,6 +308,16 @@ def hydrodynamics(
                 yj_new = yj_old + delta_yj
                 s["xj"] = (1.0 - relaxp) * xj_old + relaxp * xj_new
                 s["yj"] = (1.0 - relaxp) * yj_old + relaxp * yj_new
+
+        if monitor is not None:
+            _record_newton(
+                monitor,
+                equilpost_index,
+                newton_residual,
+                newton_tolerance,
+                newton_exit,
+                singular_step,
+            )
 
         s["fx_hydro"] = fx_hydro
         s["fy_hydro"] = fy_hydro
@@ -365,12 +395,31 @@ def hydrodynamics(
         ) and filmonset_search == 0:
             break
 
+        onset_old = np.array(s["film_onset"], dtype=np.int64)
         s["film_onset"] = update_film_onset(
             total_pads,
             total_e_x_film,
             s["q_x"],
             s["q_available"],
             s["film_onset"],
+        )
+        onset_searched = True
+        move = np.asarray(s["film_onset"], dtype=np.int64) - onset_old
+        onset_travelling = int(np.sum((move != 0) & (move * onset_moves >= 0)))
+        onset_moves = move
+
+    if monitor is not None and (onset_searched or "film_onset" not in monitor.records):
+        # The film-onset search steps one element per pass; it has found the
+        # discrete balance once no pad keeps moving in the same direction.
+        # The later calls of a thermal or deformation case skip the search
+        # and keep the onset it found, so they keep its record too.
+        monitor.record(
+            "film_onset",
+            filmonset_index,
+            onset_travelling,
+            0.0,
+            onset_travelling == 0,
+            searched=onset_searched,
         )
 
     # Heat-dissipation scale factor for the cavitation/starvation effects.
@@ -387,6 +436,29 @@ def hydrodynamics(
     )
 
     return s
+
+
+def _record_newton(monitor, iterations, residual, tolerance, exit_kind, singular):
+    """Record the last pass of the equilibrium Newton loop.
+
+    The pass converged when its final force residual ``|F_net| / |F_ext|`` is
+    below the tolerance, whatever the divergence counter of the loop says.
+    """
+    if exit_kind == "not_applicable":
+        monitor.record("newton", iterations, np.nan, tolerance, True, "not_applicable")
+        return
+    converged = bool(np.isfinite(residual) and residual < tolerance)
+    if converged:
+        reason = "converged"
+    elif np.isnan(residual):
+        reason = "non_finite"
+    elif singular:
+        reason = "singular_jacobian"
+    elif exit_kind == "diverged":
+        reason = "diverged"
+    else:
+        reason = "max_iterations"
+    monitor.record("newton", iterations, residual, tolerance, converged, reason)
 
 
 def _newton_step(kxx_e, kxy_e, kyx_e, kyy_e, fx_net, fy_net, cb):
@@ -565,10 +637,10 @@ def forces_groove(
             trailing_angle = pads.leading_angle_rad[pad_index]
             arc_length_groove = trailing_angle - leading_angle
             if arc_length_groove < 0.0:
-                # NOTE: 360.0 (degrees) is added here while the
-                # branch above adds 2*Pi (radians). The inconsistency is
-                # kept as-is; the pinned regression fixtures depend on it.
-                arc_length_groove = 360.0 + arc_length_groove
+                # The groove crosses 0 rad (pads not listed in increasing
+                # angle). This branch used to add 360 (degrees) to a value in
+                # radians; no fixture reaches it.
+                arc_length_groove = 2.0 * PI + arc_length_groove
         alpha = 0.5 * arc_length_groove
         groove_angle = trailing_angle - alpha
 
@@ -2207,6 +2279,8 @@ def fixed_brg(
     k_rotate,
     press=None,
     integrate_xz=None,
+    monitor=None,
+    tolerance_scale=1.0,
 ):
     """Solve the bearing film at a *fixed* journal position (isoviscous).
 
@@ -2310,6 +2384,12 @@ def fixed_brg(
         ``integrate_xz(pad_index, mesh, f)`` -> the surface integral of the
         nodal field ``f`` over the Reynolds mesh. Required by the moment and
         loading-condition routines.
+    monitor : LoopMonitor, optional
+        Receives the ``tilt`` and ``turbulence`` records of this call (worst
+        pad). Default is None (nothing recorded).
+    tolerance_scale : float, optional
+        Factor on the tilt-bracket and shear-stress tolerances. Default is
+        1.0.
 
     Returns
     -------
@@ -2464,6 +2544,12 @@ def fixed_brg(
         )
 
     full_cavitate = np.zeros(total_pads, dtype=bool)
+    tilt_tolerance = TILT_ERROR * tolerance_scale
+    shear_tolerance = SHEAR_ERROR * tolerance_scale
+    tilt_width = np.zeros(total_pads)
+    tilt_iterations = np.zeros(total_pads, dtype=np.int64)
+    shear_residual = np.zeros(total_pads)
+    shear_iterations = np.ones(total_pads, dtype=np.int64)
 
     for pad_index in range(total_pads):
         cb_new[pad_index] = cb + deform_pivot[pad_index]
@@ -2505,8 +2591,9 @@ def fixed_brg(
 
         # Bisection search on the tilt angle.
         for _tilt_index in range(1, MAX_ITERATION + 1):
+            tilt_iterations[pad_index] = _tilt_index
             while True:
-                if abs(upper_limit - lower_limit) < 1.0e-8:
+                if abs(upper_limit - lower_limit) < tilt_tolerance:
                     tilt_angle[pad_index] = lower_limit
                 else:
                     tilt_angle[pad_index] = 0.5 * (lower_limit + upper_limit)
@@ -2521,6 +2608,11 @@ def fixed_brg(
                 full_cavitate[pad_index] = res["full_cavitate"]
 
                 if h_min[pad_index] < 0.0:
+                    if abs(upper_limit - lower_limit) < tilt_tolerance:
+                        # No tilt is left to open the film: the journal
+                        # position itself crosses the pad surface. Before
+                        # this exit the loop repeated the same film forever.
+                        break
                     if tilt_angle[pad_index] > 0.0:
                         upper_limit = tilt_angle[pad_index]
                     else:
@@ -2559,7 +2651,9 @@ def fixed_brg(
                     vis_effect_3d = res["vis_effect_3d"]
                     nodal_pressure, dpdx_n, dpdz_n = _press()
                     dudy_n, dwdy_n = _grad()
-                    if rms_shear < SHEAR_ERROR:
+                    shear_iterations[pad_index] = _press_index
+                    shear_residual[pad_index] = rms_shear
+                    if rms_shear < shear_tolerance:
                         break
             else:
                 shear_stress, _rms = update_shear(
@@ -2571,6 +2665,8 @@ def fixed_brg(
                     shear_stress,
                     1.0,
                 )
+                shear_iterations[pad_index] = 1
+                shear_residual[pad_index] = 0.0
 
             moment_pivot, pressback_n = moment(
                 mesh,
@@ -2584,7 +2680,8 @@ def fixed_brg(
                 integrate_xz,
             )
 
-            if abs(upper_limit - lower_limit) < 1.0e-8:
+            tilt_width[pad_index] = abs(upper_limit - lower_limit)
+            if abs(upper_limit - lower_limit) < tilt_tolerance:
                 break
             if moment_pivot >= 0.0:
                 lower_limit = tilt_angle[pad_index]
@@ -2650,7 +2747,9 @@ def fixed_brg(
                         vis_effect_3d = res["vis_effect_3d"]
                         nodal_pressure, dpdx_n, dpdz_n = _press()
                         dudy_n, dwdy_n = _grad()
-                        if rms_shear < SHEAR_ERROR:
+                        shear_iterations[pad_index] = _press_index
+                        shear_residual[pad_index] = rms_shear
+                        if rms_shear < shear_tolerance:
                             break
                 else:
                     shear_stress, _rms = update_shear(
@@ -2662,6 +2761,28 @@ def fixed_brg(
                         shear_stress,
                         1.0,
                     )
+                    shear_iterations[pad_index] = 1
+                    shear_residual[pad_index] = 0.0
+
+    if monitor is not None:
+        worst = int(np.argmax(tilt_width))
+        monitor.record(
+            "tilt",
+            tilt_iterations[worst],
+            tilt_width[worst],
+            tilt_tolerance,
+            tilt_width[worst] < tilt_tolerance,
+            pad=worst,
+        )
+        worst = int(np.argmax(shear_residual))
+        monitor.record(
+            "turbulence",
+            shear_iterations[worst],
+            shear_residual[worst],
+            shear_tolerance,
+            shear_residual[worst] < shear_tolerance,
+            pad=worst,
+        )
 
     return {
         "tilt_angle": tilt_angle,

@@ -93,3 +93,20 @@ JTEMP_ERROR = 5.0e-2
 TEMP_INLET_ERROR = 0.25
 SUMP_TEMP_ERROR = 0.5
 DEFORM_ERROR = 1.0e-3
+# Equilibrium force balance |F_net| / |F_ext|, pad-tilt bracket (rad) and RMS
+# pivot-deflection change relative to the bore clearance.
+NEWTON_ERROR = 2.0e-3
+TILT_ERROR = 1.0e-8
+PIVOT_ERROR = 1.0e-2
+
+# Work budget of one case, counted in zeroth-order Reynolds solves (``press``
+# calls on the equilibrium, tilt, turbulence and thermal paths; the
+# perturbation solves of the coefficients are not counted). The film is
+# solved pad by pad, so both limits scale with the pad count, counted as at
+# least ``BUDGET_MIN_PADS``. Sizing: the largest converging case measured
+# needs 99,000 solves per pad (8-pad full-TEHD tilting pad, 794,070 solves)
+# and the largest equilibrium solve 1,092 per pad (the same bearing on a
+# 10 x 6 mesh); the limits are about 4 times these.
+DEFAULT_MAX_REYNOLDS_SOLVES_PER_PAD = 400_000
+MAX_REYNOLDS_SOLVES_PER_CALL_PER_PAD = 4_000
+BUDGET_MIN_PADS = 5

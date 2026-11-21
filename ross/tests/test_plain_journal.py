@@ -1,7 +1,10 @@
+import warnings
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
+from ross.bearings.film.loops import ConvergenceWarning
 from ross.bearings.fixed_geometry import FixedGeometryBearing
 from ross.bearings.plain_journal import PlainJournal
 from ross.units import Q_
@@ -221,16 +224,22 @@ def test_invalid_inputs_raise(overrides, match):
 
 
 @pytest.mark.parametrize(
-    "overrides",
-    [dict(preload=0.95), dict(n_pads=2, pad_arc=Q_(179.9, "deg"))],
+    "overrides, converged",
+    [(dict(preload=0.95), False), (dict(n_pads=2, pad_arc=Q_(179.9, "deg")), True)],
 )
-def test_valid_neighbours_build(overrides):
+def test_valid_neighbours_build(overrides, converged):
     """Inputs just inside the limits of the checks above still solve.
 
-    Preload 0.99 passes the checks too (``test_fluid_film_bearing.py``,
-    ``test_valid_inputs_reach_the_solver``), but this case does not return
-    within 300 s: the nested solver loops have no work budget yet.
+    The 179.9 deg lands converge. With preload 0.95 the equilibrium search of
+    this journal gives up (force residual 1.41 at eccentricity 1.33, as for
+    preload 0.9; preload 0.5 converges): the build returns and reports the
+    failure instead of hiding it. Preload 0.99 passes the checks
+    too (``test_fluid_film_bearing.py``, ``test_valid_inputs_reach_the_solver``)
+    and ends with non-finite forces.
     """
-    bearing = PlainJournal(**_coarse_plain(**overrides))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", ConvergenceWarning)
+        bearing = PlainJournal(**_coarse_plain(**overrides))
     assert np.isfinite(float(bearing.kyy[0]))
     assert float(bearing.kyy[0]) > 0
+    assert bool(bearing.results.converged[0]) is converged

@@ -75,6 +75,20 @@ from ross.bearings.fluid_film.constants import (
 )
 
 
+def _record(monitor, name, iterations, residual, tolerance, exit_kind):
+    """Record the last pass of a thermal loop; converged means below tolerance."""
+    if monitor is None:
+        return
+    converged = bool(abs(residual) < tolerance)
+    if converged:
+        reason = "converged"
+    elif not np.isfinite(residual):
+        reason = "non_finite"
+    else:
+        reason = "max_iterations" if exit_kind == "converged" else exit_kind
+    monitor.record(name, iterations, residual, tolerance, converged, reason)
+
+
 def _filter_kw(fn, kw):
     """Drop kwargs not in ``fn``'s signature (so a state-dict splat is safe)."""
     params = inspect.signature(fn).parameters
@@ -113,6 +127,8 @@ def thermohydrodynamics(
     t_outlet_inputs=None,
     mixing_inputs=None,
     hd_converged_key="hd_converged",
+    monitor=None,
+    tolerance_scale=1.0,
 ):
     """Run the coupled thermohydrodynamic solution for one configuration.
 
@@ -203,6 +219,11 @@ def thermohydrodynamics(
     hd_converged_key : str, optional
         Key under which ``hydrodynamics`` reports journal-equilibrium
         convergence (``0`` not converged). Default ``"hd_converged"``.
+    monitor : LoopMonitor, optional
+        Receives the ``viscosity``, ``journal_temperature`` and ``mixing``
+        records (last pass of each loop). Default is None.
+    tolerance_scale : float, optional
+        Factor on the three temperature tolerances. Default is 1.0.
 
     Returns
     -------
@@ -250,6 +271,9 @@ def thermohydrodynamics(
     rms_temp = 0.0
     d_tj = 0.0
     rms_temp_inlet = 0.0
+    temp_tolerance = TEMP_ERROR * tolerance_scale
+    jtemp_tolerance = JTEMP_ERROR * tolerance_scale
+    inlet_tolerance = TEMP_INLET_ERROR * tolerance_scale
 
     # ----- outer loop: pad inlet (mixing) temperature ---------------------
     diverge_tin = 0
@@ -259,6 +283,7 @@ def thermohydrodynamics(
         for jtemp_index in range(1, MAX_ITERATION + 1):
             # ----- inner loop: film/pad temperature & viscosity ----------
             diverge_t = 0
+            vis_exit = "max_iterations"
             for vis_index in range(1, MAX_ITERATION + 1):
                 # Hydrodynamic analysis under the current thermal condition.
                 hd_out = hydrodynamics(**state)
@@ -297,17 +322,21 @@ def thermohydrodynamics(
                 hd_converged = state.get(hd_converged_key, 1)
 
                 # Convergence / divergence on the film-pad temperature.
-                if rms_temp < TEMP_ERROR:
+                if rms_temp < temp_tolerance:
+                    vis_exit = "converged"
                     break
                 if rms_temp > 0.95 * rms_temp_old and vis_index > 1 and diverge_t <= 10:
                     if hd_converged == 0:
+                        vis_exit = "diverged"
                         break
                     diverge_t += 1
                 elif (
                     rms_temp > 0.95 * rms_temp_old and vis_index > 1 and diverge_t > 10
                 ):
+                    vis_exit = "diverged"
                     break
             # (label 100)
+            _record(monitor, "viscosity", vis_index, rms_temp, temp_tolerance, vis_exit)
 
             # Refresh the natural-shape view after the inner loop's last
             # ``state.update(hd_out)`` (state arrays may have been reallocated).
@@ -400,15 +429,19 @@ def thermohydrodynamics(
             hd_converged = state.get(hd_converged_key, 1)
 
             converged_tj = False
-            if abs(d_tj) < JTEMP_ERROR:
+            tj_exit = "max_iterations"
+            if abs(d_tj) < jtemp_tolerance:
                 converged_tj = True
+                tj_exit = "converged"
             elif d_tj > 0.95 * d_tj_old and jtemp_index > 1 and diverge_tj <= 10:
                 if hd_converged == 0:
                     converged_tj = True
+                    tj_exit = "diverged"
                 else:
                     diverge_tj += 1
             elif d_tj > 0.95 * d_tj_old and jtemp_index > 1 and diverge_tj > 10:
                 converged_tj = True
+                tj_exit = "diverged"
 
             # Limit the journal temperature change to 5 K per iteration.
             jtemp_step_limit = 5.0
@@ -422,6 +455,9 @@ def thermohydrodynamics(
             if converged_tj:
                 break
         # (label 200)
+        _record(
+            monitor, "journal_temperature", jtemp_index, d_tj, jtemp_tolerance, tj_exit
+        )
 
         # Refresh natural-shape views after the journal-temperature loop.
         nat = _state_for_thermal(state)
@@ -519,7 +555,9 @@ def thermohydrodynamics(
 
         hd_converged = state.get(hd_converged_key, 1)
 
-        if rms_temp_inlet < TEMP_INLET_ERROR:
+        mix_exit = "max_iterations"
+        if rms_temp_inlet < inlet_tolerance:
+            mix_exit = "converged"
             break
         if (
             rms_temp_inlet > 0.95 * rms_temp_inlet_old
@@ -527,6 +565,7 @@ def thermohydrodynamics(
             and diverge_tin <= 10
         ):
             if hd_converged == 0:
+                mix_exit = "diverged"
                 break
             diverge_tin += 1
         elif (
@@ -534,6 +573,7 @@ def thermohydrodynamics(
             and mixtemp_index > 1
             and diverge_tin > 10
         ):
+            mix_exit = "diverged"
             break
         else:
             # Under-relax the inlet temperature for the next outer pass.
@@ -544,6 +584,7 @@ def thermohydrodynamics(
                 )
             _assign_padded(state, "temp_inlet", temp_inlet)
     # (label 300)
+    _record(monitor, "mixing", mixtemp_index, rms_temp_inlet, inlet_tolerance, mix_exit)
 
     state["rms_temp"] = rms_temp
     state["d_tj"] = d_tj
