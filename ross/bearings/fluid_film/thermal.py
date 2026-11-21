@@ -42,6 +42,7 @@ References
 
 import numpy as np
 
+from ross.bearings.film.turbulence import TURBULENT_PRANDTL
 from ross.bearings.fluid_film import banded
 from ross.bearings.fluid_film._numba_kernels import (
     assemble_press_jit,
@@ -62,8 +63,9 @@ from ross.bearings.fluid_film.constants import INTERFACE_TOL
 # named constant because it appears throughout the energy routines.
 DISSIP_FACTOR = 1.0
 
-# Turbulent Prandtl number used for the effective conductivity.
-PR_TURB = 0.769
+# Turbulent Prandtl number used for the effective conductivity (the constant
+# of the film core).
+PR_TURB = TURBULENT_PRANDTL
 
 
 # ---------------------------------------------------------------------------

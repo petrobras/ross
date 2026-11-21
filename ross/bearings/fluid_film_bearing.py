@@ -63,6 +63,9 @@ _TYPE_FLAGS = {
 def _lubricant_properties(lubricant):
     """Resolve a lubricant into the seven properties the solver uses.
 
+    The name or dictionary is resolved by
+    :func:`ross.bearings.film.lubricant.lubricant_data`.
+
     Parameters
     ----------
     lubricant : str or dict
@@ -76,27 +79,10 @@ def _lubricant_properties(lubricant):
         (Pa*s), ``temp1`` / ``temp2`` (K), ``lube_density`` (kg/m**3),
         ``lube_cp`` (J/(kg*K)) and ``lube_conduct`` (W/(m*K)).
     """
-    from ross.bearings.lubricants import lubricants_dict
+    # imported here: ``import ross`` does not load the film core
+    from ross.bearings.film.lubricant import lubricant_data
 
-    if isinstance(lubricant, str):
-        try:
-            properties = lubricants_dict[lubricant]
-        except KeyError:
-            raise ValueError(
-                f"lubricant must be one of {sorted(lubricants_dict)} or a "
-                f"dict of properties, not {lubricant!r}"
-            )
-    elif isinstance(lubricant, dict):
-        properties = lubricant
-    else:
-        raise TypeError(
-            "lubricant must be a lubricant name (str) or a dict of "
-            f"properties, not {type(lubricant).__name__}"
-        )
-
-    missing = [name for name in _LUBRICANT_FIELDS.values() if name not in properties]
-    if missing:
-        raise ValueError(f"lubricant is missing properties: {missing}")
+    properties = lubricant_data(lubricant, required=tuple(_LUBRICANT_FIELDS.values()))
     return {
         engine_name: float(properties[public_name])
         for engine_name, public_name in _LUBRICANT_FIELDS.items()
@@ -607,6 +593,9 @@ class FluidFilmBearing(BearingElement):
             Keyword arguments for
             :func:`ross.bearings.fluid_film.driver.run_case`.
         """
+        # imported here: ``import ross`` does not load the film core
+        from ross.bearings.film.turbulence import REICHARDT_DELTA, REICHARDT_KAPPA
+
         if excitation_ratio is None:
             excitation_ratio = self.excitation_ratio
         xj, yj = self.initial_position
@@ -699,8 +688,8 @@ class FluidFilmBearing(BearingElement):
             "re_upper": float(self.re_turbulent),
             "weight_e": 0,
             "weight_h": 0,
-            "reichardt_delta": 8.8,
-            "reichardt_kappa": 0.4,
+            "reichardt_delta": REICHARDT_DELTA,
+            "reichardt_kappa": REICHARDT_KAPPA,
             "turb_scal_fac_exp": 0.125,
         }
         return inputs
