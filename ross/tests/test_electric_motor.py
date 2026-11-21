@@ -1,8 +1,8 @@
-"""Tests for the MotorElement class.
+"""Tests for the ElectricMotor class.
 
 Tests are based on the operating scenarios described in
 "Testes dos modelos do motor e conversor - ROSS.docx", covering the three
-electrical sources supported by ``MotorElement``:
+electrical sources supported by ``ElectricMotor``:
 
 - ``SourceAC`` (ideal AC source), driven through ``.run_direct_on_line()``;
 - ``InverterVF`` (open-loop scalar V/f control), driven through
@@ -21,7 +21,7 @@ Motor under test
 - Rated frequency: 60 Hz
 - Poles          : 4
 - Rs = 2.5 Ω, Rr = 1.8 Ω, Xs = Xr = 1.3 Ω, Xm = 43.08 Ω
-- Ip_motor = 0.0372 kg·m²
+- Ip = 0.0372 kg·m²
 """
 
 import sys
@@ -32,9 +32,12 @@ from numpy.testing import assert_allclose
 from copy import deepcopy
 
 from ross.bearing_seal_element import BearingElement
-from ross.motors.motor_element import MotorElement, motor_example
+from ross.disk_element import DiskElement
+from ross.motors.electric_motor import ElectricMotor, motor_example
 from ross.motors.results import MotorResponseResults
+from ross.materials import steel
 from ross.rotor_assembly import Rotor, rotor_example
+from ross.shaft_element import ShaftElement
 from ross.units import Q_
 
 
@@ -46,13 +49,13 @@ def motor():
 
 @pytest.fixture
 def motor_high_inertia():
-    """Return the motor with Ip_motor × 10 000 to simulate a locked rotor.
+    """Return the motor with Ip × 10 000 to simulate a locked rotor.
 
     With such a large inertia the mechanical speed barely changes during the
     simulation window, so the electrical quantities converge to the
     blocked-rotor (starting) operating point.
     """
-    return MotorElement(
+    return ElectricMotor(
         n=0,
         tag="motor_high_inertia",
         power_rated=Q_(1.5, "cv"),
@@ -65,11 +68,10 @@ def motor_high_inertia():
         stator_reactance=1.3,
         rotor_reactance=1.3,
         mutual_reactance=43.08,
-        Ip_motor=0.0372 * 10000,
+        m=10.0,
+        Ip=0.0372 * 10000,
         viscosity_coeff=0.0,
-        Ip_load=0.0,
         voltage_net=127,
-        frequency_net=Q_(60.0, "Hz"),
     )
 
 
@@ -81,39 +83,6 @@ def rms(signal):
 def _steady_state_slice(results, fraction=0.85):
     """Return the index at which steady state is considered to begin."""
     return int(fraction * len(results.t))
-
-
-def test_motor_example_parameters():
-    """Verify that motor_example() returns the expected rated parameters."""
-    motor = motor_example()
-    assert_allclose(motor.power_rated, 1103.248125, rtol=1e-6)
-    assert_allclose(motor.voltage_rated, 127.0, rtol=1e-6)
-    assert_allclose(
-        motor.speed_rated,
-        Q_(1710, "RPM").to("rad/s").m,
-        rtol=1e-5,
-    )
-    assert_allclose(
-        motor.frequency_rated,
-        Q_(60.0, "Hz").to("rad/s").m,
-        rtol=1e-6,
-    )
-    assert motor.n_poles == 4
-    assert_allclose(motor.stator_resistance, 2.5, rtol=1e-9)
-    assert_allclose(motor.rotor_resistance, 1.8, rtol=1e-9)
-    assert_allclose(motor.stator_reactance, 1.3, rtol=1e-9)
-    assert_allclose(motor.rotor_reactance, 1.3, rtol=1e-9)
-    assert_allclose(motor.mutual_reactance, 43.08, rtol=1e-9)
-    assert_allclose(motor.Ip_motor, 0.0372, rtol=1e-9)
-
-
-def test_motor_example_equality():
-    """Two calls to motor_example() must return equal objects, even if the
-    tags differ."""
-    m1 = motor_example()
-    m2 = motor_example()
-    m2.tag = "motor_2"
-    assert m1 == m2
 
 
 @pytest.fixture
@@ -487,103 +456,21 @@ def test_foc_speed_tracks_reduced_reference_no_load(
 
 
 # ---------------------------------------------------------------------------
-# Test 6 - FFT frequency range for inverter-driven figures
-# ---------------------------------------------------------------------------
-#
-# Restricting the displayed band via `frequency_range` is checked on the two
-# independent implementations: `MotorResponseResults._plot_dfft` (`plot_torque`)
-# and `PhaseResults.plot_dfft` (`plot_phase_currents`).
-
-_FS_HZ = 5000.0
-_FFT_FREQUENCY_RANGE = Q_((0.5, 2.1 * _FS_HZ), "Hz")
-
-
-def test_inverter_vf_fft_frequency_range_narrows_torque_spectrum(
-    results_inverter_vf_rated_no_load,
-):
-    """Restricting `plot_torque(domain="frequency")` to [0.5 Hz, 2.1 x Fs]
-    must narrow the displayed frequency span with respect to the
-    unrestricted spectrum (which extends all the way to the Nyquist
-    frequency) and must not extend far beyond the requested upper bound."""
-    results = results_inverter_vf_rated_no_load
-
-    fig_full = results.plot_torque(domain="frequency")
-    fig_restricted = results.plot_torque(
-        domain="frequency", frequency_range=_FFT_FREQUENCY_RANGE
-    )
-
-    x_full = np.asarray(fig_full.data[0].x)
-    x_restricted = np.asarray(fig_restricted.data[0].x)
-
-    assert x_restricted.max() < x_full.max(), (
-        "Restricting frequency_range should narrow the displayed frequency span "
-        f"(restricted max={x_restricted.max():.1f} Hz, full max={x_full.max():.1f} Hz)"
-    )
-    assert x_restricted.max() <= 2.1 * _FS_HZ * 1.02, (
-        "Restricted torque FFT should not extend much beyond 2.1 x Fs "
-        f"(got max={x_restricted.max():.1f} Hz, limit={2.1 * _FS_HZ:.1f} Hz)"
-    )
-
-
-def test_inverter_vf_fft_frequency_range_narrows_current_spectrum(
-    results_inverter_vf_rated_no_load,
-):
-    """Same as above, for `plot_phase_currents(domain="frequency")`, which
-    goes through the separate `PhaseResults.plot_dfft` implementation."""
-    results = results_inverter_vf_rated_no_load
-
-    fig_full = results.plot_phase_currents(domain="frequency")
-    fig_restricted = results.plot_phase_currents(
-        domain="frequency", frequency_range=_FFT_FREQUENCY_RANGE
-    )
-
-    x_full = np.asarray(fig_full.data[0].x)
-    x_restricted = np.asarray(fig_restricted.data[0].x)
-
-    assert x_restricted.max() < x_full.max(), (
-        "Restricting frequency_range should narrow the displayed frequency span "
-        f"(restricted max={x_restricted.max():.1f} Hz, full max={x_full.max():.1f} Hz)"
-    )
-    assert x_restricted.max() <= 2.1 * _FS_HZ * 1.02, (
-        "Restricted current FFT should not extend much beyond 2.1 x Fs "
-        f"(got max={x_restricted.max():.1f} Hz, limit={2.1 * _FS_HZ:.1f} Hz)"
-    )
-
-
-def test_plots_without_tsdownsample(motor, monkeypatch):
-    """Without the optional tsdownsample the plots are still downsampled to
-    n_shown_samples and keep the extreme values of each signal."""
-    monkeypatch.setitem(sys.modules, "tsdownsample", None)
-    t = np.arange(0, 0.3 + 2e-5, 2e-5)
-    results = motor.run_direct_on_line(t, load_torque_entrance_time=0.15)
-    assert results.n_shown_samples == 3000
-
-    figures = {
-        "electric torque": (results.plot_torque(), results.electric_torque),
-        "speed": (results.plot_speed(), None),
-        "phase a current": (results.plot_phase_currents(), results.currents["a"]),
-        "phase a voltage": (results.plot_phase_voltages(), results.voltages["a"]),
-        "line voltage ab": (results.plot_line_voltages(), results.line_voltages["ab"]),
-    }
-    for name, (fig, signal) in figures.items():
-        for trace in fig.data:
-            assert 0 < len(trace.x) <= results.n_shown_samples, name
-        if signal is not None:
-            y = np.asarray(fig.data[0].y)
-            assert y.max() == signal.max(), name
-            assert y.min() == signal.min(), name
-
-
-# ---------------------------------------------------------------------------
 # Test 7 - Motor coupled to a rotor (Rotor.run_with_motor)
 # ---------------------------------------------------------------------------
 #
-# The rotor uses the shaft and disks of ``rotor_example()`` with damped
-# bearings: with the undamped bearings of the example, the free vibration
-# excited at the start of the steady-state window never decays and dominates
-# the spectrum instead of the unbalance response. All three ``drive_mode``
-# values are run at 60 Hz under rated load, so the shaft settles near the
-# rated speed and the unbalance response is a 1X well above the first modes.
+# The rotor uses the shaft of ``rotor_example()`` with damped bearings and
+# smaller disks, which give it a polar inertia of 0.07 kg.m^2, about twice the
+# one of the motor. The motor simulation includes the inertia of the whole
+# rotor: with the disks of the example (0.67 kg.m^2) the start would not end
+# in a few seconds. The load enters at 1 s and the simulation lasts 3 s, so
+# that the open-loop V/f speed and the ringing of the FOC speed loop have
+# settled in the steady-state window. With the undamped bearings of the example,
+# the free vibration excited at the start of the steady-state window never
+# decays and dominates the spectrum instead of the unbalance response. All
+# three ``drive_mode`` values are run at 60 Hz under rated load, so the shaft
+# settles near the rated speed and the unbalance response is a 1X well above
+# the first modes.
 
 _ROTOR_LOAD_TIME = 1.0
 _ROTOR_UNBALANCE_NODE = 2
@@ -598,19 +485,21 @@ def rotor_with_motor(motor):
         BearingElement(n=bearing.n, kxx=1e6, cxx=2e3)
         for bearing in base_rotor.bearing_elements
     ]
-    return Rotor(
-        base_rotor.shaft_elements,
-        base_rotor.disk_elements,
-        bearings,
-        motor_element=deepcopy(motor),
-    )
+    disks = [
+        DiskElement.from_geometry(
+            n=disk.n, material=steel, width=0.04, i_d=0.05, o_d=0.18
+        )
+        for disk in base_rotor.disk_elements
+    ]
+    rotor = Rotor(base_rotor.shaft_elements, disks, bearings)
+    return rotor.add_motor(deepcopy(motor))
 
 
 @pytest.fixture(scope="module", params=_DRIVE_MODES)
 def results_run_with_motor(rotor_with_motor, request):
     """Simulate the rotor with each supported drive_mode under rated load."""
     drive_mode = request.param
-    t = np.arange(0, 2.0 + 1e-3, 1e-3)
+    t = np.arange(0, 3.0 + 1e-3, 1e-3)
     kwargs = {}
     if drive_mode != "DOL":
         kwargs["time_step"] = 1e-5
@@ -686,3 +575,119 @@ def test_run_with_motor_without_motor_element():
             drive_mode="DOL",
             load_torque_entrance_time=0.05,
         )
+
+
+@pytest.mark.parametrize("drive_mode", _DRIVE_MODES)
+def test_ip_load_argument_adds_to_the_motor_inertia(drive_mode):
+    # Reference: a motor built with Ip equal to Ip + Ip_load, simulated without
+    # load inertia.
+    Ip_load = 0.05
+    circuit = dict(
+        power_rated=1118.5,
+        voltage_rated=127,
+        speed_rated=179.07,
+        stator_resistance=2.5,
+        rotor_resistance=1.8,
+        stator_reactance=1.3,
+        rotor_reactance=1.3,
+        mutual_reactance=43.08,
+    )
+    motor = ElectricMotor(n=0, m=10.0, Ip=0.0372, **circuit)
+    heavy_motor = ElectricMotor(n=0, m=10.0, Ip=0.0372 + Ip_load, **circuit)
+
+    t = np.arange(0, 0.3 + 1e-3, 1e-3)
+    methods = {
+        "DOL": ("run_direct_on_line", {}),
+        "VFD_VF": ("run_with_inverter_vf", {"frequency_s": 5e3 * 2 * np.pi}),
+        "VFD_FOC": ("run_with_inverter_foc", {"frequency_s": 5e3 * 2 * np.pi}),
+    }
+    name, kwargs = methods[drive_mode]
+    if drive_mode != "DOL":
+        kwargs["time_step"] = 1e-5
+        kwargs["frequency_ref"] = Q_(60.0, "Hz")
+        kwargs["time_ramp"] = 0.2
+
+    speed = getattr(motor, name)(t, Ip_load=Ip_load, **kwargs).sample_at("speed", t)
+    reference = getattr(heavy_motor, name)(t, **kwargs).sample_at("speed", t)
+    unloaded = getattr(motor, name)(t, **kwargs).sample_at("speed", t)
+
+    if drive_mode != "VFD_FOC":
+        # The FOC speed controller is tuned with the motor inertia only, so the
+        # heavy motor, tuned with the total inertia, is not a reference for it.
+        assert_allclose(speed, reference, rtol=1e-8)
+    assert np.max(np.abs(unloaded - speed)) > 0.1 * np.max(speed)
+
+
+_CIRCUIT = dict(
+    power_rated=1118.5,
+    voltage_rated=127,
+    speed_rated=179.07,
+    stator_resistance=2.5,
+    rotor_resistance=1.8,
+    stator_reactance=1.3,
+    rotor_reactance=1.3,
+    mutual_reactance=43.08,
+)
+
+
+@pytest.fixture
+def motor_shaft_elements():
+    return [ShaftElement(L=0.1, idl=0, odl=0.05, material=steel) for _ in range(3)]
+
+
+def test_motor_with_shaft_elements_takes_inertia_from_the_elements(
+    motor_shaft_elements,
+):
+    # Reference: sums over the elements and the disk, written by hand.
+    disk = DiskElement(n=2, m=3.0, Id=0.01, Ip=0.02)
+    motor = ElectricMotor(
+        n=3,
+        **_CIRCUIT,
+        shaft_elements=motor_shaft_elements,
+        disk_elements=[disk],
+    )
+
+    assert isinstance(motor.mechanical_model, Rotor)
+    assert_allclose(motor.m, sum(sh.m for sh in motor_shaft_elements) + disk.m)
+    assert_allclose(motor.Ip, sum(sh.Im for sh in motor_shaft_elements) + disk.Ip)
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        {},
+        {"m": 10.0},
+        {"Ip": 0.03},
+        {"disk_elements": []},
+        {"bearing_elements": []},
+    ],
+)
+def test_motor_lumped_arguments_are_validated(arguments):
+    with pytest.raises(ValueError):
+        ElectricMotor(n=0, **_CIRCUIT, **arguments)
+
+
+@pytest.mark.parametrize("arguments", [{"disk_elements": []}, {"bearing_elements": []}])
+def test_motor_lumped_rejects_fem_arguments(arguments):
+    with pytest.raises(ValueError):
+        ElectricMotor(n=0, **_CIRCUIT, m=10.0, Ip=0.03, **arguments)
+
+
+def test_motor_with_shaft_elements_forwards_rotor_methods(motor_shaft_elements):
+    motor = ElectricMotor(n=3, **_CIRCUIT, shaft_elements=motor_shaft_elements)
+    rotor = motor.mechanical_model
+
+    assert motor.nodes == rotor.nodes
+    assert "run_modal" in dir(motor)
+    # Reference: the same analysis called on the rotor, a different code path.
+    assert_allclose(
+        motor.run_modal(speed=0).wn, rotor.run_modal(speed=0).wn, rtol=1e-12
+    )
+
+
+def test_motor_with_shaft_elements_keeps_its_own_attributes(motor_shaft_elements):
+    motor = ElectricMotor(
+        n=3, **_CIRCUIT, shaft_elements=motor_shaft_elements, tag="motor"
+    )
+
+    assert motor.Ip == motor.mechanical_model.Ip

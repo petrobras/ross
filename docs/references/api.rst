@@ -45,7 +45,7 @@ Elements
     CouplingElement
     Probe
     PointMass
-    MotorElement
+    ElectricMotor
 
 Rotor and Analysis
 ------------------
@@ -159,7 +159,7 @@ Methods for reducing the size of rotor finite element models.
 
 Motor Drives
 ------------
-Electrical sources that feed a ``MotorElement``.
+Electrical sources that feed a ``ElectricMotor``.
 
 .. currentmodule:: ross.motors.motor_drive
 

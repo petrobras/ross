@@ -529,6 +529,20 @@ class BearingElement(Element):
         if radial_clearance is not None or not hasattr(self, "radial_clearance"):
             self.radial_clearance = radial_clearance
 
+    @property
+    def n(self):
+        """Node of the element.
+
+        Setting it also sets ``n_l`` and ``n_r`` to the same node.
+        """
+        return self._n
+
+    @n.setter
+    def n(self, value):
+        self._n = value
+        self.n_l = value
+        self.n_r = value
+
     @staticmethod
     def _axis_array(axis):
         """Return a tabulation axis as a 1-D float array (or None)."""
@@ -853,7 +867,7 @@ class BearingElement(Element):
 
         if isinstance(other, self.__class__):
             init_args = set(signature(self.__init__).parameters).intersection(
-                self.__dict__.keys()
+                {*self.__dict__.keys(), "n"}
             )
 
             coefficients = set(self._get_coefficient_list())
@@ -888,7 +902,7 @@ class BearingElement(Element):
 
         # save initialization args and coefficients
         init_args = set(signature(self.__init__).parameters).intersection(
-            self.__dict__.keys()
+            {*self.__dict__.keys(), "n"}
         )
 
         coefficients = set(self._get_coefficient_list())
@@ -898,10 +912,10 @@ class BearingElement(Element):
         args = list(coefficients.union(init_args).union(extra_attrs))
         args.sort()
 
-        brg_data = cast_numpy_types({arg: self.__dict__[arg] for arg in args})
+        brg_data = cast_numpy_types({arg: getattr(self, arg) for arg in args})
 
         diff_args = set(signature(self.__init__).parameters).difference(
-            self.__dict__.keys()
+            {*self.__dict__.keys(), "n"}
         )
         diff_args.discard("kwargs")
 
@@ -952,7 +966,7 @@ class BearingElement(Element):
         )
         element_data = {}
         for arg in args:
-            value = self.__dict__.get(arg)
+            value = getattr(self, arg, None)
             if value is None:
                 continue
             if isinstance(value, np.generic):

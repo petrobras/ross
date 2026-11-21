@@ -52,7 +52,7 @@ class Element(ABC):
             for name, p in params.items()
             if p.kind not in (Parameter.VAR_POSITIONAL, Parameter.VAR_KEYWORD)
         ]
-        args = {arg: getattr(self, arg) for arg in args_list}
+        args = {arg: getattr(self, arg) for arg in args_list if hasattr(self, arg)}
 
         if more_args:
             args.update(more_args)
@@ -266,11 +266,16 @@ class Element(ABC):
         >>> disk = disk_example()
         >>> disk.summary() # doctest: +ELLIPSIS
         n                             0
+        n_l                           0
+        n_r                           0
         m                     32.589728
         Id                     0.178089
         Ip                     0.329564...
         """
-        attributes = cast_numpy_types(self.__dict__)
+        attributes = {
+            ("n" if k == "_n" else k): v
+            for k, v in cast_numpy_types(self.__dict__).items()
+        }
         attributes["type"] = self.__class__.__name__
 
         return pd.Series(attributes, dtype=object)

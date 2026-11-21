@@ -5457,7 +5457,7 @@ class SummaryResults(Results):
             "Shaft number": self.df_shaft["shaft_number"],
             "Left station": self.df_shaft["n_l"],
             "Right station": self.df_shaft["n_r"],
-            "Elem number": self.df_shaft["_n"],
+            "Elem number": self.df_shaft["n"],
             f"Beam left loc ({length_units})": pd.Series(
                 Q_(self.df_shaft["nodes_pos_l"].to_list(), "m").to(length_units).m
             ).map("{:.3f}".format),

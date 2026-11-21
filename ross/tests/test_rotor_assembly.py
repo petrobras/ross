@@ -1,6 +1,6 @@
 import pickle
 import warnings
-from copy import deepcopy
+from copy import deepcopy as copy
 from pathlib import Path
 from tempfile import tempdir
 
@@ -15,7 +15,7 @@ from ross.bearing_seal_element import *
 from ross.coupling_element import CouplingElement
 from ross.disk_element import *
 from ross.materials import Material, steel
-from ross.motors.motor_element import motor_example
+from ross.motors.electric_motor import ElectricMotor, motor_example
 from ross.coupling_element import CouplingElement
 from ross.bearings.magnetic.amb_models import rotor_example_amb_simple
 from ross.multi_rotor.multi_rotor import two_shaft_rotor_example
@@ -418,12 +418,14 @@ def rotor3():
         {"n": 3, "kxx": 1e6},
         Material(name="add_elements_mat", rho=7800, E=2e11, G_s=8e10),
         [DiskElement(n=3, m=1, Id=0.1, Ip=0.2)],
+        motor_example(),
     ],
-    ids=["str", "None", "dict", "Material", "nested-list"],
+    ids=["str", "None", "dict", "Material", "nested-list", "motor"],
 )
 def test_add_elements_rejects_invalid(rotor3, invalid):
     # Reference: ROSS 3.0.0 raised ValueError for any object that is not
-    # a shaft, disk, bearing or point mass element.
+    # a shaft, disk, bearing or point mass element. A motor is added with
+    # Rotor.add_motor.
     with pytest.raises(ValueError, match="is not a valid element"):
         rotor3.add_elements([invalid])
 
@@ -432,9 +434,8 @@ def test_add_elements_valid(rotor3):
     seal = SealElement(n=3, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2)
     disk = DiskElement(n=5, m=32, Id=0.2, Ip=0.3)
     point_mass = PointMass(n=3, m=1.0)
-    motor = motor_example()
 
-    new_rotor = rotor3.add_elements([seal, disk, point_mass, motor])
+    new_rotor = rotor3.add_elements([seal, disk, point_mass])
 
     assert len(new_rotor.bearing_elements) == len(rotor3.bearing_elements) + 1
     assert len(new_rotor.disk_elements) == len(rotor3.disk_elements) + 1
@@ -444,8 +445,6 @@ def test_add_elements_valid(rotor3):
     assert sorted(d.n for d in new_rotor.disk_elements) == [2, 4, 5]
     assert new_rotor.point_mass_elements[0].n == 3
     assert_allclose(new_rotor.m_disks, rotor3.m_disks + 32)
-    assert rotor3.motor_element is None
-    assert new_rotor.motor_element == motor
 
 
 def test_add_nodes_simple(rotor3):
@@ -3694,7 +3693,7 @@ def test_refine_renumbers_disks_and_amb_sensors(tmp_path):
 
 def _non_collocated_amb_rotor():
     rotor = rotor_example_amb_simple()
-    bearing_elements = deepcopy(rotor.bearing_elements)
+    bearing_elements = copy(rotor.bearing_elements)
     bearing_elements[0].sensor_node = bearing_elements[0].n + 2
     return Rotor(rotor.shaft_elements, rotor.disk_elements, bearing_elements)
 
@@ -3848,20 +3847,369 @@ def test_amb_non_collocation_same_after_refine_mesh_and_refine(collocated):
 def test_refine_add_nodes_and_refine_mesh_keep_the_motor():
     rotor = rotor_example()
     motor = motor_example()
-    motor.n = motor.n_l = motor.n_r = 2
-    rotor = Rotor(
-        rotor.shaft_elements,
-        rotor.disk_elements,
-        rotor.bearing_elements,
-        motor_element=motor,
-    )
+    motor.n = 2
+    rotor = rotor.add_motor(motor)
     for refined in (
         rotor.refine(2),
         rotor.refine_mesh(parts=2),
         rotor.add_nodes(_equal_cuts(rotor, 2)),
     ):
-        new_motor = refined.motor_element
+        new_motor = refined.motor
         assert new_motor is not None
-        assert new_motor.n == new_motor.n_l == new_motor.n_r == 4
+        assert new_motor.n == new_motor.n_torque == 4
         assert_allclose(refined.nodes_pos[new_motor.n], rotor.nodes_pos[2])
         assert_allclose(refined.m, rotor.m)
+
+
+@pytest.mark.parametrize("side", ["left", "right"])
+def test_refine_add_nodes_and_refine_mesh_keep_the_motor_with_shaft_elements(side):
+    # Reference: the nodes keep their axial positions. On the left, the motor
+    # starts at 0 and the joint is its length, 3 shaft elements of 0.1 m. On the
+    # right, the motor is placed at the last node of the load, which is the joint.
+    load = rotor_example()
+    n = min(load.nodes) if side == "left" else max(load.nodes)
+    rotor = load.add_motor(_motor_with_shaft_elements(n))
+    if side == "left":
+        motor_position, joint_position = 0.0, 0.3
+    else:
+        motor_position = joint_position = load.nodes_pos[max(load.nodes)]
+    for refined in (
+        rotor.refine(2),
+        rotor.refine_mesh(parts=2),
+        rotor.add_nodes(_equal_cuts(rotor, 2)),
+    ):
+        new_motor = refined.motor
+        assert_allclose(refined.nodes_pos[new_motor.n], motor_position, atol=1e-12)
+        assert_allclose(refined.nodes_pos[new_motor.n_torque], joint_position)
+        assert_allclose(refined.m, rotor.m)
+
+
+@pytest.fixture
+def rotor_with_lumped_motor():
+    base = rotor_example()
+    motor = motor_example()
+    return base, motor, base.add_motor(motor)
+
+
+@pytest.mark.parametrize("speed", [0.0, 100.0, 300.0, 600.0])
+def test_lumped_motor_matches_equivalent_disk(rotor_with_lumped_motor, speed):
+    # Reference: the same mass and inertias written by hand as a disk.
+    base, motor, with_motor = rotor_with_lumped_motor
+    disk = motor.mechanical_model
+    manual_disk = DiskElement(n=disk.n, m=disk.m, Id=disk.Id, Ip=disk.Ip)
+    manual = Rotor(
+        base.shaft_elements,
+        base.disk_elements + [manual_disk],
+        base.bearing_elements,
+    )
+
+    assert_allclose(with_motor.G(), manual.G(), atol=1e-12)
+    assert_allclose(with_motor.M(), manual.M(), atol=1e-12)
+    assert_allclose(
+        with_motor.run_modal(speed).wn, manual.run_modal(speed).wn, rtol=1e-9
+    )
+
+
+def test_lumped_motor_inertia_changes_gyroscopic_effect(rotor_with_lumped_motor):
+    base, _, with_motor = rotor_with_lumped_motor
+    wn_base = base.run_modal(600.0).wn
+    wn_motor = with_motor.run_modal(600.0).wn
+    assert not np.allclose(wn_base, wn_motor, rtol=1e-6)
+
+
+def test_lumped_motor_inertia_is_not_duplicated(rotor_with_lumped_motor, tmp_path):
+    _, motor, rotor = rotor_with_lumped_motor
+    n_disks = len(rotor.disk_elements)
+    bearing = BearingElement(n=3, kxx=1e5, cxx=0)
+
+    assert n_disks == len(rotor_example().disk_elements) + 1
+    assert len(rotor.add_elements([bearing]).disk_elements) == n_disks
+    assert len(rotor.refine_mesh().disk_elements) == n_disks
+
+    rotor.save(tmp_path / "rotor.toml")
+    assert len(Rotor.load(tmp_path / "rotor.toml").disk_elements) == n_disks
+
+    other = rotor_example()
+    concatenated = Rotor.concatenate([rotor, other])
+    assert len(concatenated.disk_elements) == n_disks + len(other.disk_elements)
+
+
+def test_motor_mechanical_model_is_a_disk_with_its_mass_and_inertia():
+    motor = motor_example()
+    disk = motor.mechanical_model
+    assert isinstance(disk, DiskElement)
+    assert disk.n == motor.n
+    assert_allclose(disk.m, motor.m)
+    assert_allclose(disk.Ip, motor.Ip)
+
+
+def test_lumped_motor_with_diametral_inertia_matches_equivalent_disk():
+    # Reference: the same mass and inertias written by hand as a disk.
+    base = rotor_example()
+    reference = motor_example()
+    motor = ElectricMotor(
+        n=reference.n,
+        power_rated=reference.power_rated,
+        voltage_rated=reference.voltage_rated,
+        speed_rated=reference.speed_rated,
+        stator_resistance=reference.stator_resistance,
+        rotor_resistance=reference.rotor_resistance,
+        stator_reactance=reference.stator_reactance,
+        rotor_reactance=reference.rotor_reactance,
+        mutual_reactance=reference.mutual_reactance,
+        m=reference.m,
+        Ip=reference.Ip,
+        Id=0.02,
+    )
+    with_motor = base.add_motor(motor)
+    manual = Rotor(
+        base.shaft_elements,
+        base.disk_elements + [DiskElement(n=motor.n, m=motor.m, Id=0.02, Ip=motor.Ip)],
+        base.bearing_elements,
+    )
+
+    assert_allclose(with_motor.M(), manual.M(), atol=1e-12)
+    assert_allclose(
+        with_motor.run_modal(300.0).wn, manual.run_modal(300.0).wn, rtol=1e-9
+    )
+
+
+def test_add_motor_twice_raises(rotor_with_lumped_motor):
+    _, _, rotor = rotor_with_lumped_motor
+    with pytest.raises(ValueError, match="already has a motor"):
+        rotor.add_motor(motor_example())
+
+
+def _motor_with_shaft_elements(n):
+    reference = motor_example()
+    shaft = [ShaftElement(L=0.1, idl=0, odl=0.05, material=steel) for _ in range(3)]
+    return ElectricMotor(
+        n=n,
+        power_rated=reference.power_rated,
+        voltage_rated=reference.voltage_rated,
+        speed_rated=reference.speed_rated,
+        stator_resistance=reference.stator_resistance,
+        rotor_resistance=reference.rotor_resistance,
+        stator_reactance=reference.stator_reactance,
+        rotor_reactance=reference.rotor_reactance,
+        mutual_reactance=reference.mutual_reactance,
+        shaft_elements=shaft,
+    )
+
+
+@pytest.mark.parametrize("side", ["left", "right"])
+def test_add_motor_with_shaft_elements_matches_concatenate(side):
+    # Reference: the motor rotor concatenated by hand to the rotor of the load.
+    load = rotor_example()
+    n = min(load.nodes) if side == "left" else max(load.nodes)
+    motor = _motor_with_shaft_elements(n)
+    joined = load.add_motor(motor)
+
+    rotors = [motor.mechanical_model, load]
+    joint_node = max(motor.mechanical_model.nodes)
+    if side == "right":
+        rotors = rotors[::-1]
+        joint_node = max(load.nodes)
+    expected = Rotor.concatenate(rotors)
+
+    assert joined.motor.n_torque == joint_node
+    assert_allclose(joined.M(), expected.M())
+    assert_allclose(joined.K(0), expected.K(0))
+    assert_allclose(joined.G(), expected.G())
+    assert len(joined.shaft_elements) == len(load.shaft_elements) + 3
+
+
+@pytest.mark.parametrize("side", ["left", "right"])
+def test_run_with_motor_with_shaft_elements_applies_the_torque_at_the_joint(side):
+    # Reference: the torsional DOF of the joint node, taken from a shaft element
+    # that ends at that node.
+    load = rotor_example()
+    n = min(load.nodes) if side == "left" else max(load.nodes)
+    rotor = load.add_motor(_motor_with_shaft_elements(n))
+    motor = rotor.motor
+    joint_shaft = next(
+        sh for sh in rotor.shaft_elements if motor.n_torque in (sh.n_l, sh.n_r)
+    )
+
+    assert (
+        motor.dof_global_index[f"theta_{motor.n_torque}"]
+        == joint_shaft.dof_global_index[f"theta_{motor.n_torque}"]
+    )
+
+    t = np.arange(0, 0.3 + 1e-3, 1e-3)
+    results = rotor.run_with_motor(
+        t=t,
+        node=[2],
+        unbalance_magnitude=[5e-4],
+        unbalance_phase=[0.0],
+        drive_mode="DOL",
+        load_torque_entrance_time=0.1,
+        load_torque_ratio=1.0,
+    )
+
+    assert np.isfinite(results.yout).all()
+
+
+@pytest.mark.parametrize("structure", ["lumped", "fem-left", "fem-right"])
+@pytest.mark.parametrize("operation", ["none", "add_elements", "concatenate"])
+def test_run_with_motor_uses_the_inertia_of_the_load_rotor(structure, operation):
+    # Reference: the motor alone, simulated with Ip_load equal to the polar
+    # inertia of the load rotor built without the motor.
+    load = rotor_example()
+    extra_disk = DiskElement(n=3, m=10, Id=0.1, Ip=0.2)
+    expected_load_inertia = load.Ip
+
+    rotor = _rotor_with_motor(structure)
+    if operation == "add_elements":
+        rotor = rotor.add_elements([extra_disk])
+        expected_load_inertia += extra_disk.Ip
+    elif operation == "concatenate":
+        other = rotor_example()
+        rotor = Rotor.concatenate([rotor, other])
+        expected_load_inertia += other.Ip
+
+    t = np.arange(0, 0.3 + 1e-3, 1e-3)
+    results = rotor.run_with_motor(
+        t=t,
+        node=[2],
+        unbalance_magnitude=[5e-4],
+        unbalance_phase=[0.0],
+        drive_mode="DOL",
+        load_torque_entrance_time=0.1,
+        load_torque_ratio=1.0,
+    )
+
+    reference = rotor.motor.run_direct_on_line(
+        t,
+        load_torque_entrance_time=0.1,
+        load_torque_ratio=1.0,
+        Ip_load=expected_load_inertia,
+    )
+
+    assert_allclose(
+        results.motor_results.sample_at("speed", t),
+        reference.sample_at("speed", t),
+        rtol=1e-8,
+    )
+
+
+def _rotor_with_motor(structure):
+    load = rotor_example()
+    if structure == "lumped":
+        return load.add_motor(motor_example())
+    n = min(load.nodes) if structure == "fem-left" else max(load.nodes)
+    return load.add_motor(_motor_with_shaft_elements(n))
+
+
+@pytest.mark.parametrize("file_format", [".toml", ".json"])
+@pytest.mark.parametrize("structure", ["lumped", "fem-left", "fem-right"])
+def test_save_and_load_keep_the_motor(structure, file_format, tmp_path):
+    # Reference: the rotor that was saved.
+    rotor = _rotor_with_motor(structure)
+    file = tmp_path / f"rotor{file_format}"
+    rotor.save(file)
+    loaded = Rotor.load(file)
+
+    assert loaded.motor is not None
+    assert loaded == rotor
+    assert loaded.motor.n == rotor.motor.n
+    assert loaded.motor.n_torque == rotor.motor.n_torque
+    assert loaded.motor.dof_global_index == rotor.motor.dof_global_index
+    assert_allclose(loaded.M(), rotor.M())
+
+    refined = loaded.refine(2)
+    reference = rotor.refine(2)
+    assert refined.motor.n == reference.motor.n
+    assert refined.motor.n_torque == reference.motor.n_torque
+    loaded.plot_rotor()
+
+
+@pytest.mark.parametrize("structure", ["lumped", "fem-left", "fem-right"])
+def test_run_with_motor_after_load_matches_the_saved_rotor(structure, tmp_path):
+    # Reference: the same simulation on the rotor that was saved.
+    rotor = _rotor_with_motor(structure)
+    rotor.save(tmp_path / "rotor.toml")
+    loaded = Rotor.load(tmp_path / "rotor.toml")
+
+    arguments = dict(
+        t=np.arange(0, 0.3 + 1e-3, 1e-3),
+        node=[2],
+        unbalance_magnitude=[5e-4],
+        unbalance_phase=[0.0],
+        drive_mode="DOL",
+        load_torque_entrance_time=0.1,
+        load_torque_ratio=1.0,
+    )
+
+    assert_allclose(
+        loaded.run_with_motor(**arguments).yout,
+        rotor.run_with_motor(**arguments).yout,
+    )
+
+
+def test_save_a_motor_with_shaft_elements_not_connected_raises(tmp_path):
+    with pytest.raises(ValueError, match="connected"):
+        _motor_with_shaft_elements(0).save(tmp_path / "motor.toml")
+
+
+def test_update_element_tag_changes_only_the_given_tag():
+    rotor = rotor_example()
+    names = ("df", "df_shaft", "df_disks", "df_bearings", "df_seals", "df_point_mass")
+    before = {
+        name: set(getattr(rotor, name)["tag"])
+        for name in names
+        if "tag" in getattr(rotor, name)
+    }
+    disk = next(elm for elm in rotor.disk_elements if elm.tag == "Disk 0")
+
+    rotor.update_element_tag(disk, "Generator")
+
+    assert disk.tag == "Generator"
+    for name, tags in before.items():
+        expected = {"Generator" if tag == "Disk 0" else tag for tag in tags}
+        assert set(getattr(rotor, name)["tag"]) == expected
+
+
+def test_plot_rotor_after_add_motor_with_a_lumped_motor():
+    motor = motor_example()
+    motor.tag = "M1"
+    base = rotor_example()
+    rotor = base.add_motor(motor)
+    disk_tags = set(rotor.df[rotor.df["type"] == "DiskElement"]["tag"])
+
+    assert {disk.tag for disk in rotor.disk_elements} == disk_tags
+    assert f"Disk {len(base.disk_elements)} (from M1)" in disk_tags
+    rotor.plot_rotor()
+
+
+@pytest.mark.parametrize("operation", ["add", "refine", "load", "concatenate"])
+def test_lumped_motor_mechanical_model_is_the_disk_of_the_rotor(operation, tmp_path):
+    rotor = rotor_example().add_motor(motor_example())
+    if operation == "refine":
+        rotor = rotor.refine(2)
+    elif operation == "load":
+        rotor.save(tmp_path / "rotor.toml")
+        rotor = Rotor.load(tmp_path / "rotor.toml")
+    elif operation == "concatenate":
+        rotor = Rotor.concatenate([rotor, rotor_example()])
+
+    assert any(disk is rotor.motor.mechanical_model for disk in rotor.disk_elements)
+
+
+@pytest.mark.parametrize("structure", ["fem-left", "fem-right"])
+def test_plot_rotor_draws_a_fem_motor_at_the_torque_node(structure):
+    # Reference: the axial position of the joint node, where the torque acts.
+    rotor = _rotor_with_motor(structure)
+    motor = rotor.motor
+    z_torque = rotor.nodes_pos[rotor.nodes.index(motor.n_torque)]
+    fig = rotor.plot_rotor()
+    motor_trace = next(trace for trace in fig.data if trace.name == motor.tag)
+
+    assert_allclose(rotor.df_motor["nodes_pos_l"].values[0], z_torque)
+    assert_allclose(motor_trace.x[0], z_torque)
+
+
+def test_add_motor_with_shaft_elements_at_a_middle_node_raises():
+    load = rotor_example()
+    with pytest.raises(ValueError, match="first or the last node"):
+        load.add_motor(_motor_with_shaft_elements(3))

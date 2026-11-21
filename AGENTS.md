@@ -64,7 +64,7 @@ All values are SI internally: speed in rad/s, stiffness in N/m, damping in N·s/
 | `rs.rotor_example_amb_simple()` | Rotor with active magnetic bearings |
 | `rs.rotor_example_amb_complex_controllers()` | AMB rotor with complex controllers |
 | `rs.rotor_example_amb_general_controllers()` | AMB rotor with general controllers |
-| `rs.motor_example()` | 1.5 hp, 127 V / 60 Hz, 4-pole induction motor (`MotorElement`) at node 0 |
+| `rs.motor_example()` | 1.5 hp, 127 V / 60 Hz, 4-pole induction motor (`ElectricMotor`) at node 0 |
 
 ### Save, load, interface, recipes
 
@@ -115,7 +115,7 @@ Elements → Rotor assembly → Rotor.run_*() → Results objects with .plot_*()
 | `ross/element.py` | `Element` ABC |
 | `ross/shaft_element.py`, `disk_element.py`, `bearing_seal_element.py`, `coupling_element.py`, `point_mass.py` | Core elements |
 | `ross/bearings/`, `ross/seals/` | Bearing and seal models |
-| `ross/motors/` | `MotorElement`, electrical sources and inverters (`SourceAC`, `InverterVF`, `InverterFOC`), `MotorResponseResults`, `PhaseResults` |
+| `ross/motors/` | `ElectricMotor`, electrical sources and inverters (`SourceAC`, `InverterVF`, `InverterFOC`), `MotorResponseResults`, `PhaseResults` |
 | `ross/rotor_assembly.py`, `ross/multi_rotor/` | `Rotor`, `MultiRotor`: assembly and analyses |
 | `ross/results.py` | `Results` ABC and the rotor results classes; the bearing, multi-rotor, motor and stochastic results classes live in their subpackages |
 | `ross/units.py` | `@check_units` and `Q_` |

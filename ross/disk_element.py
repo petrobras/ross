@@ -64,6 +64,20 @@ class DiskElement(Element):
         self.scale_factor = scale_factor
         self.dof_global_index = None
 
+    @property
+    def n(self):
+        """Node of the element.
+
+        Setting it also sets ``n_l`` and ``n_r`` to the same node.
+        """
+        return self._n
+
+    @n.setter
+    def n(self, value):
+        self._n = value
+        self.n_l = value
+        self.n_r = value
+
     def __eq__(self, other):
         """Equality method for comparisons.
 

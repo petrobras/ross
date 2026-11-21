@@ -12,7 +12,7 @@ import re
 
 import pytest
 
-from ross import MotorElement, Rotor, motor_example
+from ross import ElectricMotor, Rotor, motor_example
 from ross.motors.motor_drive import InverterFOC, InverterVF, SourceAC
 from ross.motors.results import MotorResponseResults, PhaseResults
 
@@ -29,7 +29,7 @@ def public_methods(cls, prefix=""):
 
 
 MOTOR_CLASSES = [
-    MotorElement,
+    ElectricMotor,
     MotorResponseResults,
     PhaseResults,
     SourceAC,

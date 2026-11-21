@@ -1,10 +1,11 @@
 """Electric Motor Element module.
 
-This module defines the MotorElement class which represents a 3-phase Induction Electric Motor
+This module defines the ElectricMotor class which represents a 3-phase Induction Electric Motor
 simulated using a 4th-order Runge-Kutta method, considering magnetic fluxes and currents.
 """
 
-import base64
+import re
+from functools import lru_cache
 import warnings
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from numba import njit
 from inspect import signature
 from plotly import graph_objects as go
 
+from ross.disk_element import DiskElement
 from ross.element import Element
 from ross.units import Q_, check_units
 
@@ -27,10 +29,10 @@ from .utils import (
     rk4_step,
 )
 
-__all__ = ["MotorElement", "motor_example"]
+__all__ = ["ElectricMotor", "motor_example"]
 
 
-class MotorElement(Element):
+class ElectricMotor:
     """Create a 3-phase induction motor element for rotordynamic analysis.
 
     This class represents a Three-Phase Induction Motor (TPIM) using a synchronous
@@ -39,7 +41,10 @@ class MotorElement(Element):
     Parameters
     ----------
     n : int
-        Node at which the torque is applied to the shaft.
+        Node of the rotor where the motor is placed. With the lumped model, the
+        mass, the inertias and the torque of the motor are applied at this node.
+        With ``shaft_elements``, it is the node of the rotor to which the motor
+        model will be connected.
     power_rated : float, pint.Quantity
         Rated power [W].
     voltage_rated : float
@@ -56,8 +61,26 @@ class MotorElement(Element):
         Rotor self-reactance at frequency [Ohm].
     mutual_reactance : float
         Mutual reactance at frequency [Ohm].
-    Ip_motor : float, pint.Quantity
-        Polar Moment of inertia related to motor axis [kg.m²].
+    m : float, pint.Quantity, optional
+        Mass of the motor [kg]. Lumped model: it is required together with
+        ``Ip`` and cannot be given with ``shaft_elements``.
+    Ip : float, pint.Quantity, optional
+        Polar Moment of inertia related to motor axis [kg.m²]. Lumped model: it
+        is required together with ``m`` and cannot be given with
+        ``shaft_elements``.
+    Id : float, pint.Quantity, optional
+        Diametral moment of inertia of the motor [kg.m²]. Lumped model only.
+        Default is 0.
+    shaft_elements : list of ross.ShaftElement, optional
+        Shaft elements of the motor. They are assembled as a rotor
+        (``motor.mechanical_model``) that is later connected to the rotor of the
+        load. It replaces ``m``, ``Ip`` and ``Id``.
+    disk_elements : list of ross.DiskElement, optional
+        Disk elements of the motor rotor. Only with ``shaft_elements``.
+    bearing_elements : list of ross.BearingElement, optional
+        Bearing elements of the motor rotor. Only with ``shaft_elements``.
+    point_mass_elements : list of ross.PointMass, optional
+        Point mass elements of the motor rotor. Only with ``shaft_elements``.
     frequency_rated : float, optional, pint.Quantity
         Rated frequency [rad/s].
         Default is 60 Hz.
@@ -67,19 +90,11 @@ class MotorElement(Element):
     viscosity_coeff : float, optional, pint.Quantity
         Viscosity coefficient [Pa.s].
         Default is 0.
-    Ip_load : float, optional, pint.Quantity
-        Polar Moment of inertia related to load [kg.m²].
-        Default is 0.
     voltage_net : float, optional
         Electrical tension of Power Supply [V], used to compute the network
         short-circuit impedance. The direct-on-line supply voltage is the
         `voltage_net` argument of ``.run_direct_on_line()``.
         Default is None, which adopts the motor's rated voltage (`voltage_rated`).
-    frequency_net : float, optional, pint.Quantity
-        Electrical frequency of Power Supply [rad/s]. It is stored but not used
-        in the simulation; the direct-on-line supply frequency is the
-        `frequency_net` argument of ``.run_direct_on_line()``.
-        Default is None, which adopts the motor's rated frequency (`frequency_rated`).
     initial_angle_net : float, optional, pint.Quantity
         Initial angular phase frequency of Power Supply [rad].
         Default is 20 degrees.
@@ -102,22 +117,30 @@ class MotorElement(Element):
     Notes
     -----
     This class models the electromechanical behavior of a TPIM and computes
-    electric torque in time. It is **not** a structural rotor element: it does
-    not contribute to the rotor global mass, stiffness, damping, or gyroscopic
-    matrices assembled by ``Rotor``.
+    electric torque in time. It also carries the structure of the motor, its
+    ``mechanical_model``, which ``Rotor.add_motor`` adds to the rotor.
 
-    The node ``n`` identifies where motor torque is applied on the shaft
-    (torsional DOF). :py:meth:`ross.Rotor.run_with_motor` simulates the motor
+    The attribute ``mechanical_model`` holds the mechanical model of the motor.
+    With the lumped model, it is a disk element with the mass ``m``, the
+    diametral inertia ``Id`` and the polar inertia ``Ip`` at node ``n``. With
+    ``shaft_elements``, it is the rotor assembled from the elements. The
+    attribute ``n_torque`` is the node where the torque is applied: ``n`` with
+    the lumped model, and the node of the motor rotor connected to the rotor of
+    the load otherwise (None until ``Rotor.add_motor`` connects them).
+
+    The node ``n`` is where the motor is placed in the rotor. The motor torque
+    acts on the torsional DOF of this node.
+    :py:meth:`ross.Rotor.run_with_motor` simulates the motor
     and applies its torque to the rotor. ``.run_direct_on_line()``,
     ``.run_with_inverter_vf()`` and ``.run_with_inverter_foc()`` simulate the
     motor alone.
 
     Examples
     --------
-    >>> from ross import MotorElement
+    >>> from ross import ElectricMotor
     >>> from ross.units import Q_
 
-    >>> motor = MotorElement(
+    >>> motor = ElectricMotor(
     ...     n=0,
     ...     tag=None,
     ...     power_rated=Q_(1.5, "cv"),
@@ -130,16 +153,17 @@ class MotorElement(Element):
     ...     stator_reactance=1.3,
     ...     rotor_reactance=1.3,
     ...     mutual_reactance=43.08,
-    ...     Ip_motor=0.0372,
+    ...     m=10.0,
+    ...     Ip=0.0372,
     ...     viscosity_coeff=0.0,
-    ...     Ip_load=0.0,
     ...     voltage_net=127,
-    ...     frequency_net=Q_(60.0, "Hz"),
     ... )
 
     >>> motor.power_rated
     1103.248125
     """
+
+    _legend_group = "Electric Motor"
 
     @check_units
     def __init__(
@@ -153,17 +177,21 @@ class MotorElement(Element):
         stator_reactance,
         rotor_reactance,
         mutual_reactance,
-        Ip_motor,
+        m=None,
+        Ip=None,
+        Id=None,
+        shaft_elements=None,
+        disk_elements=None,
+        bearing_elements=None,
+        point_mass_elements=None,
         frequency_rated=None,
         n_poles=4,
         viscosity_coeff=0.0,
-        Ip_load=0.0,
         voltage_net=None,
-        frequency_net=None,
         initial_angle_net=None,
         short_circuit_ratio_net=50.0,
         XR_ratio_net=80.0,
-        tag=None,
+        tag="Motor",
         scale_factor=1,
         color="#001969",
     ):
@@ -178,9 +206,50 @@ class MotorElement(Element):
         self.stator_reactance = float(stator_reactance)
         self.rotor_reactance = float(rotor_reactance)
         self.mutual_reactance = float(mutual_reactance)
-        self.Ip_motor = float(Ip_motor)
+
+        if shaft_elements is None:
+            if (
+                disk_elements is not None
+                or bearing_elements is not None
+                or point_mass_elements is not None
+            ):
+                raise ValueError(
+                    "'disk_elements', 'bearing_elements' and 'point_mass_elements' "
+                    "are only used with 'shaft_elements'."
+                )
+            if m is None or Ip is None:
+                raise ValueError(
+                    "Pass either 'm' and 'Ip' (lumped model) or 'shaft_elements' "
+                    "(finite element model)."
+                )
+
+            self._mechanical_model_type = "lumped"
+            self.mechanical_model = DiskElement(
+                n=n, m=m, Id=Id or 0.0, Ip=Ip, color=color
+            )
+            self.m = float(m)
+            self.Ip = float(Ip)
+        else:
+            if m is not None or Ip is not None or Id is not None:
+                raise ValueError(
+                    "'m', 'Ip' and 'Id' cannot be given with 'shaft_elements'; "
+                    "they are computed from the elements."
+                )
+            from ross.rotor_assembly import Rotor
+
+            self._mechanical_model_type = "fem"
+            self.mechanical_model = Rotor(
+                shaft_elements,
+                disk_elements,
+                bearing_elements,
+                point_mass_elements,
+                tag=tag,
+            )
+            self.m = float(self.mechanical_model.m)
+            self.Ip = float(self.mechanical_model.Ip)
+            self.n_torque = None
+
         self.viscosity_coeff = float(viscosity_coeff)
-        self.Ip_load = float(Ip_load)
 
         if frequency_rated is None:
             self.frequency_rated = Q_(60.0, "Hz").to("rad/s").m
@@ -197,11 +266,6 @@ class MotorElement(Element):
             self.voltage_net = self.voltage_rated
         else:
             self.voltage_net = float(voltage_net)
-
-        if frequency_net is None:
-            self.frequency_net = self.frequency_rated
-        else:
-            self.frequency_net = float(frequency_net)
 
         if initial_angle_net is None:
             self.initial_angle_net = Q_(20.0, "deg").to("rad").m
@@ -233,12 +297,45 @@ class MotorElement(Element):
         self.short_circuit_resistance = Xsc / self.XR_ratio_net
 
         self.n = n
-        self.n_l = n
-        self.n_r = n
         self.tag = tag
         self.scale_factor = scale_factor
         self.color = color
         self.dof_global_index = None
+
+    def __getattr__(self, name):
+        """Forward to the motor rotor the attributes the motor does not define.
+
+        Only called when ``name`` is not found on the motor, and only with the
+        finite element model (``shaft_elements``). Attributes of the motor, such
+        as ``m``, ``Ip``, ``tag`` and ``save``, take precedence, and so do the
+        names of the ``__init__`` parameters, which ``save()`` reads from the
+        motor: use ``motor.mechanical_model.shaft_elements``, for example.
+        """
+        is_fem = self.__dict__.get("_mechanical_model_type") == "fem"
+        init_parameters = signature(type(self).__init__).parameters
+
+        if is_fem and name not in init_parameters:
+            return getattr(self.__dict__["mechanical_model"], name)
+        else:
+            raise AttributeError(
+                f"{type(self).__name__!r} object has no attribute {name!r}"
+            )
+
+    def __dir__(self):
+        """List the attributes of the motor, and of its rotor with ``shaft_elements``.
+
+        Returns
+        -------
+        list of str
+            Sorted names of the attributes of the motor. With the finite element
+            model, it includes the names forwarded to the motor rotor.
+        """
+        names = set(super().__dir__())
+
+        if self.__dict__.get("_mechanical_model_type") == "fem":
+            names |= set(dir(self.mechanical_model))
+
+        return sorted(names)
 
     @classmethod
     @check_units
@@ -250,7 +347,6 @@ class MotorElement(Element):
         speed_rated,
         efficiency,
         power_factor,
-        Ip_motor,
         current_rated=None,
         starting_current_ratio=6.0,
         motor_category="N",
@@ -285,8 +381,6 @@ class MotorElement(Element):
             Rated efficiency, between zero and one.
         power_factor : float
             Rated power factor, between zero and one.
-        Ip_motor : float, pint.Quantity
-            Polar moment of inertia of the motor axis [kg.m²].
         current_rated : float, optional
             Rated phase current [A].
             Default is None, which computes it from the input power.
@@ -311,12 +405,13 @@ class MotorElement(Element):
             Number of machine's poles.
             Default is 4.
         **kwargs
-            Other arguments of :py:class:`MotorElement`, such as ``tag`` or
-            ``Ip_load``.
+            Other arguments of :py:class:`ElectricMotor`: the structure of the
+            motor (``m`` and ``Ip``, or ``shaft_elements``) and, for example,
+            ``tag``.
 
         Returns
         -------
-        motor : ross.MotorElement
+        motor : ross.ElectricMotor
 
         Warns
         -----
@@ -339,14 +434,15 @@ class MotorElement(Element):
 
         Examples
         --------
-        >>> motor = MotorElement.from_nameplate(
+        >>> motor = ElectricMotor.from_nameplate(
         ...     n=0,
         ...     power_rated=Q_(25, "hp"),
         ...     voltage_rated=460 / np.sqrt(3),
         ...     speed_rated=Q_(1724.6, "RPM"),
         ...     efficiency=0.83,
         ...     power_factor=0.90,
-        ...     Ip_motor=0.1,
+        ...     m=10.0,
+        ...     Ip=0.1,
         ...     current_rated=31.25,
         ...     starting_current_ratio=4.6,
         ...     method="kueck",
@@ -375,7 +471,6 @@ class MotorElement(Element):
             power_rated=power_rated,
             voltage_rated=voltage_rated,
             speed_rated=speed_rated,
-            Ip_motor=Ip_motor,
             frequency_rated=frequency_rated,
             n_poles=n_poles,
             **kwargs,
@@ -391,7 +486,6 @@ class MotorElement(Element):
         speed_rated,
         efficiency,
         power_factor,
-        Ip_motor,
         starting_torque_ratio=None,
         maximum_torque_ratio=None,
         efficiency_75=None,
@@ -415,7 +509,7 @@ class MotorElement(Element):
         estimation methods is not represented in the motor model.
 
         All electrical quantities refer to the per-phase star equivalent circuit,
-        as in :py:meth:`MotorElement.from_nameplate`.
+        as in :py:meth:`ElectricMotor.from_nameplate`.
 
         Parameters
         ----------
@@ -431,8 +525,6 @@ class MotorElement(Element):
             Rated efficiency, between zero and one.
         power_factor : float
             Rated power factor, between zero and one.
-        Ip_motor : float, pint.Quantity
-            Polar moment of inertia of the motor axis [kg.m²].
         starting_torque_ratio : float, optional
             Ratio between starting and rated torque.
         maximum_torque_ratio : float, optional
@@ -465,12 +557,13 @@ class MotorElement(Element):
             Number of machine's poles.
             Default is 4.
         **kwargs
-            Other arguments of :py:class:`MotorElement`, such as ``tag`` or
-            ``Ip_load``.
+            Other arguments of :py:class:`ElectricMotor`: the structure of the
+            motor (``m`` and ``Ip``, or ``shaft_elements``) and, for example,
+            ``tag``.
 
         Returns
         -------
-        motor : ross.MotorElement
+        motor : ross.ElectricMotor
 
         Raises
         ------
@@ -511,14 +604,15 @@ class MotorElement(Element):
 
         Examples
         --------
-        >>> motor = MotorElement.from_catalog(
+        >>> motor = ElectricMotor.from_catalog(
         ...     n=0,
         ...     power_rated=Q_(25, "hp"),
         ...     voltage_rated=460 / np.sqrt(3),
         ...     speed_rated=Q_(1724.6, "RPM"),
         ...     efficiency=0.83,
         ...     power_factor=0.90,
-        ...     Ip_motor=0.1,
+        ...     m=10.0,
+        ...     Ip=0.1,
         ...     starting_torque_ratio=1.5,
         ...     maximum_torque_ratio=2.5,
         ... )
@@ -555,7 +649,6 @@ class MotorElement(Element):
             power_rated=power_rated,
             voltage_rated=voltage_rated,
             speed_rated=speed_rated,
-            Ip_motor=Ip_motor,
             frequency_rated=frequency_rated,
             n_poles=n_poles,
             **kwargs,
@@ -595,7 +688,7 @@ class MotorElement(Element):
         --------
         >>> motor = motor_example()
         >>> motor # doctest: +ELLIPSIS
-        MotorElement(n=0, tag=None...
+        ElectricMotor(n=0, tag=None...
         """
         return (
             f"{self.__class__.__name__}"
@@ -610,11 +703,10 @@ class MotorElement(Element):
             f"stator_reactance={self.stator_reactance:{0}.{5}}, "
             f"rotor_reactance={self.rotor_reactance:{0}.{5}}, "
             f"mutual_reactance={self.mutual_reactance:{0}.{5}}, "
-            f"Ip_motor={self.Ip_motor:{0}.{5}}, "
+            f"m={self.m:{0}.{5}}, "
+            f"Ip={self.Ip:{0}.{5}}, "
             f"viscosity_coeff={self.viscosity_coeff:{0}.{5}}, "
-            f"Ip_load={self.Ip_load:{0}.{5}}, "
             f"voltage_net={self.voltage_net:{0}.{5}}, "
-            f"frequency_net={self.frequency_net:{0}.{5}}, "
             f"initial_angle_net={self.initial_angle_net:{0}.{5}}, "
             f"short_circuit_ratio_net={self.short_circuit_ratio_net:{0}.{5}}, "
             f"XR_ratio_net={self.XR_ratio_net:{0}.{5}}, "
@@ -658,12 +750,11 @@ class MotorElement(Element):
             f"\nStator Reactance (Ohm):             {self.stator_reactance:{2}.{5}}"
             f"\nRotor Reactance (Ohm):              {self.rotor_reactance:{2}.{5}}"
             f"\nMutual Reactance (Ohm):             {self.mutual_reactance:{2}.{5}}"
-            f"\nMotor Inertia (kg.m²):              {self.Ip_motor:{2}.{5}}"
+            f"\nMotor Mass (kg):                    {self.m:{2}.{5}}"
+            f"\nMotor Inertia (kg.m²):              {self.Ip:{2}.{5}}"
             f"\nViscosity Coefficient (Pa.s):       {self.viscosity_coeff:{2}.{5}}"
-            f"\nLoad Inertia (kg.m²):               {self.Ip_load:{2}.{5}}"
             f"\n----- Power Supply Parameters (SCIP) -----"
             f"\nSupply Voltage (V):                 {self.voltage_net:{2}.{5}}"
-            f"\nSupply Frequency (Hz):              {Q_(self.frequency_net, 'rad/s').to('Hz').m:{2}.{5}}"
             f"\nInitial Phase Angle (deg):          {Q_(self.initial_angle_net, 'rad').to('deg').m:{2}.{5}}"
             f"\nShort-Circuit Ratio (ad):           {self.short_circuit_ratio_net:{2}.{5}}"
             f"\nX/R Ratio (ad):                     {self.XR_ratio_net:{2}.{5}}"
@@ -724,78 +815,121 @@ class MotorElement(Element):
         """
         return hash(self.tag)
 
-    def dof_mapping(self):
-        """Degrees of freedom mapping.
+    @property
+    def n(self):
+        """Node where the motor is placed in the rotor.
 
-        Returns a dictionary with a mapping between degree of freedom and its index.
+        With the lumped model, setting it also sets ``n_torque`` to the same node.
+        """
+        return self._n
 
-        Returns
-        -------
-        dof_mapping : dict
-            A dictionary containing the degrees of freedom and their indexes.
+    @n.setter
+    def n(self, value):
+        self._n = value
+        if self._mechanical_model_type == "lumped":
+            self.n_torque = value
+
+    summary = Element.summary
+    load = Element.__dict__["load"]
+
+    def save(self, file, **more_args):
+        """Save the motor in a .toml or .json file.
+
+        The file has the arguments needed to build the motor again, the model
+        of its structure and the node where the torque is applied. A motor with
+        ``shaft_elements`` is saved with the equivalent mass and inertia, because
+        its elements belong to the rotor it is connected to.
+
+        Parameters
+        ----------
+        file : str, pathlib.Path
+            The name of the file the motor will be saved in.
+        more_args : dict, optional
+            More arguments to be saved if needed.
+
+        Raises
+        ------
+        ValueError
+            If the motor has ``shaft_elements`` and is not connected to a rotor.
 
         Examples
         --------
-        The numbering of the degrees of freedom for each node.
-
-        Being the following their ordering for a node:
-
-        x_0 - horizontal translation
-        y_0 - vertical translation
-        z_0 - axial translation
-        alpha_0 - rotation around horizontal
-        beta_0  - rotation around vertical
-        theta_0 - torsion around axial
-
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
+        >>> file = Path(tempdir) / "motor.toml"
         >>> motor = motor_example()
-        >>> motor.dof_mapping()
-        {'x_0': 0, 'y_0': 1, 'z_0': 2, 'alpha_0': 3, 'beta_0': 4, 'theta_0': 5}
+        >>> motor.save(file)
+        >>> ElectricMotor.load(file) == motor
+        True
         """
-        return dict(x_0=0, y_0=1, z_0=2, alpha_0=3, beta_0=4, theta_0=5)
+        if self._mechanical_model_type == "fem" and self.n_torque is None:
+            raise ValueError(
+                "A motor with shaft_elements is saved with the rotor it is "
+                "connected to."
+            )
 
-    def M(self):
-        """Mass matrix.
+        Id = 0.0
+        if self._mechanical_model_type == "lumped":
+            Id = self.mechanical_model.Id
+
+        Element.save(
+            self,
+            file,
+            structure=self._mechanical_model_type,
+            n_torque=self.n_torque,
+            Id=Id,
+            **more_args,
+        )
+
+    def _to_dict(self, file_format=".toml"):
+        """Return the motor data in the format written by ``save()``.
+
+        Parameters
+        ----------
+        file_format : str, optional
+            File format used to serialize the motor (".toml" or ".json").
+            Default is ".toml".
 
         Returns
         -------
-        M : np.ndarray
-            Zero 6x6 matrix. ``MotorElement`` does not contribute to the rotor
-            structural mass matrix.
+        data : dict
+            Dictionary with one entry for the motor, keyed by its class and tag.
         """
-        return np.zeros((6, 6))
+        from tempfile import TemporaryDirectory
+        from ross.utils import load_data
 
-    def K(self):
-        """Stiffness matrix.
+        with TemporaryDirectory() as tmp_dir:
+            motor_file = Path(tmp_dir) / f"motor{file_format}"
+            self.save(motor_file)
+            return load_data(motor_file)
+
+    @classmethod
+    def read_toml_data(cls, data):
+        """Read and parse data stored in a .toml or .json file.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary obtained from toml.load() or json.load(), in the format
+            saved by :py:meth:`save`.
 
         Returns
         -------
-        K : np.ndarray
-            Zero 6x6 matrix. ``MotorElement`` does not contribute to the rotor
-            structural stiffness matrix.
+        The motor object. A motor saved with ``shaft_elements`` has the equivalent
+        mass and inertia as its structure and keeps its torque node.
         """
-        return np.zeros((6, 6))
+        data = dict(data)
+        structure = data.pop("structure", "lumped")
+        n_torque = data.pop("n_torque", None)
 
-    def C(self):
-        """Damping matrix.
+        arguments = set(signature(cls.__init__).parameters).intersection(data)
+        motor = cls(**{name: data[name] for name in arguments})
 
-        Returns
-        -------
-        C : np.ndarray
-            Zero 6x6 matrix. ``MotorElement`` does not contribute to the rotor
-            structural damping matrix.
-        """
-        return np.zeros((6, 6))
+        if structure == "fem":
+            motor._mechanical_model_type = "fem"
+            motor.n_torque = n_torque
 
-    def G(self):
-        """Gyroscopic matrix.
-
-        Returns
-        -------
-        G : np.ndarray
-            Zero 6x6 matrix. ``MotorElement`` does not contribute to the rotor
-            gyroscopic matrix.
-        """
-        return np.zeros((6, 6))
+        return motor
 
     def _hover_info(self):
         """Return hover information for the motor patch.
@@ -809,16 +943,16 @@ class MotorElement(Element):
         """
         frequency_hz = Q_(self.frequency_rated, "rad/s").to("Hz").m
         customdata = [
-            self.n,
+            self.n_torque,
             self.power_rated,
             self.voltage_rated,
             self.speed_rated,
             frequency_hz,
             self.n_poles,
-            self.Ip_motor,
+            self.Ip,
         ]
         hovertemplate = (
-            f"Motor Node: {customdata[0]}<br>"
+            f"Motor Torque Node: {customdata[0]}<br>"
             f"Rated Power (W): {customdata[1]:.3f}<br>"
             f"Rated Voltage (V): {customdata[2]:.3f}<br>"
             f"Rated Speed (rad/s): {customdata[3]:.3f}<br>"
@@ -832,13 +966,15 @@ class MotorElement(Element):
         """Motor element patch.
 
         Patch used to draw the motor element in the rotor plot using Plotly.
-        The motor icon is rendered from ``motor_icon.svg``.
+        The motor icon is drawn from ``motor_icon.svg`` with filled traces,
+        which share the legend group of the motor.
 
         Parameters
         ----------
         position : tuple
             Position ``(zpos, ypos, yc_pos, outer_diameter)`` in which the
-            patch will be drawn. The icon is centered on ``(zpos, yc_pos)``.
+            patch will be drawn. The icon is centered on ``(zpos, yc_pos)``,
+            the position of node ``n_torque``.
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
 
@@ -855,28 +991,29 @@ class MotorElement(Element):
         image_width = image_height
         marker_size = image_height * 350
 
-        svg_path = Path(__file__).parent / "motor_icon.svg"
-        svg = svg_path.read_text(encoding="utf-8")
-        svg = svg.replace("#61809A", f"{self.color}")
+        for fill_color, polygons in _motor_icon_polygons():
+            x = []
+            y = []
+            for polygon in polygons:
+                x.extend(zpos + (polygon[:, 0] - 0.5) * image_width)
+                y.extend(yc_pos - (polygon[:, 1] - 0.5) * image_height)
+                x.append(None)
+                y.append(None)
 
-        encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
-        src_svg = f"data:image/svg+xml;base64,{encoded}"
-
-        fig.add_layout_image(
-            dict(
-                source=src_svg,
-                xref="x",
-                yref="y",
-                x=zpos,
-                y=yc_pos,
-                sizex=image_width,
-                sizey=image_height,
-                xanchor="center",
-                yanchor="middle",
-                layer="above",
-                opacity=0.9,
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    mode="lines",
+                    fill="toself",
+                    fillcolor=self.color if fill_color == "#61809A" else fill_color,
+                    line=dict(width=1.5, color="black"),
+                    opacity=0.9,
+                    legendgroup=self._legend_group,
+                    showlegend=False,
+                    hoverinfo="skip",
+                )
             )
-        )
 
         fig.add_trace(
             go.Scatter(
@@ -888,7 +1025,7 @@ class MotorElement(Element):
                 hovertemplate=hovertemplate,
                 hoverinfo="text",
                 name=self.tag,
-                legendgroup="motors",
+                legendgroup=self._legend_group,
                 showlegend=False,
                 hoverlabel=dict(bgcolor=self.color),
             )
@@ -923,6 +1060,7 @@ class MotorElement(Element):
         time_step=None,
         load_torque_entrance_time=None,
         load_torque_ratio=1.0,
+        Ip_load=0.0,
         element=None,
     ):
         """Run a generic motor simulation for specified time points.
@@ -941,6 +1079,9 @@ class MotorElement(Element):
             Load torque ratio applied at the entrance time. This is a multiplier
             for the rated load torque, e.g., a value of 1.0 applies 100% of the
             rated torque at entrance time. Default is 1.0.
+        Ip_load : float, pint.Quantity, optional
+            Polar moment of inertia of the load driven by the motor [kg.m²].
+            It is added to the inertia of the motor, ``Ip``, in the motor dynamics. Default is 0.
         element : SourceAC, InverterVF or InverterFOC
             Electrical source or inverter. Must implement ``get_current_state``.
             :class:`InverterFOC` is stepped in closed
@@ -996,7 +1137,7 @@ class MotorElement(Element):
         Tl_full = self.T_rated * load_torque_ratio
 
         Rs = self.stator_resistance + self.short_circuit_resistance
-        Ip = self.Ip_motor + self.Ip_load
+        Ip = self.Ip + Ip_load
 
         is_closed_loop = isinstance(element, InverterFOC)
 
@@ -1107,6 +1248,7 @@ class MotorElement(Element):
         time_step=None,
         load_torque_entrance_time=None,
         load_torque_ratio=1.0,
+        Ip_load=0.0,
         voltage_net=None,
         frequency_net=None,
         initial_phase_angle=0.0,
@@ -1129,6 +1271,9 @@ class MotorElement(Element):
             Load torque ratio applied at the entrance time. This is a multiplier
             for the rated load torque, e.g., a value of 1.0 applies 100% of the
             rated torque at entrance time. Default is 1.0.
+        Ip_load : float, pint.Quantity, optional
+            Polar moment of inertia of the load driven by the motor [kg.m²].
+            It is added to the inertia of the motor, ``Ip``, in the motor dynamics. Default is 0.
         voltage_net : float, pint.Quantity, optional
             Power supply voltage [V]. If None, uses motor rated voltage.
         frequency_net : float, pint.Quantity, optional
@@ -1231,6 +1376,7 @@ class MotorElement(Element):
             time_step=time_step,
             load_torque_entrance_time=load_torque_entrance_time,
             load_torque_ratio=load_torque_ratio,
+            Ip_load=Ip_load,
             element=source,
         )
 
@@ -1244,6 +1390,7 @@ class MotorElement(Element):
         time_step=None,
         load_torque_entrance_time=None,
         load_torque_ratio=1.0,
+        Ip_load=0.0,
         time_ramp=0.6667,
         frequency_ref=None,
     ):
@@ -1269,6 +1416,9 @@ class MotorElement(Element):
             Load torque ratio applied at the entrance time. This is a multiplier
             for the rated load torque, e.g., a value of 1 applies 100% of the
             rated torque. Default is 1.
+        Ip_load : float, pint.Quantity, optional
+            Polar moment of inertia of the load driven by the motor [kg.m²].
+            It is added to the inertia of the motor, ``Ip``, in the motor dynamics. Default is 0.
         time_ramp : float, optional
             Acceleration ramp time [s] for frequency ramping. Default is 0.6667.
         frequency_ref : float or pint.Quantity, optional
@@ -1330,6 +1480,7 @@ class MotorElement(Element):
             time_step=time_step or inverter.Ts / 200,
             load_torque_entrance_time=load_torque_entrance_time,
             load_torque_ratio=load_torque_ratio,
+            Ip_load=Ip_load,
             element=inverter,
         )
 
@@ -1342,6 +1493,7 @@ class MotorElement(Element):
         time_step=None,
         load_torque_entrance_time=None,
         load_torque_ratio=1.0,
+        Ip_load=0.0,
         time_ramp=1.0,
         frequency_s=None,
         frequency_ref=None,
@@ -1370,6 +1522,9 @@ class MotorElement(Element):
             Load torque ratio applied at the entrance time. This is a multiplier
             for the rated load torque, e.g., a value of 1 applies 100% of the
             rated torque. Default is 1.
+        Ip_load : float, pint.Quantity, optional
+            Polar moment of inertia of the load driven by the motor [kg.m²].
+            It is added to the inertia of the motor, ``Ip``, in the motor dynamics. Default is 0.
         time_ramp : float, optional
             Acceleration ramp time [s] for the mechanical speed reference.
             Default is 1.
@@ -1433,7 +1588,7 @@ class MotorElement(Element):
             stator_reactance=self.stator_reactance,
             rotor_reactance=self.rotor_reactance,
             mutual_reactance=self.mutual_reactance,
-            Ip_motor=self.Ip_motor,
+            Ip_motor=self.Ip,
             time_ramp=time_ramp,
             frequency_ref=float(frequency_ref or self.frequency_rated / 2),
         )
@@ -1443,6 +1598,7 @@ class MotorElement(Element):
             time_step=time_step or (2 * np.pi / frequency_s) / 200,
             load_torque_entrance_time=load_torque_entrance_time,
             load_torque_ratio=load_torque_ratio,
+            Ip_load=Ip_load,
             element=inverter,
         )
 
@@ -1724,6 +1880,9 @@ def _run_motor_time_closed_loop(
     )
 
 
+MotorElement = ElectricMotor
+
+
 def motor_example():
     """Create an example of motor element.
 
@@ -1732,7 +1891,7 @@ def motor_example():
 
     Returns
     -------
-    motor : ross.MotorElement
+    motor : ross.ElectricMotor
         An instance of a motor object.
 
     Examples
@@ -1742,7 +1901,7 @@ def motor_example():
     376.991...
     """
 
-    return MotorElement(
+    return ElectricMotor(
         n=0,
         tag=None,
         power_rated=Q_(1.5, "cv"),
@@ -1755,9 +1914,55 @@ def motor_example():
         stator_reactance=1.3,
         rotor_reactance=1.3,
         mutual_reactance=43.08,
-        Ip_motor=0.0372,
+        m=10.0,
+        Ip=0.0372,
         viscosity_coeff=0.0,
-        Ip_load=0.0,
         voltage_net=127,
-        frequency_net=Q_(60.0, "Hz"),
     )
+
+
+@lru_cache(maxsize=1)
+def _motor_icon_polygons():
+    """Read the motor icon as filled polygons.
+
+    The paths of ``motor_icon.svg`` are made of absolute moves and cubic
+    Bezier curves. Each curve is sampled, so the icon can be drawn with
+    traces, which the legend of the rotor plot can show and hide.
+
+    Returns
+    -------
+    list of tuple
+        One ``(fill_color, polygons)`` pair for each path of the icon, in
+        drawing order. Each polygon is an array of points whose coordinates
+        are fractions of the width (x) and of the height (y, downwards) of
+        the icon.
+    """
+    svg = (Path(__file__).parent / "motor_icon.svg").read_text(encoding="utf-8")
+    view_size = float(re.search(r'viewBox="0 0 ([\d.]+) ', svg).group(1))
+    t = np.linspace(0, 1, 16)[1:, None]
+
+    icon = []
+    for attributes, path in re.findall(r"<path([^>]*?)\sd=\"([^\"]*)\"", svg, re.S):
+        fill_color = re.search(r'fill="([^"]*)"', attributes).group(1)
+        polygons = []
+        for subpath in path.split("M")[1:]:
+            numbers = np.array(re.findall(r"-?\d+\.?\d*", subpath), dtype=float)
+            points = numbers.reshape(-1, 2)
+            polygon = [points[0]]
+            for p0, p1, p2, p3 in zip(
+                points[:-1:3],
+                points[1::3],
+                points[2::3],
+                points[3::3],
+                strict=True,
+            ):
+                polygon.extend(
+                    (1 - t) ** 3 * p0
+                    + 3 * (1 - t) ** 2 * t * p1
+                    + 3 * (1 - t) * t**2 * p2
+                    + t**3 * p3
+                )
+            polygons.append(np.array(polygon) / view_size)
+        icon.append((fill_color, polygons))
+
+    return icon
