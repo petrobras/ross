@@ -255,6 +255,67 @@ adds a net force on the journal for an asymmetric pad layout. In the default
 `"regular_flooded"` mode the axial film edges stay at 0 and a nonzero ambient
 pressure warns.
 
+### Convergence and operating results
+
+Every case records whether its iterations converged (equilibrium force
+balance `|F_net| / |F_ext| < 2e-3`, pad tilt, turbulence, temperatures,
+deformation, pivot, sump, starved film onset) and runs under a work budget
+(`max_reynolds_solves`, default 400,000 Reynolds solves per pad and case,
+plus a cap of 4,000 per pad and equilibrium solve, both counting at least 5
+pads; optional `time_limit` in s). A case that does
+not converge emits a `ConvergenceWarning`; `on_failure` decides what happens
+to its speed:
+
+- `"warn"` (default): the speed is left out of the coefficient table (for a 2-D
+  table, the whole speed row); the element interpolates between the converged
+  speeds and `save()` writes only those rows. If no case converged, every row
+  is kept and the warning says the element must not be used.
+- `"raise"`: `FluidFilmConvergenceError`
+  (`ross.bearings.fluid_film.diagnostics`).
+- `"keep"`: every row is kept, with the warning.
+
+A first pad of exactly 360 deg (`pad_arc=2 pi`) switches the film to the
+short-bearing (oil seal) model: no circumferential pressure flow, so the load
+at L/D 1 is about twice that of a finite bearing. Use 359.9 deg for a full
+journal solved with the finite-length Reynolds equation.
+
+Failed cases stay in `bearing.results` (`results.converged`,
+`results.convergence[i]` with the per-loop iterations, residuals, tolerances
+and reasons) and in `bearing.operating_results`, a `pandas.DataFrame` with one
+row per case:
+
+```python
+op = plain.operating_results
+op[
+    [
+        "speed",
+        "converged",
+        "reason",
+        "eccentricity",
+        "attitude",
+        "h_min",
+        "p_max",
+        "power_loss",
+        "sommerfeld",
+        "re_max",
+        "re_cb",
+        "re_taylor",
+    ]
+]
+```
+
+Columns: `speed`, `frequency`, `converged`, `reason`, `iterations` and
+`residual` (equilibrium Newton), `reynolds_solves`, `wall_time`,
+`eccentricity`, `attitude` (from `-y`), `attitude_from_load`, `xj`, `yj`,
+`h_min`, `h_min_pad`, `p_max` (also isoviscous), `T_max_pad`, `T_max_film`
+(NaN isoviscous), `power_loss`, `q_supply`, `q_side`, `q_carryover`,
+`sommerfeld` (`mu N L D / W (R/C)^2`, N in rev/s, supply viscosity),
+`specific_load`, `re_max` (local film), `re_cb` (`rho U C / mu`), `re_taylor`
+(`41.2 sqrt(R/C)`), `pad_load` and `tilt_angle` (per pad). Reasons:
+`"max_iterations"`, `"diverged"`, `"budget"`, `"time_limit"`,
+`"singular_jacobian"`, `"pivot_unloaded"`, `"non_finite"`, `"contact"`
+(the final journal position crosses the bearing surface).
+
 Useful knobs and post-processing:
 
 - `lubricant`: a key of `rs.lubricants_dict` (`"ISOVG32"`, `"ISOVG46"`, `"ISOVG68"`, ...)

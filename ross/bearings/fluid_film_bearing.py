@@ -33,9 +33,15 @@ from ross.bearings.fluid_film.constants import (
     TEMP_J_TYPES,
     THERMAL_TYPES,
 )
-from ross.units import Q_, check_units
+from ross.units import Q_, _to_base_unit, check_units
 
 __all__ = ["FluidFilmBearing", "fluid_film_bearing_example"]
+
+ON_FAILURE = ("warn", "raise", "keep")
+_NO_OPERATING_RESULTS = (
+    "operating_results needs a solved bearing (this element was built from a "
+    "coefficient table)"
+)
 
 # Engine lubricant field -> the ross.bearings.lubricants.lubricants_dict key
 # it comes from. These seven properties fully define the lubricant for the
@@ -164,7 +170,9 @@ class FluidFilmBearing(BearingElement):
     pivot_angle : array_like, pint.Quantity
         Per-pad pivot (or arc-center) angular position, rad.
     pad_arc : array_like, pint.Quantity
-        Per-pad arc length, rad.
+        Per-pad arc length, rad. A first pad of exactly 2 pi (within
+        1e-6 rad) selects the short-bearing film model of an oil seal (see
+        Notes).
     pad_axial_length : array_like, pint.Quantity
         Per-pad axial length, m.
     preload : array_like
@@ -314,8 +322,30 @@ class FluidFilmBearing(BearingElement):
     num_processes : int, optional
         Solve the speed cases in ``num_processes`` worker processes
         instead of serially. Default is None (serial).
+    on_failure : str, optional
+        What to do with a case that does not converge (see Notes):
+        ``"warn"`` leaves its speed out of the coefficient table with a
+        :class:`~ross.bearings.film.loops.ConvergenceWarning`, ``"raise"``
+        raises :class:`~ross.bearings.fluid_film.diagnostics.FluidFilmConvergenceError`,
+        ``"keep"`` keeps every row and warns. Default is ``"warn"``.
+    max_reynolds_solves : int, optional
+        Work budget of each case, in Reynolds solves of the film equation.
+        Default is None (400,000 per pad, counting at least 5 pads; about 4
+        times the largest converging case measured, an 8-pad full-TEHD
+        tilting pad). Each equilibrium solve within a case is also capped at
+        4,000 solves per pad (at least 20,000).
+    time_limit : float, pint.Quantity, optional
+        Wall-clock limit of each case, s. Default is None (no limit).
     tag : str, optional
         A tag to name the element.
+
+    Attributes
+    ----------
+    results : FluidFilmBearingResults
+        Every solved case, converged or not: fields, solver outputs,
+        coefficients, the per-case ``converged`` flags and ``convergence``
+        summaries, and :attr:`operating_results` (also ``_results``; the
+        ``plot_*`` and ``show_*`` methods are reachable on the element).
 
     Returns
     -------
@@ -329,6 +359,14 @@ class FluidFilmBearing(BearingElement):
         negative frequencies or ``excitation_ratio``, non-positive
         geometry, density or flow, preload or offset out of range,
         overlapping pads, or a pivot model without the data it needs.
+    FluidFilmConvergenceError
+        With ``on_failure="raise"``, when a case does not converge.
+
+    Warns
+    -----
+    ConvergenceWarning
+        With ``on_failure="warn"`` or ``"keep"``, when a case does not
+        converge.
 
     Notes
     -----
@@ -343,6 +381,35 @@ class FluidFilmBearing(BearingElement):
 
     Pressures (ambient, cavitation, supply) are gauge pressures relative to
     the drain pressure.
+
+    Convergence. A case is converged when every iteration of the solver
+    (equilibrium Newton, pad tilt, turbulence, film and pad temperature,
+    journal temperature, inlet mixing, deformation, pivot, sump and the
+    starved film onset) ended below its tolerance and the case stayed
+    within its work budget; the outputs must also be finite. The
+    equilibrium test is the force balance ``|F_net| / |F_ext| < 2e-3``.
+    ``results.convergence`` holds the per-loop iterations, residuals and
+    tolerances of each case. A case that reaches ``max_reynolds_solves``
+    (or a fixed cap per equilibrium solve, or ``time_limit``) stops with
+    reason ``"budget"`` (``"time_limit"``) and its outputs are evaluated at
+    the last Newton iterate of the journal position, with the temperature
+    fields of the last completed thermal pass.
+
+    Full 360 deg pad. When the first pad spans exactly 2 pi, the engine
+    drops the circumferential pressure flow and the leading/trailing-edge
+    pressure conditions, as for an annular oil seal: the film follows the
+    short-bearing (Ocvirk) approximation, whose load at ``L/D = 1`` is about
+    twice that of the finite bearing. Use an arc slightly below 2 pi (for
+    example 359.9 deg) for a full journal solved with the finite-length
+    Reynolds equation.
+
+    Failed cases. With ``on_failure="warn"`` the speeds with a failed case
+    are left out of the coefficient table (for a 2-D table, the whole speed
+    row), so the element interpolates between the converged speeds; when
+    no case converged every row is kept and the warning says the element
+    must not be used. The failed cases stay in ``results`` and
+    :attr:`operating_results` with ``converged=False``; :meth:`save` writes
+    the coefficient table, so only the kept rows.
 
     Examples
     --------
@@ -431,6 +498,9 @@ class FluidFilmBearing(BearingElement):
         re_laminar=500,
         re_turbulent=1000,
         num_processes=None,
+        on_failure="warn",
+        max_reynolds_solves=None,
+        time_limit=None,
         **kwargs,
     ):
         # ``locals()`` of a method that uses zero-argument ``super()`` also
@@ -439,6 +509,9 @@ class FluidFilmBearing(BearingElement):
         for name, value in locals().items():
             if name not in ("self", "kwargs", "num_processes", "__class__"):
                 setattr(self, name, value)
+
+        self.time_limit = None if time_limit is None else _to_base_unit(time_limit, "s")
+        self._validate_solver_controls()
 
         for name, valid in _TYPE_FLAGS.items():
             value = getattr(self, name)
@@ -518,12 +591,17 @@ class FluidFilmBearing(BearingElement):
 
         coefficient_table = {}
         case_outputs = None
+        table_speed = self.speed_range
         initial_time = final_time = None
         if kwargs.get("kxx") is None:
             self._validate_inputs()
             initial_time = time.time()
             case_outputs = self._solve_all(num_processes, self._engine_cases())
             final_time = time.time()
+            convergence = [out.pop("convergence")[0] for out in case_outputs]
+            converged = np.array([c["converged"] for c in convergence], dtype=bool)
+            rows = self._table_rows(converged, convergence)
+            table_speed = self.speed_range[rows]
 
             coefficients = ("kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy")
             coefficient_table = {
@@ -533,13 +611,17 @@ class FluidFilmBearing(BearingElement):
             if self.frequency_range is not None:
                 shape = (self.speed_range.size, self.frequency_range.size)
                 coefficient_table = {
-                    name: table.reshape(shape)
+                    name: table.reshape(shape)[rows]
                     for name, table in coefficient_table.items()
+                }
+            else:
+                coefficient_table = {
+                    name: table[rows] for name, table in coefficient_table.items()
                 }
 
         super().__init__(
             n=n,
-            speed=self.speed_range,
+            speed=table_speed,
             frequency=self.frequency_range,
             **coefficient_table,
             **kwargs,
@@ -547,10 +629,16 @@ class FluidFilmBearing(BearingElement):
 
         if case_outputs is not None:
             case_speeds = self.speed_range
+            case_frequencies = self.excitation_ratio * self.speed_range
             if self.frequency_range is not None:
                 case_speeds = np.repeat(self.speed_range, self.frequency_range.size)
+                case_frequencies = np.tile(self.frequency_range, self.speed_range.size)
             fields = [out.pop("fields")[0] for out in case_outputs]
-            self._results = FluidFilmBearingResults(
+
+            def case_values(name):
+                return np.array([out[name][0] for out in case_outputs], dtype=float)
+
+            self.results = self._results = FluidFilmBearingResults(
                 frequency=case_speeds,
                 pressure_fields=[f["pressure"] for f in fields],
                 temperature_fields=[f["film_temperature"] for f in fields],
@@ -565,17 +653,149 @@ class FluidFilmBearing(BearingElement):
                 ),
                 pad_radial_positions=fields[0].get("pad_radial_position"),
                 outputs=case_outputs,
-                kxx=np.ravel(self.kxx),
-                kxy=np.ravel(self.kxy),
-                kyx=np.ravel(self.kyx),
-                kyy=np.ravel(self.kyy),
-                cxx=np.ravel(self.cxx),
-                cxy=np.ravel(self.cxy),
-                cyx=np.ravel(self.cyx),
-                cyy=np.ravel(self.cyy),
+                kxx=case_values("kxx"),
+                kxy=case_values("kxy"),
+                kyx=case_values("kyx"),
+                kyy=case_values("kyy"),
+                cxx=case_values("cxx"),
+                cxy=case_values("cxy"),
+                cyx=case_values("cyx"),
+                cyy=case_values("cyy"),
                 initial_time=initial_time,
                 final_time=final_time,
+                converged=converged,
+                convergence=convergence,
+                whirl_frequency=case_frequencies,
+                pad_forces=[f["pad_force"] for f in fields],
+                bearing_data=self._bearing_data(),
             )
+
+    @property
+    def operating_results(self):
+        """Operating quantities of every solved case, converged or not.
+
+        One row per case; see
+        :attr:`ross.bearings.bearing_results.FluidFilmBearingResults.operating_results`
+        for the columns.
+
+        Returns
+        -------
+        pandas.DataFrame
+        """
+        results = self.__dict__.get("_results")
+        if results is None:
+            raise AttributeError(_NO_OPERATING_RESULTS)
+        return results.operating_results
+
+    def _bearing_data(self):
+        """Inputs the operating table needs besides the solver outputs."""
+        from ross.bearings.film.lubricant import exponential_viscosity
+
+        props = self.lubricant_properties
+        return {
+            "journal_diameter": float(self.journal_diameter),
+            "radial_clearance": float(self.radial_clearance),
+            "axial_length": float(self.pad_axial_length[0]),
+            "viscosity_supply": float(
+                exponential_viscosity(
+                    props["viscosity1"],
+                    props["viscosity2"],
+                    props["temp1"],
+                    props["temp2"],
+                    float(self.oil_supply_temperature),
+                )
+            ),
+            "density": props["lube_density"],
+            "thermal_type": self.thermal_type,
+            "load": (float(self.fxs_load), float(self.fys_load) - float(self.weight)),
+        }
+
+    def _validate_solver_controls(self):
+        """Check ``on_failure``, ``max_reynolds_solves`` and ``time_limit``.
+
+        Raises
+        ------
+        ValueError
+            If ``on_failure`` is not one of ``"warn"``, ``"raise"``,
+            ``"keep"``, or the budget or time limit is not positive.
+        """
+        if self.on_failure not in ON_FAILURE:
+            raise ValueError(
+                f"on_failure must be one of {list(ON_FAILURE)}, not {self.on_failure!r}"
+            )
+        budget = self.max_reynolds_solves
+        if budget is not None and not (
+            np.isfinite(float(budget)) and float(budget) == int(budget) >= 1
+        ):
+            raise ValueError(
+                f"max_reynolds_solves must be a positive integer, got {budget!r}"
+            )
+        limit = self.time_limit
+        if limit is not None and not (np.isfinite(limit) and limit > 0):
+            raise ValueError(f"time_limit must be positive, got {limit!r} s")
+
+    def _table_rows(self, converged, convergence):
+        """Speed rows of the coefficient table, per ``on_failure``.
+
+        Parameters
+        ----------
+        converged : numpy.ndarray of bool
+            One flag per solved case, in case order.
+        convergence : list of dict
+            The convergence summary of each case.
+
+        Returns
+        -------
+        numpy.ndarray of bool
+            One flag per speed: True for a row of the coefficient table.
+
+        Raises
+        ------
+        FluidFilmConvergenceError
+            With ``on_failure="raise"``, when a case did not converge.
+        """
+        from ross.bearings.film.loops import ConvergenceWarning
+        from ross.bearings.fluid_film.diagnostics import FluidFilmConvergenceError
+
+        n_speeds = self.speed_range.size
+        per_speed = converged.reshape(n_speeds, -1).all(axis=1)
+        if converged.all():
+            return per_speed
+        failed = []
+        for index in np.flatnonzero(~converged):
+            speed = self.speed_range[index // (converged.size // n_speeds)]
+            case = f"speed {speed:.6g} rad/s"
+            if self.frequency_range is not None:
+                frequency = self.frequency_range[index % self.frequency_range.size]
+                case += f", frequency {frequency:.6g} rad/s"
+            failed.append(f"{case} ({convergence[index]['message']})")
+        failed = "; ".join(failed)
+        if self.on_failure == "raise":
+            raise FluidFilmConvergenceError(f"cases did not converge: {failed}")
+        if self.on_failure == "keep" or not per_speed.any():
+            note = (
+                "every row is kept (on_failure='keep')"
+                if self.on_failure == "keep"
+                else "no speed converged, so every row is kept: the table holds the "
+                "last iterates of failed solves, which are not bearing "
+                "coefficients (do not use this element in a rotor analysis)"
+            )
+            warnings.warn(
+                f"cases did not converge: {failed}; {note}",
+                ConvergenceWarning,
+                skip_file_prefixes=_INTERNAL_FILES,
+            )
+            return np.ones(n_speeds, dtype=bool)
+        warnings.warn(
+            f"cases did not converge: {failed}; speeds "
+            f"{np.round(self.speed_range[~per_speed], 6).tolist()} rad/s are left out "
+            "of the element coefficient table (it interpolates between the "
+            "converged speeds; the failed cases stay in results and "
+            "operating_results)",
+            ConvergenceWarning,
+            skip_file_prefixes=_INTERNAL_FILES,
+        )
+        return per_speed
 
     def _validate_inputs(self):
         """Check the solver inputs before any case is solved.
@@ -757,6 +977,9 @@ class FluidFilmBearing(BearingElement):
     def __getattr__(self, name):
         if name.startswith("plot_") or name.startswith("show_"):
             return getattr(self._results, name)
+        if name == "operating_results":
+            # Python retries a property that raised AttributeError here.
+            raise AttributeError(_NO_OPERATING_RESULTS)
         raise AttributeError(
             f"'{type(self).__name__}' object has no attribute '{name}'"
         )
@@ -820,6 +1043,9 @@ class FluidFilmBearing(BearingElement):
         inputs = {
             "frequency": float(speed),
             "field_outputs": True,
+            "diagnostics": True,
+            "max_reynolds_solves": self.max_reynolds_solves,
+            "time_limit": self.time_limit,
             # meshes
             "total_e_x_film": int(self.total_ex_film),
             "total_e_y_film": int(self.total_ey_film),

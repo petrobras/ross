@@ -682,17 +682,19 @@ def test_flooded_ambient_pressure_warns(no_solve, operating_type, pressures, war
 def test_flooded_groove_pressure_acts_as_a_constant_load():
     """In flooded mode the ambient pressures still load the grooves.
 
-    Two lands of 160 and 100 deg (pivots 90 and 240 deg, offset 0.5) leave
+    Two lands of 160 and 100 deg (pivots 270 and 60 deg, offset 0.5) leave
     grooves of 20 and 80 deg. The groove pressure p = 2e5 Pa pushes on the
     journal with F = -p R L * integral of (cos, sin) over the groove arcs,
     integrated here by quadrature. The build with p must therefore match the
-    build at p = 0 with F added to the applied load.
+    build at p = 0 with F added to the applied load. The 160 deg land sits
+    under the load: with it at 90 deg, away from the load, none of the three
+    equilibria converges.
     """
     from scipy.integrate import quad
 
     p = 2e5
     layout = dict(
-        pivot_angle=np.radians([90.0, 240.0]),
+        pivot_angle=np.radians([270.0, 60.0]),
         pad_arc=np.radians([160.0, 100.0]),
         offset=[0.5, 0.5],
         operating_type="regular_flooded",
@@ -702,7 +704,7 @@ def test_flooded_groove_pressure_acts_as_a_constant_load():
     )
     radius = kwargs["journal_diameter"] / 2
     length = kwargs["pad_axial_length"][0]
-    grooves = np.radians([(170.0, 190.0), (290.0, 370.0)])
+    grooves = np.radians([(350.0, 370.0), (110.0, 190.0)])
     fx, fy = (
         -sum(p * radius * length * quad(f, a, b)[0] for a, b in grooves)
         for f in (np.cos, np.sin)
@@ -718,6 +720,7 @@ def test_flooded_groove_pressure_acts_as_a_constant_load():
         fys_load=float(kwargs["fys_load"]) + fy,
     )
     shifted = FluidFilmBearing(**kwargs)
+    assert loaded.results.converged[0] and shifted.results.converged[0]
     out_loaded = loaded._results.outputs[0]
     out_shifted = shifted._results.outputs[0]
     for key in ("eccentricity", "attitude"):
@@ -731,7 +734,53 @@ def test_flooded_groove_pressure_acts_as_a_constant_load():
         fxs_load=float(kwargs["fxs_load"]) - fx, fys_load=float(kwargs["fys_load"]) - fy
     )
     unloaded = FluidFilmBearing(**kwargs)
+    assert unloaded.results.converged[0]
     assert abs(unloaded.kyy[0] / loaded.kyy[0] - 1) > 5e-3
+
+
+def test_groove_force_does_not_depend_on_the_pad_order():
+    """The same two lands listed in either order give the same bearing.
+
+    With the pads listed as (270, 60) deg the groove between them crosses
+    0 rad; its arc was computed by adding 360 (degrees) to an angle in radians,
+    which turned a 20 deg groove into a 354 rad one. Listed as
+    (60, 270) deg the wrap is handled by the first pad's branch, which was
+    right. Reference: the second ordering, and the groove-force quadrature of
+    ``test_flooded_groove_pressure_acts_as_a_constant_load``.
+    """
+    common = dict(
+        pad_arc=np.radians([160.0, 100.0]),
+        offset=[0.5, 0.5],
+        ambient_pressure_1=2e5,
+        ambient_pressure_2=2e5,
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        listed = []
+        for pivots, arcs in (
+            ((270.0, 60.0), (160.0, 100.0)),
+            ((60.0, 270.0), (100.0, 160.0)),
+        ):
+            kwargs, _ = bearing_kwargs_from_fixture(
+                "fixed_isoviscous",
+                **dict(
+                    common, pivot_angle=np.radians(pivots), pad_arc=np.radians(arcs)
+                ),
+            )
+            listed.append(FluidFilmBearing(**kwargs))
+    first, second = listed
+    assert first.results.converged[0] and second.results.converged[0]
+    for key in ("eccentricity", "attitude", "power_loss"):
+        assert_allclose(
+            first.results.outputs[0][key][0],
+            second.results.outputs[0][key][0],
+            rtol=1e-9,
+            err_msg=key,
+        )
+    for coef in ("kxx", "kxy", "kyx", "kyy", "cxx", "cyy"):
+        assert_allclose(
+            getattr(first, coef), getattr(second, coef), rtol=1e-9, err_msg=coef
+        )
 
 
 def _blend(re_max, re_lower, re_upper, exponent):

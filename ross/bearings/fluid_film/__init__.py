@@ -32,6 +32,10 @@ Module                      Responsibility
                             coefficients, the journal-equilibrium Jacobian,
                             and the dynamic reduction over the pad tilt (and
                             pivot) degrees of freedom.
+``diagnostics``             Convergence records of every loop of a case
+                            (``LoopMonitor``), the Reynolds-solve and time
+                            budget (``CaseBudget``) and
+                            ``FluidFilmConvergenceError``.
 ``driver``                 Orchestration: meshes once, then loops over speed
                             cases through the thermal / deformation /
                             equilibrium iterations and assembles the outputs.

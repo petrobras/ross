@@ -16,6 +16,7 @@ The package is SI throughout; ``run_case`` accepts SI and returns SI.
 """
 
 import inspect
+import time
 from types import SimpleNamespace
 
 import numpy as np
@@ -27,8 +28,14 @@ from ross.bearings.fluid_film._numba_kernels import (
 )
 from ross.bearings.fluid_film.constants import (
     PI,
+    PIVOT_ERROR,
     PIVOT_FLEX_DEFORM_TYPES,
     TILTING_PAD_TYPES,
+)
+from ross.bearings.fluid_film.diagnostics import (
+    CaseBudget,
+    LoopMonitor,
+    SolverBudgetExceeded,
 )
 from ross.bearings.fluid_film.state import (
     EnergyMesh,
@@ -1081,9 +1088,33 @@ def run_case(**kw):
     :func:`_assemble_field_outputs`. The named-output surface above is
     unchanged.
 
+    Every case runs under a work budget (:class:`~ross.bearings.fluid_film.
+    diagnostics.CaseBudget`): ``max_reynolds_solves`` zeroth-order Reynolds
+    solves (default
+    :func:`~ross.bearings.fluid_film.diagnostics.default_budget`, 400,000
+    per pad), a cap per equilibrium solve (4,000 per pad) and an optional
+    ``time_limit`` (s). A case that reaches a limit stops; its outputs are
+    evaluated at the last Newton iterate of the journal position (one more
+    film solve, not counted), with the temperature fields of the last
+    completed thermal pass.
+
+    With ``diagnostics=True`` the dict gains a ``"convergence"`` key (one
+    summary dict per case, see
+    :meth:`~ross.bearings.fluid_film.diagnostics.LoopMonitor.summary`) and
+    ``"non_convergence"`` holds ``""`` for a converged case, else
+    ``"<loop>: <reason> (residual r)"``. Without it ``"non_convergence"`` is
+    ``[""]`` as it has always been. The private ``_tolerance_scale``
+    (default 1.0) multiplies every loop tolerance; it exists for tests that
+    compare two solution paths.
+
     The internal state dict ``g`` carries SI values across every solver
     module.
     """
+    case_start = time.perf_counter()
+    diagnostics = bool(kw.get("diagnostics", False))
+    tolerance_scale = float(kw.get("_tolerance_scale", 1.0))
+    monitor = LoopMonitor()
+    budget = _case_budget(kw)
     from ross.bearings.fluid_film import coefficients as _coeff
     from ross.bearings.fluid_film import deform as _deform
     from ross.bearings.fluid_film import hydrodynamics as _hyd
@@ -1254,6 +1285,9 @@ def run_case(**kw):
         ),
     }
 
+    g["_monitor"] = monitor
+    g["_tolerance_scale"] = tolerance_scale
+
     g.update(_adapt(_mesh_reynolds(), g))
     g.update(_adapt(_mesh_energy(), g))
     g.update(_adapt(_mesh_3d(), g))
@@ -1389,17 +1423,31 @@ def run_case(**kw):
             press=press,
             integrate_xz=_integrate_xz_coeff,
             trapezoid=trapezoid,
+            monitor=state.get("_monitor"),
+            tolerance_scale=tolerance_scale,
         )
+
+    def counted_press(*args, **kwargs):
+        # Every zeroth-order Reynolds solve of the case goes through here.
+        budget.charge()
+        return _press.press(*args, **kwargs)
 
     def jacobian_fn(state):
         # ``state`` is 0-based natural (g is 0-based end-to-end).
         return _adapt(_coeff.jacobian, state, helpers=helpers)
+
+    # The state dict of the running ``hydrodynamics`` call. The thermal and
+    # deformation loops pass it a copy of ``g``, so a stop inside the call
+    # reads the last Newton iterate of the journal position from here.
+    live = {"state": g}
 
     def _call_hyd(state0):
         # 0-based-native hydro entry. ``state0`` is the live 0-based state;
         # ``hydrodynamics`` mutates the mesh/film fields it produces in place
         # (via ``s.update(fb)`` onto the same array objects) and returns the
         # working state, so the caller observes the updates by aliasing.
+        budget.start_call()
+        live["state"] = state0
         return _hyd.hydrodynamics(
             state0,
             state0["fx_ext"],
@@ -1415,7 +1463,7 @@ def run_case(**kw):
             fixed_brg_fn=fixed_brg_fn,
             jacobian_fn=jacobian_fn,
             integrate_xz=_integrate_xz_coeff,
-            press=_press.press,
+            press=counted_press,
         )
 
     def _hyd_kwargs_adapter(**kw):
@@ -1423,208 +1471,278 @@ def run_case(**kw):
         # as kwargs; re-bundle into the positional state dict.
         return _call_hyd(kw)
 
-    if g["thermal_type"] is None and g["deform_type"] is None:
-        g.update(_call_hyd(g))
-    else:
-        from ross.bearings.fluid_film import thd as _thd
-        from ross.bearings.fluid_film import thermal as _thermal
-        from ross.bearings.fluid_film.constants import (
-            DEFORM_ERROR,
-            MAX_ITERATION,
-            SUMP_TEMP_ERROR,
-        )
-
-        def _filter_kw(fn, kw):
-            params = inspect.signature(fn).parameters
-            return {k: v for k, v in kw.items() if k in params}
-
-        def _thermal_adiab_wrap(**kw):
-            return _thermal.thermal_adiabatic(
-                **_filter_kw(_thermal.thermal_adiabatic, kw)
+    def _equilibrium():
+        if g["thermal_type"] is None and g["deform_type"] is None:
+            g.update(_call_hyd(g))
+        else:
+            from ross.bearings.fluid_film import thd as _thd
+            from ross.bearings.fluid_film import thermal as _thermal
+            from ross.bearings.fluid_film.constants import (
+                DEFORM_ERROR,
+                MAX_ITERATION,
+                SUMP_TEMP_ERROR,
             )
 
-        def _thermal_full_wrap(**kw):
-            return _thermal.thermal_full(**_filter_kw(_thermal.thermal_full, kw))
+            deform_tolerance = DEFORM_ERROR * tolerance_scale
+            pivot_tolerance = PIVOT_ERROR * tolerance_scale
+            sump_tolerance = SUMP_TEMP_ERROR * tolerance_scale
 
-        g.setdefault("relax_t_max", g["relaxt"])
-        g.setdefault("hd_converged", 1)
-        if g["deform_type"] is not None:
-            g.update(_adapt(_mesh_deform(), g))
-            for name, shape in (
-                ("deform_r_surface", (total_pads, dim_x)),
-                ("force_pivot", (total_pads,)),
-                ("pad_temp", (total_pads, dim_xy2)),
-                ("nodal_force", (total_pads, dim_xy2)),
-            ):
-                g.setdefault(name, np.zeros(shape))
-            g.setdefault("deform_pivot_old", np.zeros(total_pads))
-            # Pivot-flexibility buffer: ``deform_pivots`` writes per-pad
-            # k_pivot here; ``dynamic_reduction_pivot`` (deformation modes 4
-            # and 5) then reads it (0-based natural, slots 0..total_pads-1).
-            g.setdefault("k_pivot", np.zeros(total_pads))
+            def _filter_kw(fn, kw):
+                params = inspect.signature(fn).parameters
+                return {k: v for k, v in kw.items() if k in params}
 
-        for sump_index in range(1, MAX_ITERATION + 1):
-            if g["sump_type"] == "supply_temperature":
-                g["temp_sump"] = g["temp_supply"]
-            g["sump_index"] = sump_index
+            def _thermal_adiab_wrap(**kw):
+                return _thermal.thermal_adiabatic(
+                    **_filter_kw(_thermal.thermal_adiabatic, kw)
+                )
 
-            for elasto_pivot_index in range(1, MAX_ITERATION + 1):
-                for elasto_index in range(1, MAX_ITERATION + 1):
-                    g["elasto_index"] = elasto_index
-                    g["mixtemp_index"] = 1
-                    g["jtemp_index"] = 1
-                    g["vis_index"] = 1
-                    # ``g`` is 0-based natural end-to-end, so pass it directly
-                    # as every ``*_inputs`` argument; ``thermohydrodynamics`` and
-                    # the hydro/thermal wraps are all 0-based-native and share
-                    # the same array objects (in-place aliasing preserved).
-                    g0 = g
-                    thd_out = _thd.thermohydrodynamics(
-                        total_pads=g0["total_pads"],
-                        operating=g0["operating"],
-                        thermal_type=g0["thermal_type"],
-                        temp_j_type=g0["temp_j_type"],
-                        relax_t=g0["relaxt"],
-                        hd_inputs=g0,
-                        hydrodynamics=_hyd_kwargs_adapter,
-                        thermal_adiabatic=_thermal_adiab_wrap,
-                        thermal_full=_thermal_full_wrap,
-                        integrate_xz=_integrate_xz_coeff,
-                        trapezoid=trapezoid,
-                        thermal_inputs=g0,
-                        temp_max_inputs=g0,
-                        temp_journal_inputs=g0,
-                        t_outlet_inputs=g0,
-                        mixing_inputs=g0,
-                    )
-                    g.update(thd_out)
+            def _thermal_full_wrap(**kw):
+                return _thermal.thermal_full(**_filter_kw(_thermal.thermal_full, kw))
 
-                    pl_value, hp_value = _adapt(
-                        power_loss, g, speed_surface=g["speed_surface"]
-                    )
-                    g["powerloss"] = pl_value
-                    g["hp"] = hp_value
-                    g["dh_n_old"] = snapshot_film_deform(
-                        g["dh_n"],
-                    )
+            g.setdefault("relax_t_max", g["relaxt"])
+            g.setdefault("hd_converged", 1)
+            if g["deform_type"] is not None:
+                g.update(_adapt(_mesh_deform(), g))
+                for name, shape in (
+                    ("deform_r_surface", (total_pads, dim_x)),
+                    ("force_pivot", (total_pads,)),
+                    ("pad_temp", (total_pads, dim_xy2)),
+                    ("nodal_force", (total_pads, dim_xy2)),
+                ):
+                    g.setdefault(name, np.zeros(shape))
+                g.setdefault("deform_pivot_old", np.zeros(total_pads))
+                # Pivot-flexibility buffer: ``deform_pivots`` writes per-pad
+                # k_pivot here; ``dynamic_reduction_pivot`` (deformation modes 4
+                # and 5) then reads it (0-based natural, slots 0..total_pads-1).
+                g.setdefault("k_pivot", np.zeros(total_pads))
 
-                    if g["deform_type"] is not None:
-                        elasto_out = _adapt(
-                            _deform.elasto,
-                            g,
-                            helpers=helpers,
+            for sump_index in range(1, MAX_ITERATION + 1):
+                if g["sump_type"] == "supply_temperature":
+                    g["temp_sump"] = g["temp_supply"]
+                g["sump_index"] = sump_index
+
+                pivot_pass = None
+                for elasto_pivot_index in range(1, MAX_ITERATION + 1):
+                    for elasto_index in range(1, MAX_ITERATION + 1):
+                        g["elasto_index"] = elasto_index
+                        g["mixtemp_index"] = 1
+                        g["jtemp_index"] = 1
+                        g["vis_index"] = 1
+                        # ``g`` is 0-based natural end-to-end, so pass it directly
+                        # as every ``*_inputs`` argument; ``thermohydrodynamics`` and
+                        # the hydro/thermal wraps are all 0-based-native and share
+                        # the same array objects (in-place aliasing preserved).
+                        g0 = g
+                        thd_out = _thd.thermohydrodynamics(
+                            total_pads=g0["total_pads"],
+                            operating=g0["operating"],
+                            thermal_type=g0["thermal_type"],
+                            temp_j_type=g0["temp_j_type"],
+                            relax_t=g0["relaxt"],
+                            hd_inputs=g0,
+                            hydrodynamics=_hyd_kwargs_adapter,
+                            thermal_adiabatic=_thermal_adiab_wrap,
+                            thermal_full=_thermal_full_wrap,
                             integrate_xz=_integrate_xz_coeff,
                             trapezoid=trapezoid,
+                            thermal_inputs=g0,
+                            temp_max_inputs=g0,
+                            temp_journal_inputs=g0,
+                            t_outlet_inputs=g0,
+                            mixing_inputs=g0,
+                            monitor=monitor,
+                            tolerance_scale=tolerance_scale,
                         )
-                        deform_r, force_p, _, _ = elasto_out
-                        # ``elasto`` returns fully 0-based natural arrays.
-                        g["deform_r_surface"] = deform_r
-                        g["force_pivot"] = force_p
-                        dj, ds = deform_shaftshell(
-                            g["deform_type"],
-                            g["bearing_type"],
-                            g["journal_radius"],
-                            g["pad_thickness"],
-                            g["journal_expand"],
-                            g["shell_expand"],
-                            g["temp_j"],
-                            g["temp_sump"],
-                            g["temp_ref"],
+                        g.update(thd_out)
+
+                        pl_value, hp_value = _adapt(
+                            power_loss, g, speed_surface=g["speed_surface"]
                         )
-                        g["deform_journal"] = dj
-                        g["deform_shell"] = ds
-                        g["deform_crush"] = shell_crush(
-                            g["shell_id"], g["shell_od"], g["crush"]
-                        )
-                        g["dh_n"] = blend_film_deform(
-                            total_pads,
-                            g["total_e_z_film"],
-                            g["total_n_reynolds"],
-                            g["n_index_reynolds"],
-                            g["deform_r_surface"],
-                            ds,
-                            dj,
-                            g["deform_crush"],
+                        g["powerloss"] = pl_value
+                        g["hp"] = hp_value
+                        g["dh_n_old"] = snapshot_film_deform(
                             g["dh_n"],
                         )
 
-                    max_h_err = film_deform_residual(
-                        total_pads,
-                        g["total_n_reynolds"],
-                        g["n_index_reynolds"],
-                        g["dh_n"],
-                        g["dh_n_old"],
+                        if g["deform_type"] is not None:
+                            elasto_out = _adapt(
+                                _deform.elasto,
+                                g,
+                                helpers=helpers,
+                                integrate_xz=_integrate_xz_coeff,
+                                trapezoid=trapezoid,
+                            )
+                            deform_r, force_p, _, _ = elasto_out
+                            # ``elasto`` returns fully 0-based natural arrays.
+                            g["deform_r_surface"] = deform_r
+                            g["force_pivot"] = force_p
+                            dj, ds = deform_shaftshell(
+                                g["deform_type"],
+                                g["bearing_type"],
+                                g["journal_radius"],
+                                g["pad_thickness"],
+                                g["journal_expand"],
+                                g["shell_expand"],
+                                g["temp_j"],
+                                g["temp_sump"],
+                                g["temp_ref"],
+                            )
+                            g["deform_journal"] = dj
+                            g["deform_shell"] = ds
+                            g["deform_crush"] = shell_crush(
+                                g["shell_id"], g["shell_od"], g["crush"]
+                            )
+                            g["dh_n"] = blend_film_deform(
+                                total_pads,
+                                g["total_e_z_film"],
+                                g["total_n_reynolds"],
+                                g["n_index_reynolds"],
+                                g["deform_r_surface"],
+                                ds,
+                                dj,
+                                g["deform_crush"],
+                                g["dh_n"],
+                            )
+
+                        max_h_err = film_deform_residual(
+                            total_pads,
+                            g["total_n_reynolds"],
+                            g["n_index_reynolds"],
+                            g["dh_n"],
+                            g["dh_n_old"],
+                        )
+                        if max_h_err / g["cb"] < deform_tolerance:
+                            break
+                        g["dh_n"] = relax_film_deform(
+                            total_pads,
+                            g["total_n_reynolds"],
+                            g["n_index_reynolds"],
+                            g["relaxd"],
+                            g["dh_n"],
+                            g["dh_n_old"],
+                        )
+                    monitor.record(
+                        "elasto",
+                        elasto_index,
+                        max_h_err / g["cb"],
+                        deform_tolerance,
+                        max_h_err / g["cb"] < deform_tolerance,
                     )
-                    if max_h_err / g["cb"] < DEFORM_ERROR:
+                    if g["deform_type"] in PIVOT_FLEX_DEFORM_TYPES:
+                        # After the inner elasto loop, snapshot the current
+                        # pivot deformation, recompute it
+                        # (and k_pivot) from the freshly-converged force_pivot,
+                        # break the outer loop on RMS convergence, otherwise
+                        # relax and iterate.
+                        g["deform_pivot_old"][:] = g["deform_pivot"]
+                        dp, kp = _deform.deform_pivots(
+                            total_pads,
+                            g["deform_type"],
+                            g["pivot_type"],
+                            g["poisson"],
+                            g["young"],
+                            g["pivot_diameter"],
+                            g["house_diameter"],
+                            g["axial_length"],
+                            g["pivot_stiff"],
+                            g["force_pivot"],
+                            g["deform_pivot"],
+                            g["k_pivot"],
+                        )
+                        g["deform_pivot"][:] = dp
+                        g["k_pivot"][:] = kp
+                        rms_pivot = pivot_deform_residual(
+                            total_pads, g["deform_pivot_old"], g["deform_pivot"]
+                        )
+                        pivot_pass = (elasto_pivot_index, rms_pivot / g["cb"], kp)
+                        if rms_pivot / g["cb"] < pivot_tolerance:
+                            break
+                        g["deform_pivot"] = relax_pivot_deform(
+                            total_pads,
+                            g["deform_pivot"],
+                            g["deform_pivot_old"],
+                            g["relaxpivot"],
+                        )
+                    else:
                         break
-                    g["dh_n"] = relax_film_deform(
-                        total_pads,
-                        g["total_n_reynolds"],
-                        g["n_index_reynolds"],
-                        g["relaxd"],
-                        g["dh_n"],
-                        g["dh_n_old"],
-                    )
-                if g["deform_type"] in PIVOT_FLEX_DEFORM_TYPES:
-                    # After the inner elasto loop, snapshot the current
-                    # pivot deformation, recompute it
-                    # (and k_pivot) from the freshly-converged force_pivot,
-                    # break the outer loop on RMS convergence, otherwise
-                    # relax and iterate.
-                    g["deform_pivot_old"][:] = g["deform_pivot"]
-                    dp, kp = _deform.deform_pivots(
-                        total_pads,
-                        g["deform_type"],
+                if pivot_pass is None:
+                    monitor.record("pivot", 1, 0.0, pivot_tolerance, True)
+                else:
+                    _record_pivot(
+                        monitor,
+                        *pivot_pass[:2],
+                        pivot_tolerance,
                         g["pivot_type"],
-                        g["poisson"],
-                        g["young"],
-                        g["pivot_diameter"],
-                        g["house_diameter"],
-                        g["axial_length"],
-                        g["pivot_stiff"],
-                        g["force_pivot"],
-                        g["deform_pivot"],
-                        g["k_pivot"],
+                        pivot_pass[2],
                     )
-                    g["deform_pivot"][:] = dp
-                    g["k_pivot"][:] = kp
-                    rms_pivot = pivot_deform_residual(
-                        total_pads, g["deform_pivot_old"], g["deform_pivot"]
-                    )
-                    if rms_pivot / g["cb"] < 0.01:
-                        break
-                    g["deform_pivot"] = relax_pivot_deform(
-                        total_pads,
-                        g["deform_pivot"],
-                        g["deform_pivot_old"],
-                        g["relaxpivot"],
+                temp_sump_old = g["temp_sump"]
+                if g["operating_type"] == "oil_ring_lubricated":
+                    g["temp_sump"] = sump_temp(
+                        g.get("powerloss", 0.0),
+                        g.get("area_sumpconvec", 1.0),
+                        g["temp_environment"],
+                        g["convec_environment"],
                     )
                 else:
+                    g["temp_sump"] = drain_temp(
+                        g["q_supply"],
+                        g["lube"],
+                        g.get("powerloss", 0.0),
+                        g["temp_supply"],
+                    )
+                if g["sump_type"] == "supply_temperature":
+                    sump_pass = (1, 0.0)
                     break
-            temp_sump_old = g["temp_sump"]
-            if g["operating_type"] == "oil_ring_lubricated":
-                g["temp_sump"] = sump_temp(
-                    g.get("powerloss", 0.0),
-                    g.get("area_sumpconvec", 1.0),
-                    g["temp_environment"],
-                    g["convec_environment"],
-                )
-            else:
-                g["temp_sump"] = drain_temp(
-                    g["q_supply"],
-                    g["lube"],
-                    g.get("powerloss", 0.0),
-                    g["temp_supply"],
-                )
-            if g["sump_type"] == "supply_temperature":
-                break
-            # Once the sump temperature settles, stop iterating the outer
-            # sump loop. Without this break the solver keeps re-solving the
-            # full thermo-elastic problem to MAX_ITERATION, over-converging the
-            # carried-over thermal field and landing the journal equilibrium at
-            # a marginally different fixed point.
-            if abs(g["temp_sump"] - temp_sump_old) < SUMP_TEMP_ERROR:
-                break
+                # Once the sump temperature settles, stop iterating the outer
+                # sump loop. Without this break the solver keeps re-solving the
+                # full thermo-elastic problem to MAX_ITERATION, over-converging the
+                # carried-over thermal field and landing the journal equilibrium at
+                # a marginally different fixed point.
+                d_sump = abs(g["temp_sump"] - temp_sump_old)
+                sump_pass = (sump_index, d_sump)
+                if d_sump < sump_tolerance:
+                    break
+            monitor.record(
+                "sump", *sump_pass, sump_tolerance, sump_pass[1] < sump_tolerance
+            )
+
+    try:
+        _equilibrium()
+    except SolverBudgetExceeded as stop:
+        # Evaluate the outputs at the last journal position: one film solve
+        # with the position held (no Newton, no film-onset search), not
+        # counted and not recorded. The interrupted ``hydrodynamics`` call
+        # holds the last Newton iterate; a thermal pass that did not finish
+        # never copied it back to ``g``.
+        monitor.stop(stop.reason, str(stop))
+        g["xj"] = live["state"]["xj"]
+        g["yj"] = live["state"]["yj"]
+        budget.enabled = False
+        g["_monitor"] = None
+        # A thermal case stopped before its first temperature pass has no
+        # outlet temperatures yet.
+        for name in ("temp_outlet", "temp_outlet_bulk"):
+            g.setdefault(name, np.full(total_pads, np.nan))
+        g.update(
+            _hyd.hydrodynamics(
+                g,
+                g["fx_ext"],
+                g["fy_ext"],
+                "match_eccentricity",
+                g["starve_number"],
+                sump_index=2,
+                elasto_index=2,
+                mixtemp_index=2,
+                jtemp_index=2,
+                vis_index=2,
+                relaxp=g["relaxp"],
+                fixed_brg_fn=fixed_brg_fn,
+                jacobian_fn=jacobian_fn,
+                integrate_xz=_integrate_xz_coeff,
+                press=_press.press,
+            )
+        )
+        g["_monitor"] = monitor
 
     power_loss_value, hp = _adapt(power_loss, g, speed_surface=g["speed_surface"])
     g["temp_sump"] = drain_temp(
@@ -1673,9 +1791,79 @@ def run_case(**kw):
             g["k_rotate"],
         )
     outputs = _assemble_outputs(g, hp, reduced)
+    h_min = np.asarray(g["h_min"], dtype=float)[:total_pads]
+    if np.any(h_min <= 0.0):
+        monitor.stop(
+            "contact",
+            f"minimum film thickness {float(np.min(h_min)):.3g} m: the journal "
+            "position crosses the bearing surface",
+        )
+    non_finite = [
+        name for name in _CHECKED_OUTPUTS if not np.all(np.isfinite(outputs[name]))
+    ]
+    if non_finite:
+        monitor.stop("non_finite", "non-finite " + ", ".join(non_finite))
+    if diagnostics:
+        outputs["non_convergence"] = [monitor.message()]
+        outputs["convergence"] = [
+            monitor.summary(budget, wall_time=time.perf_counter() - case_start)
+        ]
     if field_outputs:
         outputs["fields"] = [_assemble_field_outputs(g)]
     return outputs
+
+
+# Outputs whose non-finite value marks the case as failed.
+_CHECKED_OUTPUTS = (
+    "eccentricity",
+    "fx_hydro",
+    "fy_hydro",
+    "power_loss",
+    "kxx",
+    "kxy",
+    "kyx",
+    "kyy",
+    "cxx",
+    "cxy",
+    "cyx",
+    "cyy",
+)
+
+
+def _case_budget(kw):
+    """Build the work budget of a case from the ``run_case`` keywords."""
+    from ross.bearings.fluid_film.diagnostics import default_budget
+
+    max_solves, per_call = default_budget(len(np.atleast_1d(kw["pivot_angle"])))
+    if kw.get("max_reynolds_solves") is not None:
+        max_solves = int(kw["max_reynolds_solves"])
+    return CaseBudget(
+        max_reynolds_solves=max_solves,
+        max_solves_per_call=per_call,
+        time_limit=kw.get("time_limit"),
+    )
+
+
+def _record_pivot(monitor, iterations, residual, tolerance, pivot_type, k_pivot):
+    """Record a pass of the pivot loop; a pivot pulled off its pad fails it.
+
+    The Hertz and rocker-back pivot stiffness grows with the pad force as
+    ``F**(1/3)`` / ``F**0.1``. A pad with no film force (fully cavitated) has
+    zero pivot stiffness and carries nothing, which is a valid state; a
+    negative pad force (the film pulls the pad off its pivot) gives a NaN
+    stiffness, and a state where no pad loads its pivot has no stiffness at
+    all. Both are reported as ``"pivot_unloaded"``.
+    """
+    k_pivot = np.asarray(k_pivot, dtype=float)
+    unloaded = pivot_type != "user_specified_stiffness" and (
+        not np.all(np.isfinite(k_pivot)) or not np.any(k_pivot > 0.0)
+    )
+    if unloaded:
+        monitor.record(
+            "pivot", iterations, residual, tolerance, False, "pivot_unloaded"
+        )
+    else:
+        monitor.record("pivot", iterations, residual, tolerance, residual < tolerance)
 
 
 def _mesh_reynolds():
@@ -1931,7 +2119,9 @@ def _assemble_field_outputs(g):
         radially averaged film temperature; the supply temperature when no
         thermal model ran), each shaped ``(total_pads, dim_x, dim_z)``,
         plus ``"leading_edge_angle"`` (rad, shape ``(total_pads,)``) to
-        place each pad on the bearing circumference.
+        place each pad on the bearing circumference, and ``"pad_force"``
+        (N, shape ``(total_pads, 2)``, the film force of each pad along
+        ``x`` and ``y``).
 
         When the full (conducting-pad) thermal model ran, the dict also
         carries the solid pad temperature: ``"pad_temperature"`` (K,
@@ -1956,6 +2146,12 @@ def _assemble_field_outputs(g):
         "film_thickness": grid(g["h_n"]),
         "film_temperature": grid(g["t_average"]),
         "leading_edge_angle": np.asarray(pads.leading_angle_rad, dtype=float).copy(),
+        "pad_force": np.column_stack(
+            [
+                np.asarray(g["fx_hydroi"], dtype=float)[:total_pads],
+                np.asarray(g["fy_hydroi"], dtype=float)[:total_pads],
+            ]
+        ),
     }
 
     if g.get("thermal_type") == "full":
