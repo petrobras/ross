@@ -177,6 +177,7 @@ def lu_solve_band_cavitating_jit(
     index1,
     b,
     press_cavitate,
+    clamped,
 ):
     """Banded LU back/forward solve with the Reynolds cavitation clamp (0-based).
 
@@ -184,7 +185,9 @@ def lu_solve_band_cavitating_jit(
     ``(dim_xz, bandwidth - 1)`` (the factors returned by
     :func:`lu_factor_band_jit`);
     ``index1`` carries 1-based pivot rows at slot ``k - 1``; ``b`` is 0-based
-    (node ``k`` at slot ``k - 1``) and is overwritten in place.
+    (node ``k`` at slot ``k - 1``) and is overwritten in place. ``clamped``
+    (boolean, same slots as ``b``) is set True where the back substitution
+    raised the value to ``press_cavitate``.
     """
     total_column = 2 * bandwidth_reynolds - 1
 
@@ -210,7 +213,9 @@ def lu_solve_band_cavitating_jit(
         b[i - 1] = dum / a[i - 1, 0]
         if ll < total_column:
             ll += 1
-        b[i - 1] = max(b[i - 1], press_cavitate)
+        if b[i - 1] < press_cavitate:
+            b[i - 1] = press_cavitate
+            clamped[i - 1] = True
     return b
 
 
@@ -839,8 +844,7 @@ def press_bc_pert_jit(
     pad_length_p,
     axial_length_p,
     arc_length_rad_0,
-    nodal_pressure,
-    press_cavitate,
+    cavitated,
     total_n_reynolds,
     n_index_reynolds,
     x_reynolds,
@@ -852,6 +856,8 @@ def press_bc_pert_jit(
     node ids; ``film_onset_p`` is 0-based. Returns
     ``(total_bc, press_bc_index, prescribed_press)`` with ``press_bc_index``
     carrying 0-based node ids (only first ``total_bc`` entries meaningful).
+    ``cavitated`` (boolean, ``(total_pads, dim_xz)``) marks the nodes the
+    zeroth-order solve held at the cavitation pressure.
     """
     press_bc_index = np.zeros(dim_xz, dtype=np.int64)
     prescribed_press = np.zeros(dim_xz, dtype=np.float64)
@@ -876,7 +882,7 @@ def press_bc_pert_jit(
                 or abs(zr - axial_length_p) < 1.0e-6
                 or nid + 1 <= (film_onset_p + 1) * (total_e_z_film + 1)
                 or abs(xr - pad_length_p) < 1.0e-6
-                or abs(nodal_pressure[p, nid] - press_cavitate) < 1.0e-6
+                or cavitated[p, nid]
             ):
                 press_bc_index[j] = nid
                 prescribed_press[j] = 0.0

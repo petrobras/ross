@@ -106,13 +106,13 @@ def press_bc_pert(
     pad_index,
     film_onset,
     pads,
-    nodal_pressure,
-    press_cavitate,
+    cavitated,
 ):
     """Build the prescribed-pressure boundary condition for a perturbation.
 
     Returns the list of constrained nodes and their prescribed (always zero)
-    pressures.
+    pressures: the film edges, the nodes before the film onset and the nodes
+    the zeroth-order solve held at the cavitation pressure.
 
     Parameters
     ----------
@@ -125,10 +125,9 @@ def press_bc_pert(
     pads : PadGeometry
         Per-pad geometry (``pad_length``, ``axial_length``,
         ``arc_length_rad``).
-    nodal_pressure : ndarray, shape (total_pads, dim_xz)
-        Zeroth-order nodal pressure (used to detect the cavitation region).
-    press_cavitate : float
-        Cavitation pressure, Pa.
+    cavitated : ndarray of bool, shape (total_pads, dim_xz)
+        Nodes held at the cavitation pressure by the zeroth-order solve
+        (returned by :func:`ross.bearings.fluid_film.pressure.press`).
 
     Returns
     -------
@@ -149,8 +148,7 @@ def press_bc_pert(
         float(pads.pad_length[p]),
         float(pads.axial_length[p]),
         float(pads.arc_length_rad[0]),
-        np.ascontiguousarray(nodal_pressure, dtype=np.float64),
-        float(press_cavitate),
+        np.ascontiguousarray(cavitated, dtype=np.bool_),
         int(mesh.total_nodes),
         np.ascontiguousarray(mesh.n_index, dtype=np.int64),
         np.ascontiguousarray(mesh.x, dtype=np.float64),
@@ -232,8 +230,7 @@ def _solve_pert_pressure(
     pads,
     vis_effect_3d,
     h_n,
-    press_cavitate,
-    nodal_pressure,
+    cavitated,
     element_source_all,
     helpers,
 ):
@@ -273,8 +270,7 @@ def _solve_pert_pressure(
         pad_index,
         film_onset,
         pads,
-        nodal_pressure,
-        press_cavitate,
+        cavitated,
     )
 
     gamma, g = gamma_g_pert(
@@ -415,8 +411,7 @@ def damping_press_dxdot(
     pads,
     vis_effect_3d,
     h_n,
-    press_cavitate,
-    nodal_pressure,
+    cavitated,
     helpers,
 ):
     """Solve the x-velocity perturbed Reynolds equation (damping ``Cxx/Cyx``).
@@ -447,8 +442,7 @@ def damping_press_dxdot(
         pads,
         vis_effect_3d,
         h_n,
-        press_cavitate,
-        nodal_pressure,
+        cavitated,
         source_all,
         helpers,
     )
@@ -468,8 +462,7 @@ def damping_press_dydot(
     pads,
     vis_effect_3d,
     h_n,
-    press_cavitate,
-    nodal_pressure,
+    cavitated,
     helpers,
 ):
     """Solve the y-velocity perturbed Reynolds equation (damping ``Cxy/Cyy``).
@@ -496,8 +489,7 @@ def damping_press_dydot(
         pads,
         vis_effect_3d,
         h_n,
-        press_cavitate,
-        nodal_pressure,
+        cavitated,
         source_all,
         helpers,
     )
@@ -517,8 +509,7 @@ def damping_press_dtiltdot(
     pads,
     vis_effect_3d,
     h_n,
-    press_cavitate,
-    nodal_pressure,
+    cavitated,
     helpers,
 ):
     """Solve the pad-tilt velocity perturbed Reynolds equation (damping tilt DOF).
@@ -548,8 +539,7 @@ def damping_press_dtiltdot(
         pads,
         vis_effect_3d,
         h_n,
-        press_cavitate,
-        nodal_pressure,
+        cavitated,
         source_all,
         helpers,
     )
@@ -570,7 +560,7 @@ def damping(
     pads,
     vis_effect_3d,
     h_n,
-    nodal_pressure,
+    cavitated,
     unloaded,
     helpers,
 ):
@@ -599,8 +589,9 @@ def damping(
         Viscosity-effect field of the 3-D mesh.
     h_n : ndarray, shape (total_pads, dim_xz)
         Nodal film thickness, m.
-    nodal_pressure : ndarray, shape (total_pads, dim_xz)
-        Zeroth-order nodal pressure, Pa.
+    cavitated : ndarray of bool, shape (total_pads, dim_xz)
+        Nodes held at the cavitation pressure by the zeroth-order solve; the
+        perturbation solves hold them fixed.
     unloaded : ndarray of bool, shape (total_pads,)
         Per-pad unloaded flag.
     helpers : object
@@ -640,8 +631,7 @@ def damping(
             pads,
             vis_effect_3d,
             h_n,
-            operating.press_cavitate,
-            nodal_pressure,
+            cavitated,
             helpers,
         )
         cxy_i, cyy_i, cdeltay_i = damping_press_dydot(
@@ -651,8 +641,7 @@ def damping(
             pads,
             vis_effect_3d,
             h_n,
-            operating.press_cavitate,
-            nodal_pressure,
+            cavitated,
             helpers,
         )
 
@@ -664,8 +653,7 @@ def damping(
                 pads,
                 vis_effect_3d,
                 h_n,
-                operating.press_cavitate,
-                nodal_pressure,
+                cavitated,
                 helpers,
             )
         else:
@@ -778,7 +766,7 @@ def stiffness_press(
     vis_effect_3d,
     film_onset,
     h_n,
-    nodal_pressure,
+    cavitated,
     dpdx_n,
     dpdz_n,
     helpers,
@@ -868,8 +856,7 @@ def stiffness_press(
         pads,
         vis_effect_3d,
         h_n,
-        operating.press_cavitate,
-        nodal_pressure,
+        cavitated,
         source_all,
         helpers,
     )
@@ -890,7 +877,7 @@ def jacobian(
     pads,
     vis_effect_3d,
     h_n,
-    nodal_pressure,
+    cavitated,
     dpdx_n,
     dpdz_n,
     unloaded,
@@ -919,8 +906,9 @@ def jacobian(
         Viscosity-effect field of the 3-D mesh.
     h_n : ndarray, shape (total_pads, dim_xz)
         Nodal film thickness, m.
-    nodal_pressure : ndarray, shape (total_pads, dim_xz)
-        Zeroth-order nodal pressure, Pa.
+    cavitated : ndarray of bool, shape (total_pads, dim_xz)
+        Nodes held at the cavitation pressure by the zeroth-order solve; the
+        perturbation solves hold them fixed.
     dpdx_n, dpdz_n : ndarray, shape (total_pads, dim_xz)
         Zeroth-order nodal pressure gradients.
     unloaded : ndarray of bool, shape (total_pads,)
@@ -964,7 +952,7 @@ def jacobian(
             vis_effect_3d,
             film_onset,
             h_n,
-            nodal_pressure,
+            cavitated,
             dpdx_n,
             dpdz_n,
             helpers,
@@ -978,7 +966,7 @@ def jacobian(
             vis_effect_3d,
             film_onset,
             h_n,
-            nodal_pressure,
+            cavitated,
             dpdx_n,
             dpdz_n,
             helpers,
@@ -994,7 +982,7 @@ def jacobian(
                 vis_effect_3d,
                 film_onset,
                 h_n,
-                nodal_pressure,
+                cavitated,
                 dpdx_n,
                 dpdz_n,
                 helpers,

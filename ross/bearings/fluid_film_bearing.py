@@ -287,7 +287,11 @@ class FluidFilmBearing(BearingElement):
         ``"regular_flooded"`` operation the axial film edges stay at 0 and a
         nonzero value issues a warning. Default is 0.
     cavitation_pressure : float, pint.Quantity, optional
-        Cavitation pressure, Pa. Default is 0.
+        Cavitation pressure, Pa (gauge, like the film pressure). The film
+        pressure does not fall below it, and the cavitated film (where the
+        solve reaches it, the divergent clearance downstream of the minimum
+        film thickness in flooded operation, and fully cavitated pads) is
+        held at it. Default is 0.
     oil_supply_pressure : float, pint.Quantity, optional
         Lubricant supply pressure, Pa. Default is 0.
     reference_temperature : float, pint.Quantity, optional

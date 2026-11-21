@@ -1107,12 +1107,28 @@ def run_case(**kw):
     (default 1.0) multiplies every loop tolerance; it exists for tests that
     compare two solution paths.
 
+    The stiffness and damping are evaluated at the state the outputs report:
+    the converged equilibrium, or, for a case that did not converge, the last
+    film solve of the search. When the Newton search runs out of iterations
+    its last action is a position update with no film solve, so ``xj_cb`` and
+    ``yj_cb`` then hold the next iterate, one relaxed Newton step past the
+    position of the coefficients, forces and pressure. Private keywords used by
+    :func:`~ross.bearings.fluid_film.sweep.film_force_at` and its tests:
+    ``_held_tilts`` (pad tilts, rad, held instead of solved),
+    ``_film_force_only`` (return the film force, pad moments and cavitated
+    mask instead of the outputs above) and ``_coefficient_blocks`` (add the
+    unreduced stiffness and damping blocks, one
+    :class:`~ross.bearings.fluid_film.state.CoefficientBlock` pair per case).
+
     The internal state dict ``g`` carries SI values across every solver
     module.
     """
     case_start = time.perf_counter()
     diagnostics = bool(kw.get("diagnostics", False))
     tolerance_scale = float(kw.get("_tolerance_scale", 1.0))
+    held_tilts = kw.get("_held_tilts")
+    if held_tilts is not None:
+        held_tilts = np.asarray(held_tilts, dtype=float)
     monitor = LoopMonitor()
     budget = _case_budget(kw)
     from ross.bearings.fluid_film import coefficients as _coeff
@@ -1360,6 +1376,7 @@ def run_case(**kw):
     ):
         g.setdefault(name, np.zeros(shape))
     g.setdefault("tilt_angle", np.zeros(total_pads))
+    g.setdefault("cavitated", np.zeros((total_pads, dim_xz), dtype=bool))
     g.setdefault("h_min", np.zeros(total_pads))
     g.setdefault("x_hmin", np.zeros(total_pads))
     for _counter in ("elasto_index", "mixtemp_index", "jtemp_index", "vis_index"):
@@ -1425,6 +1442,7 @@ def run_case(**kw):
             trapezoid=trapezoid,
             monitor=state.get("_monitor"),
             tolerance_scale=tolerance_scale,
+            held_tilts=held_tilts,
         )
 
     def counted_press(*args, **kwargs):
@@ -1752,18 +1770,14 @@ def run_case(**kw):
         g["temp_supply"],
     )
 
-    # Deliberately reuse the Jacobian computed inside the equilibrium loop
-    # rather than recomputing one here: the stiffness tuple the dynamic
-    # reduction consumes is the one evaluated on the pre-convergence ``h_n``.
-    # Recomputing at the post-convergence state shifts the coefficients ~0.15%
-    # on the fixed-geometry cases and ~260% on pressure-dam ones. Falls back to
-    # a fresh call only when equilibrium converged on the first iteration,
-    # without entering the Newton branch.
     field_outputs = bool(kw.get("field_outputs", False))
 
-    stiffness = g.pop("_last_jacobian", None)
-    if stiffness is None:
-        stiffness = jacobian_fn(g)
+    if kw.get("_film_force_only", False):
+        return _film_force_outputs(g, monitor, budget, case_start, _integrate_xz_coeff)
+
+    # The stiffness and damping are evaluated at the state the outputs report
+    # (the converged equilibrium, or the last iterate of a failed case).
+    stiffness = jacobian_fn(g)
     damping_block = _adapt(_coeff.damping, g, helpers=helpers)
     if g["deform_type"] in PIVOT_FLEX_DEFORM_TYPES:
         # Pivot flexibility on: condense the
@@ -1810,7 +1824,53 @@ def run_case(**kw):
         ]
     if field_outputs:
         outputs["fields"] = [_assemble_field_outputs(g)]
+    if kw.get("_coefficient_blocks", False):
+        outputs["_coefficient_blocks"] = [
+            {"stiffness": stiffness, "damping": damping_block}
+        ]
     return outputs
+
+
+def _film_force_outputs(g, monitor, budget, case_start, integrate_xz):
+    """Film force, pad moments and tilts of a case whose position was held.
+
+    Returns the outputs of ``run_case(..., _film_force_only=True)``, used by
+    :func:`ross.bearings.fluid_film.sweep.film_force_at`: no coefficients are
+    computed.
+    """
+    from ross.bearings.fluid_film import hydrodynamics as _hyd
+
+    total_pads = g["total_pads"]
+    h_min = np.asarray(g["h_min"], dtype=float)[:total_pads]
+    if np.any(h_min <= 0.0):
+        monitor.stop(
+            "contact",
+            f"minimum film thickness {float(np.min(h_min)):.3g} m: the journal "
+            "position crosses the bearing surface",
+        )
+    moments = np.array(
+        [
+            _hyd.film_moment(
+                g["mesh"], pad, g["pads"], g["nodal_pressure"], integrate_xz
+            )
+            for pad in range(total_pads)
+        ]
+    )
+    return {
+        "fx": float(g["fx_hydro"]),
+        "fy": float(g["fy_hydro"]),
+        "fx_pad": np.array(g["fx_hydroi"][:total_pads], dtype=float),
+        "fy_pad": np.array(g["fy_hydroi"][:total_pads], dtype=float),
+        "moment_pad": moments,
+        "tilt_angle": np.array(g["tilt_angle"][:total_pads], dtype=float),
+        "h_min": h_min.copy(),
+        "nodal_pressure": np.array(g["nodal_pressure"], dtype=float),
+        "cavitated": np.array(g["cavitated"], dtype=bool),
+        "converged": monitor.converged,
+        "convergence": monitor.summary(
+            budget, wall_time=time.perf_counter() - case_start
+        ),
+    }
 
 
 # Outputs whose non-finite value marks the case as failed.

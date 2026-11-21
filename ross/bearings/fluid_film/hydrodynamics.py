@@ -260,18 +260,10 @@ def hydrodynamics(
                     s["yj"] = yj_min
                 del f_min
             else:
+                if equilibrium_type == "match_eccentricity":
+                    newton_exit = "not_applicable"
+                    break
                 jac = jacobian_fn(s)
-                # Stash the last in-loop Jacobian so the orchestrator can
-                # consume it after the equilibrium loop exits. The
-                # orchestrator does NOT re-call jacobian after this driver
-                # returns, so the stiffness block consumed by the dynamic
-                # reduction is the one computed here, on the
-                # *pre-convergence* h_n. Recomputing on the converged
-                # post-equilibrium h_n (as the orchestrator used to do)
-                # shifted the K's ~0.15% on M1 (task #15) and broke pdam by
-                # ~260% (task #18).
-                s["_last_jacobian"] = jac
-
                 kxx_e, kxy_e, kyx_e, kyy_e = effective_stiffness(
                     total_pads,
                     jac.xx,
@@ -287,20 +279,16 @@ def hydrodynamics(
                     s["k_rotate"],
                 )
 
-                if equilibrium_type == "match_load":
-                    delta_xj, delta_yj = _newton_step(
-                        kxx_e, kxy_e, kyx_e, kyy_e, fx_net, fy_net, s["cb"]
-                    )
-                    if delta_xj is None:
-                        # Singular Jacobian fallback.
-                        singular_step = True
-                        s["xj"] = 0.0
-                        s["yj"] = 0.0
-                        delta_xj = 0.0
-                        delta_yj = -0.2 * s["cb"]
-                elif equilibrium_type == "match_eccentricity":
-                    newton_exit = "not_applicable"
-                    break
+                delta_xj, delta_yj = _newton_step(
+                    kxx_e, kxy_e, kyx_e, kyy_e, fx_net, fy_net, s["cb"]
+                )
+                if delta_xj is None:
+                    # Singular Jacobian fallback.
+                    singular_step = True
+                    s["xj"] = 0.0
+                    s["yj"] = 0.0
+                    delta_xj = 0.0
+                    delta_yj = -0.2 * s["cb"]
 
                 xj_old = s["xj"]
                 yj_old = s["yj"]
@@ -2053,6 +2041,42 @@ def press_special_flow(
     return pressback_n
 
 
+def film_moment(mesh, pad_index, pads, nodal_pressure, integrate_xz):
+    """Moment of the film pressure about the pad pivot.
+
+    Parameters
+    ----------
+    mesh : ReynoldsMesh
+        Film (x-z) mesh: coordinates, connectivity and index maps.
+    pad_index : int
+        0-based pad index.
+    pads : PadGeometry
+        Per-pad geometry (pivot angle, journal radius, pad thickness).
+    nodal_pressure : numpy.ndarray
+        Film pressure at Reynolds nodes, Pa, shape ``(total_pads, dim_xz)``.
+    integrate_xz : callable
+        ``integrate_xz(pad_index, mesh, f)`` -> the surface integral of the
+        nodal field ``f`` over the Reynolds mesh.
+
+    Returns
+    -------
+    float
+        ``-(R + t) * integral of p sin(theta - theta_pivot)``, N*m, with the
+        lever arm ``R + t`` from the journal centre to the pivot.
+    """
+    n_index_reynolds = np.asarray(mesh.n_index, dtype=np.int64)
+    nodal_pressure = np.asarray(nodal_pressure, dtype=float)
+    x_reynolds_rad = np.asarray(mesh.x_rad, dtype=float)
+    p = pad_index
+    idx = n_index_reynolds[: mesh.total_nodes]
+    integrand = np.zeros(mesh.dim_xz, dtype=float)
+    integrand[idx] = nodal_pressure[p, idx] * np.sin(
+        x_reynolds_rad[p, idx] - pads.x_pivot_rad[p]
+    )
+    inte_f = integrate_xz(pad_index, mesh, integrand)
+    return -(pads.journal_radius + pads.pad_thickness) * inte_f
+
+
 def moment(
     mesh,
     operating,
@@ -2100,25 +2124,14 @@ def moment(
         ``(moment_pivot, pressback_n)``, the pivot moment in N*m and the
         updated back-pressure field.
     """
-    n_index_reynolds = mesh.n_index
-    x_reynolds_rad = mesh.x_rad
-    n_index_reynolds = np.asarray(n_index_reynolds, dtype=np.int64)
-    nodal_pressure = np.asarray(nodal_pressure, dtype=float)
-    x_reynolds_rad = np.asarray(x_reynolds_rad, dtype=float)
+    n_index_reynolds = np.asarray(mesh.n_index, dtype=np.int64)
+    x_reynolds_rad = np.asarray(mesh.x_rad, dtype=float)
     pressback_n = np.ascontiguousarray(pressback_n, dtype=np.float64)
     p = pad_index
 
     idx = n_index_reynolds[: mesh.total_nodes]
     integrand = np.zeros(mesh.dim_xz, dtype=float)
-    integrand[idx] = nodal_pressure[p, idx] * np.sin(
-        x_reynolds_rad[p, idx] - pads.x_pivot_rad[p]
-    )
-    inte_f = integrate_xz(
-        pad_index,
-        mesh,
-        integrand,
-    )
-    moment_pivot = -(pads.journal_radius + pads.pad_thickness) * inte_f
+    moment_pivot = film_moment(mesh, pad_index, pads, nodal_pressure, integrate_xz)
 
     if operating.bearing_type == "inlet_groove_tilting_pad":
         moment_pocket = (
@@ -2281,6 +2294,8 @@ def fixed_brg(
     integrate_xz=None,
     monitor=None,
     tolerance_scale=1.0,
+    held_tilts=None,
+    cavitated=None,
 ):
     """Solve the bearing film at a *fixed* journal position (isoviscous).
 
@@ -2390,6 +2405,14 @@ def fixed_brg(
     tolerance_scale : float, optional
         Factor on the tilt-bracket and shear-stress tolerances. Default is
         1.0.
+    held_tilts : array_like of float, optional
+        Tilt angle of each pad, rad, held instead of solving the pad moment
+        balance (one film solve per pad at that tilt). Ignored for fixed
+        geometry. Default is None (tilts solved).
+    cavitated : array_like of bool, optional
+        Cavitated-node mask of the previous solve, shape
+        ``(total_pads, dim_xz)``; each pad's row is replaced by its new solve.
+        Default is None (all False).
 
     Returns
     -------
@@ -2409,6 +2432,10 @@ def fixed_brg(
         ``flow_regime_track``, ``flow_regime_dam`` : numpy.ndarray of int
         ``scale_turb_track``, ``scale_turb_dam`` : numpy.ndarray
         ``unloaded`` : numpy.ndarray of bool
+        ``full_cavitate`` : numpy.ndarray of bool, per pad
+        ``cavitated`` : numpy.ndarray of bool, shape ``(total_pads, dim_xz)``
+            Nodes held at the cavitation pressure (see
+            :func:`ross.bearings.fluid_film.pressure.press`).
     """
     y_energy = energy_mesh.y
     y_3d = mesh.y_3d
@@ -2440,6 +2467,10 @@ def fixed_brg(
     scale_turb_track = np.ascontiguousarray(scale_turb_track, dtype=np.float64)
     scale_turb_dam = np.ascontiguousarray(scale_turb_dam, dtype=np.float64)
     unloaded = np.array(unloaded, dtype=bool)
+    if cavitated is None:
+        cavitated = np.zeros(nodal_pressure.shape, dtype=bool)
+    else:
+        cavitated = np.array(cavitated, dtype=bool, copy=True)
 
     cb_new = np.zeros(total_pads, dtype=float)
     cp_new = np.zeros(total_pads, dtype=float)
@@ -2519,6 +2550,7 @@ def fixed_brg(
             dpdx_n,
             dpdz_n,
             full_cavitate,
+            cavitated,
         )
 
     def _grad():
@@ -2571,6 +2603,8 @@ def fixed_brg(
         if operating.bearing_type in ("fixed_geometry", "pressure_dam"):
             lower_limit = 0.0
             upper_limit = 0.0
+        elif held_tilts is not None:
+            lower_limit = upper_limit = float(held_tilts[pad_index])
         else:
             tilt_angle_max, tilt_angle_min = tilt_angle_range(
                 pad_index,
@@ -2632,7 +2666,7 @@ def fixed_brg(
             vis_eddy_3d = res["vis_eddy_3d"]
             vis_effect_3d = res["vis_effect_3d"]
 
-            nodal_pressure, dpdx_n, dpdz_n = _press()
+            nodal_pressure, dpdx_n, dpdz_n, cavitated = _press()
             dudy_n, dwdy_n = _grad()
 
             if _is_superlaminar():
@@ -2649,7 +2683,7 @@ def fixed_brg(
                     res = _eff_vis()
                     vis_eddy_3d = res["vis_eddy_3d"]
                     vis_effect_3d = res["vis_effect_3d"]
-                    nodal_pressure, dpdx_n, dpdz_n = _press()
+                    nodal_pressure, dpdx_n, dpdz_n, cavitated = _press()
                     dudy_n, dwdy_n = _grad()
                     shear_iterations[pad_index] = _press_index
                     shear_residual[pad_index] = rms_shear
@@ -2728,7 +2762,7 @@ def fixed_brg(
                 vis_eddy_3d = res["vis_eddy_3d"]
                 vis_effect_3d = res["vis_effect_3d"]
 
-                nodal_pressure, dpdx_n, dpdz_n = _press()
+                nodal_pressure, dpdx_n, dpdz_n, cavitated = _press()
                 dudy_n, dwdy_n = _grad()
 
                 if _is_superlaminar():
@@ -2745,7 +2779,7 @@ def fixed_brg(
                         res = _eff_vis()
                         vis_eddy_3d = res["vis_eddy_3d"]
                         vis_effect_3d = res["vis_effect_3d"]
-                        nodal_pressure, dpdx_n, dpdz_n = _press()
+                        nodal_pressure, dpdx_n, dpdz_n, cavitated = _press()
                         dudy_n, dwdy_n = _grad()
                         shear_iterations[pad_index] = _press_index
                         shear_residual[pad_index] = rms_shear
@@ -2809,4 +2843,5 @@ def fixed_brg(
         "scale_turb_dam": scale_turb_dam,
         "unloaded": unloaded,
         "full_cavitate": full_cavitate,
+        "cavitated": cavitated,
     }

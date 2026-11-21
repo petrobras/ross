@@ -46,7 +46,9 @@ What the caller must provide
   ``full_cavitate``.
 
 :func:`press` returns the updated ``nodal_pressure``, ``dpdx_n`` and
-``dpdz_n`` rather than mutating them in place.
+``dpdz_n`` rather than mutating them in place, and the mask of the nodes held
+at the cavitation pressure (``cavitated``), which the perturbation solves of
+:mod:`ross.bearings.fluid_film.coefficients` hold fixed.
 
 References
 ----------
@@ -591,6 +593,7 @@ def press(
     dpdx_n,
     dpdz_n,
     full_cavitate,
+    cavitated=None,
 ):
     """Solve the generalized-Reynolds pressure distribution on one pad.
 
@@ -632,6 +635,9 @@ def press(
         ``(total_pads, dim_xz)`` (mutated copies returned), in Pa and Pa/m.
     full_cavitate : array_like of bool
         Per-pad full-cavitation flag (shape ``(total_pads,)``).
+    cavitated : array_like of bool, optional
+        Cavitated-node mask of the other pads, shape ``(total_pads, dim_xz)``
+        (copied; row ``pad_index`` is replaced). Default is None (all False).
 
     Returns
     -------
@@ -641,6 +647,12 @@ def press(
         Circumferential pressure gradient, same shape.
     dpdz_n : numpy.ndarray
         Axial pressure gradient, same shape.
+    cavitated : numpy.ndarray of bool
+        Nodes held at the cavitation pressure, same shape: raised to it by the
+        clamp of the back substitution, on a fully cavitated pad, or in the
+        divergent clearance downstream of the minimum film thickness
+        (flooded operation without a pressure dam). The perturbation
+        solves of the dynamic coefficients hold these nodes fixed.
     """
     arc_length_rad = pads.arc_length_rad
     dx_reynolds = mesh.dx
@@ -725,7 +737,7 @@ def press(
     global_matrix_p, a_lower, index1, _d = banded.lu_factor(
         global_matrix_p, mesh.total_nodes, mesh.bandwidth
     )
-    global_column_p = banded.lu_solve_cavitating(
+    global_column_p, clamped = banded.lu_solve_cavitating(
         global_matrix_p,
         mesh.total_nodes,
         mesh.bandwidth,
@@ -733,21 +745,30 @@ def press(
         index1,
         global_column_p,
         operating.press_cavitate,
+        return_clamped=True,
     )
 
-    # Assign the nodal pressure.
+    # Assign the nodal pressure and the nodes the clamp held at the
+    # cavitation pressure.
+    if cavitated is None:
+        cavitated = np.zeros(nodal_pressure.shape, dtype=bool)
+    cavitated = np.array(cavitated, dtype=bool, copy=True)
+    cavitated[p, :] = False
     for i in range(mesh.total_nodes):
         node = int(mesh.n_index[i])
         nodal_pressure[p, node] = global_column_p[node]
+        cavitated[p, node] = clamped[node]
 
-    # A fully cavitated pad has zero pressure everywhere.
+    # A fully cavitated pad is at the cavitation pressure everywhere.
     if full_cavitate[p]:
         for i in range(mesh.total_nodes):
             node = int(mesh.n_index[i])
-            nodal_pressure[p, node] = 0.0
+            nodal_pressure[p, node] = operating.press_cavitate
+            cavitated[p, node] = True
 
     # Cavitation due to insufficient lubricant in a divergent clearance
-    # (flooded condition, no pressure dam, non-oil-seal only).
+    # (flooded condition, no pressure dam): downstream of the minimum film
+    # the film is cavitated.
     if operating.operating_type == "regular_flooded":
         for i in range(mesh.total_nodes - mesh.total_e_z_film - 1):
             node = int(mesh.n_index[i])
@@ -757,7 +778,8 @@ def press(
                 and x_reynolds[p, node] > x_hmin[p]
                 and operating.bearing_type != "pressure_dam"
             ):
-                nodal_pressure[p, node] = 0.0
+                nodal_pressure[p, node] = operating.press_cavitate
+                cavitated[p, node] = True
 
     # Nodal pressure gradients.
     if operating.bearing_type == "pressure_dam":
@@ -779,4 +801,4 @@ def press(
             dpdz_n,
         )
 
-    return nodal_pressure, dpdx_n, dpdz_n
+    return nodal_pressure, dpdx_n, dpdz_n, cavitated

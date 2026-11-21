@@ -41,6 +41,10 @@ Module                      Responsibility
                             equilibrium iterations and assembles the outputs.
                             :func:`~ross.bearings.fluid_film.driver.run_case` is the
                             entry point.
+``sweep``                   :func:`~ross.bearings.fluid_film.sweep.film_force_at`:
+                            the film force with the journal held at a given
+                            position (finite-difference reference, force
+                            maps).
 ==========================  ==================================================
 
 ``_numba_kernels`` holds the ``@njit`` inner loops the modules above call; each
