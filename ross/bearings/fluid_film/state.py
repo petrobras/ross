@@ -57,6 +57,8 @@ from dataclasses import dataclass, fields
 
 import numpy as np
 
+from ross.bearings.film.lubricant import exponential_viscosity
+
 __all__ = [
     "CoefficientBlock",
     "EnergyMesh",
@@ -329,7 +331,9 @@ class Lubricant(_FromState):
     """Oil properties, in SI.
 
     The viscosity-temperature law is the two-point Reynolds (exponential) fit
-    through ``(temp1, viscosity1)`` and ``(temp2, viscosity2)``.
+    through ``(temp1, viscosity1)`` and ``(temp2, viscosity2)``, evaluated by
+    the shared film-core law
+    :func:`ross.bearings.film.lubricant.exponential_viscosity`.
 
     Attributes
     ----------
@@ -372,8 +376,9 @@ class Lubricant(_FromState):
         >>> float(oil.viscosity_at(323.0))
         2.758e-06
         """
-        beta = np.log(self.viscosity2 / self.viscosity1) / (self.temp2 - self.temp1)
-        return self.viscosity1 * np.exp(beta * (temp - self.temp1))
+        return exponential_viscosity(
+            self.viscosity1, self.viscosity2, self.temp1, self.temp2, temp
+        )
 
 
 @dataclass(frozen=True)

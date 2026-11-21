@@ -28,6 +28,7 @@ counters and are unrelated to the 0-based mesh numbering.
 import numpy as np
 from numba import njit
 
+from ross.bearings.film.lubricant import exponential_viscosity_jit
 from ross.bearings.fluid_film.constants import INTERFACE_TOL
 
 
@@ -2613,11 +2614,9 @@ def flow_rates_jit(
             q_carryover[pad_index] = hotoil_lamda * q_out[pad_index]
 
 
-@njit(cache=True, fastmath=False)
-def viscosity_temp_jit(viscosity1, viscosity2, temp1, temp2, temp):
-    """Reynolds two-point viscosity-temperature law (scalar, JIT)."""
-    beta1 = np.log(viscosity2 / viscosity1) / (temp2 - temp1)
-    return viscosity1 * np.exp(beta1 * (temp - temp1))
+# Reynolds two-point viscosity-temperature law (scalar, JIT): the shared
+# implementation of the film core, compiled with the same numba options.
+viscosity_temp_jit = exponential_viscosity_jit
 
 
 @njit(cache=True, fastmath=False)

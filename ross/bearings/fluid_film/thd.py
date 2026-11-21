@@ -16,7 +16,8 @@ plus the temperature post-processing routines it calls:
   the bulk heat flux into the shaft is zero.
 * :func:`t_outlet` -- area- and flow-weighted pad outlet temperatures.
 * :func:`temp_mixing_carryover` -- pad inlet temperature from the conventional
-  hot-oil-carryover mixing model (all bearings except spray-bar).
+  hot-oil-carryover mixing model (all bearings except spray-bar); the shared
+  implementation of :mod:`ross.bearings.film.mixing`, re-exported here.
 * :func:`temp_mixing_spray_bar` -- pad inlet temperature for spray-bar bearings.
 * :func:`temp_inlet_residual` -- RMS of the pad inlet-temperature change.
 
@@ -65,6 +66,7 @@ from ross.bearings.fluid_film._numba_kernels import (
     t_outlet_jit,
     temp_journal_film_average_jit,
 )
+from ross.bearings.film.mixing import temp_mixing_carryover, upstream_pads
 from ross.bearings.fluid_film.constants import (
     JTEMP_ERROR,
     MAX_ITERATION,
@@ -963,65 +965,6 @@ def t_outlet(
     )
 
 
-def temp_mixing_carryover(
-    total_pads,
-    operating_type,
-    q_in,
-    q_carryover,
-    temp_sump,
-    temp_outlet,
-    temp_inlet,
-):
-    """Pad inlet temperature from the conventional hot-oil mixing model.
-
-    Used for all bearings except spray-bar. The inlet
-    temperature of pad ``p`` mixes the hot oil carried over from the upstream
-    pad (``p - 1``, wrapping the first pad to the last) with fresh sump oil,
-    weighted by flow. If the carryover exceeds the pad inlet flow the inlet is
-    simply the upstream outlet. For axial-flow (``operating_type == "axial_flow"``) or
-    ring-lubricated (``operating_type == "oil_ring_lubricated"``) bearings every inlet is fixed at
-    the sump temperature.
-
-    Parameters
-    ----------
-    total_pads : int
-        Number of pads.
-    operating_type : str
-        Lubrication model, one of
-        :data:`~ross.bearings.fluid_film.constants.OPERATING_TYPES`.
-    q_in, q_carryover : array_like of float
-        Per-pad inlet and carryover flow rates, m^3/s.
-    temp_sump : float
-        Sump (reservoir) temperature, K.
-    temp_outlet : array_like of float
-        Per-pad outlet temperature.
-    temp_inlet : array_like of float
-        Per-pad inlet temperature (overwritten copy returned).
-
-    Returns
-    -------
-    numpy.ndarray of float
-        Updated per-pad inlet temperature (same layout as ``temp_inlet``).
-    """
-    temp_inlet = np.array(temp_inlet, dtype=float, copy=True)
-    for pad_index in range(total_pads):
-        # Upstream pad (0-based), wrapping the first pad to the last.
-        u = total_pads - 1 if pad_index == 0 else pad_index - 1
-        p = pad_index
-        if q_carryover[u] > q_in[p]:
-            temp_inlet[p] = temp_outlet[u]
-        else:
-            temp_inlet[p] = (
-                q_carryover[u] * temp_outlet[u] + (q_in[p] - q_carryover[u]) * temp_sump
-            ) / q_in[p]
-
-    if operating_type in ("axial_flow", "oil_ring_lubricated"):
-        for pad_index in range(total_pads):
-            temp_inlet[pad_index] = temp_sump
-
-    return temp_inlet
-
-
 def temp_mixing_spray_bar(
     total_pads,
     operating,
@@ -1063,9 +1006,9 @@ def temp_mixing_spray_bar(
     """
     temp_inlet = np.array(temp_inlet, dtype=float, copy=True)
     q_share = q_supply / total_pads
+    upstream = upstream_pads(total_pads)
     for idx in range(total_pads):
-        # Upstream pad (0-based), wrapping the first pad to the last.
-        u = total_pads - 1 if idx == 0 else idx - 1
+        u = upstream[idx]
         p = idx
         q1 = q_in[p] - q_share
         q_hot = min(q_carryover[u], q1)
