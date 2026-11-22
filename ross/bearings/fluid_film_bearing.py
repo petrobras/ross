@@ -703,6 +703,8 @@ class FluidFilmBearing(BearingElement):
     models give the same film to the discretisation error (0.3 % on a
     40 x 20 mesh) and the same damping. The adiabatic energy equation
     scales the shear dissipation with the film fraction.
+    ``results.film_fraction_fields`` holds the film fraction of each case
+    and ``plot_film_fraction_2d`` draws it.
 
     Full 360 deg pad. When the first pad spans exactly 2 pi, the engine
     drops the circumferential pressure flow and the leading/trailing-edge
@@ -1036,6 +1038,11 @@ class FluidFilmBearing(BearingElement):
                 bearing_data=self._bearing_data(),
                 pad_matrices=pad_matrices,
                 speed_index=speed_index,
+                film_fraction_fields=(
+                    [f["film_fraction"] for f in fields]
+                    if "film_fraction" in fields[0]
+                    else None
+                ),
             )
 
     @property

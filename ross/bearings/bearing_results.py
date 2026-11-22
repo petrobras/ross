@@ -1184,6 +1184,10 @@ class FluidFilmBearingResults(BearingResults):
     speed_index : array_like of int, optional
         Index of each case's speed in the bearing's ``speed`` array. Default
         is one speed per case (``0, 1, ...``).
+    film_fraction_fields : list of ndarray, optional
+        Film fraction grids of the mass-conserving film (fraction of the
+        clearance filled with liquid, 1 in the full film), one per case,
+        shaped like ``pressure_fields``. Default is None (Reynolds model).
 
     Examples
     --------
@@ -1226,6 +1230,7 @@ class FluidFilmBearingResults(BearingResults):
         bearing_data=None,
         pad_matrices=None,
         speed_index=None,
+        film_fraction_fields=None,
     ):
         super().__init__(
             frequency=frequency,
@@ -1234,6 +1239,7 @@ class FluidFilmBearingResults(BearingResults):
             initial_time=initial_time,
             final_time=final_time,
         )
+        self.film_fraction_fields = film_fraction_fields
         n_cases = self.frequency.size
         self.converged = (
             np.ones(n_cases, dtype=bool)
@@ -1861,6 +1867,46 @@ class FluidFilmBearingResults(BearingResults):
             fig,
             "Film thickness",
             "m",
+            **kwargs,
+        )
+
+    def plot_film_fraction_2d(self, freq_index=0, fig=None, **kwargs):
+        """Return the film fraction along the axial center plane, per pad.
+
+        The film fraction is the fraction of the clearance filled with
+        liquid: 1 in the full film, below 1 in the cavitated zone, where the
+        oil crosses the pad as a striated film.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index. Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add the traces to.
+        **kwargs : dict
+            Additional layout options forwarded to ``fig.update_layout``.
+
+        Returns
+        -------
+        fig : go.Figure
+
+        Raises
+        ------
+        ValueError
+            When the bearing was solved with the Reynolds cavitation model,
+            which has no film fraction (``cavitation_model="reynolds"``).
+        """
+        if self.film_fraction_fields is None:
+            raise ValueError(
+                "the film fraction is only computed by the mass-conserving "
+                'film (cavitation_model="mass_conserving")'
+            )
+        return self._center_plane_plot(
+            self.film_fraction_fields[freq_index],
+            freq_index,
+            fig,
+            "Film fraction",
+            "-",
             **kwargs,
         )
 

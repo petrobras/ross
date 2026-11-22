@@ -2007,3 +2007,53 @@ def test_mass_conserving_bearing_element():
         actual = np.asarray(getattr(mass, name), dtype=float)
         assert np.all(np.isfinite(actual)), name
         assert np.max(np.abs(actual - expected)) < 0.2 * np.max(np.abs(expected)), name
+
+
+@pytest.mark.filterwarnings("ignore:operating_type='regular_flooded':UserWarning")
+def test_film_fraction_field_and_plot():
+    """The element keeps the film fraction of the mass-conserving film.
+
+    References (independent of the solver's output): the complementarity of
+    the Elrod-Adams film (full film, ``theta = 1``, wherever the pressure is
+    above the cavitation pressure 0; the pressure at 0 wherever
+    ``theta < 1``), and the mass balance of the striated film in a cavitated
+    zone, where the pressure is uniform and the oil is carried by the
+    Couette flow only. On the unloaded upper pad of this flooded
+    two-axial-groove journal every interior node is cavitated, so along each
+    axial station the upwind face flux ``(h_i + h_(i+1)) / 2 theta_i`` equals
+    the flux that enters the leading edge full, ``(h_0 + h_1) / 2``: the film
+    fraction follows from the film thickness alone. The Reynolds model has
+    no film fraction.
+    """
+    kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous")
+    reynolds = FluidFilmBearing(**kwargs)
+    assert reynolds.results.film_fraction_fields is None
+    with pytest.raises(ValueError, match="mass-conserving"):
+        reynolds.plot_film_fraction_2d()
+
+    bearing = FluidFilmBearing(**kwargs, cavitation_model=MC)
+    results = bearing.results
+    pressure = results.pressure_fields[0]
+    fraction = results.film_fraction_fields[0]
+    thickness = results.film_thickness_fields[0]
+    assert fraction.shape == pressure.shape
+    assert np.all((fraction > 0.0) & (fraction <= 1.0))
+
+    cavitated = fraction < 1.0 - 1e-9
+    assert np.count_nonzero(cavitated) > 0
+    pressure_scale = np.max(pressure)
+    assert np.max(np.abs(pressure[cavitated])) < 1e-9 * pressure_scale
+    assert np.all(fraction[pressure > 1e-9 * pressure_scale] == 1.0)
+
+    upper = 0
+    assert np.all(cavitated[upper, 1:-1, 1:-1])
+    h = thickness[upper]
+    face = 0.5 * (h[1:, 1:-1] + h[:-1, 1:-1])
+    inflow = np.broadcast_to(face[:1], face.shape)
+    assert_allclose(face * fraction[upper, :-1, 1:-1], inflow, rtol=1e-9)
+
+    fig = bearing.plot_film_fraction_2d()
+    middle = fraction.shape[2] // 2
+    assert len(fig.data) == fraction.shape[0]
+    for pad, trace in enumerate(fig.data):
+        assert_allclose(trace.y, fraction[pad, :, middle], rtol=0, atol=0)
