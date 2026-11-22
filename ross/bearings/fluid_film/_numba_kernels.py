@@ -1704,6 +1704,11 @@ def mesh_3d_jit(
         for jj in range(total_n_3d):
             n3 = n_index_3d[jj]
             if abs(x_3d[0, n3] - xri) < 1.0e-6 and abs(z_3d[0, n3] - zri) < 1.0e-6:
+                if kc >= match_nodes_xz.shape[1]:
+                    raise ValueError(
+                        "mesh_3d: a film node matches more 3-D nodes than the "
+                        "film has radial nodes"
+                    )
                 match_nodes_xz[nri, kc] = n3
                 kc += 1
 
@@ -1720,6 +1725,11 @@ def mesh_3d_jit(
                     abs(x_3d[0, n3] - xei) < 1.0e-6
                     and abs(y_3d[0, n3] - yei) < INTERFACE_TOL
                 ):
+                    if kc >= match_nodes_xy.shape[1]:
+                        raise ValueError(
+                            "mesh_3d: an energy node matches more 3-D nodes "
+                            "than the film has axial nodes"
+                        )
                     match_nodes_xy[nei, kc] = n3
                     kc += 1
 
