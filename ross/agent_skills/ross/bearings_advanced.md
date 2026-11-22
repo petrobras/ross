@@ -336,7 +336,10 @@ Columns: `speed`, `frequency`, `converged`, `reason`, `iterations` and
 (`41.2 sqrt(R/C)`), `pad_load` and `tilt_angle` (per pad). Reasons:
 `"max_iterations"`, `"diverged"`, `"budget"`, `"time_limit"`,
 `"singular_jacobian"`, `"pivot_unloaded"`, `"non_finite"`, `"contact"`
-(the final journal position crosses the bearing surface).
+(the final journal position crosses the bearing surface; a thermal case also
+stops with it, before any temperature pass, when an equilibrium pass closes
+the film, and its outlet temperatures are NaN), and for the mass-conserving
+film solve `"stalled"`, `"singular"` and `"nan"`.
 
 Each pad tilt solves the pivot moment balance to `|M| <= 1e-9` of the pad's
 moment scale or a 1e-10 rad root bracket (Brent's method from the previous
