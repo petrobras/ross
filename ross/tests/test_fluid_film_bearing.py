@@ -2081,6 +2081,24 @@ def test_mass_conserving_limits_raise_before_solving(no_solve, overrides, error,
         run_case(**_engine_inputs("fixed_isoviscous", **overrides))
 
 
+def test_starved_mass_conserving_tilting_pad_raises_before_solving():
+    """Starved operation of the mass-conserving film needs fixed geometry.
+
+    On the 5-pad tilting pad the starved equilibrium did not converge at
+    any supply that starves a pad, with either thermal model; the
+    combination is refused before any solve. Flooded tilting pads are
+    supported.
+    """
+    from ross.bearings.fluid_film.driver import run_case
+
+    overrides = dict(cavitation_model=MC, operating_type="starved_condition_even")
+    kwargs, _ = bearing_kwargs_from_fixture("tilt_5pad_isoviscous", **overrides)
+    with pytest.raises(NotImplementedError, match="fixed-geometry"):
+        FluidFilmBearing(**kwargs)
+    with pytest.raises(NotImplementedError, match="fixed-geometry"):
+        run_case(**_engine_inputs("tilt_5pad_isoviscous", **overrides))
+
+
 def test_mass_conserving_film_does_not_model_the_360_deg_pad():
     """The short-bearing oil seal (a first pad of 2 pi) is not supported."""
     from ross.bearings.fluid_film.pressure import check_cavitation_model

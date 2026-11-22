@@ -576,8 +576,9 @@ class FluidFilmBearing(BearingElement):
         through the cavitated zone and forms rupture and reformation from the
         mass balance. It needs ``thermal_type`` None or ``"adiabatic"``,
         ``deform_type=None`` and ``operating_type`` ``"regular_flooded"`` or
-        ``"starved_condition_even"``, and does not model the pressure dam or
-        the 360 deg pad (other combinations raise ``NotImplementedError``).
+        ``"starved_condition_even"`` (starved on fixed-geometry bearings
+        only), and does not model the pressure dam or the 360 deg pad (other
+        combinations raise ``NotImplementedError``).
     tag : str, optional
         A tag to name the element.
 
@@ -685,7 +686,25 @@ class FluidFilmBearing(BearingElement):
     leading edge (the Couette inflow less the pressure flow back into the
     supply) equals the available oil (the supply share plus the hot-oil
     carry-over); a pad whose flooded draw is less than the available oil
-    floods and spills the rest. The axial edges are held at their ambient
+    floods and spills the rest. Starved operation is supported on
+    fixed-geometry bearings only. This is a different starvation model from
+    the default one, which moves the film onset into the pad instead: on the
+    two-axial-groove journal of the example (40 x 20 mesh, isoviscous,
+    12 L/min) the two give an eccentricity 2.4 % apart, kxx 14 % and kyy 33 %
+    apart, and the gaps grow as the supply falls (kyy 76 % at 8 L/min). In a
+    strongly starved case the film can carry no load at a trial journal
+    position; the equilibrium search then steps along the load, halves a
+    step that raises the force residual or crosses a pad, and solves the
+    force balance to 1e-3 of its usual tolerance while it iterates on the
+    inlet fractions (1.6 to 2.4 times the film solves of a starved case).
+    Strongly starved cases without carry-over (``hot_oil_lambda=0``, inlet
+    film fractions below about 0.25) can still fail to converge; they are
+    reported as not converged (check ``results.converged``).
+    The pad flows (``q_in``, ``q_out``, the side leakage and the carry-over)
+    are the boundary flows of the finite volumes, including the half-width
+    strips of film along the axial edges: each pad's draw equals its
+    trailing-edge and side outflow, and a starved bearing drains its supply
+    through the sides and the oil not carried over. The axial edges are held at their ambient
     (gauge) pressure with a full film (submerged ends): with
     ``cavitation_pressure`` below the ambient they feed oil into a cavity
     that reaches them. A film that reforms inside a land converges at first

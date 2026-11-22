@@ -78,7 +78,7 @@ from ross.bearings.fluid_film._numba_kernels import (
     press_gradient_node_jit,
     press_postprocess_jit,
 )
-from ross.bearings.fluid_film.constants import PI
+from ross.bearings.fluid_film.constants import PI, TILTING_PAD_TYPES
 
 
 def press_bc(
@@ -911,8 +911,8 @@ def check_cavitation_model(
     NotImplementedError
         The mass-conserving model with a thermal model other than None or
         ``"adiabatic"``, pad deformation, an operating type other than
-        ``"regular_flooded"`` or ``"starved_condition_even"``, a pressure dam
-        or a 360 deg pad.
+        ``"regular_flooded"`` or ``"starved_condition_even"``, starved
+        operation of a tilting-pad bearing, a pressure dam or a 360 deg pad.
 
     Examples
     --------
@@ -944,6 +944,11 @@ def check_cavitation_model(
         raise NotImplementedError(
             f"{model} needs operating_type 'regular_flooded' or "
             f"'starved_condition_even', got {operating_type!r}"
+        )
+    if operating_type == "starved_condition_even" and bearing_type in TILTING_PAD_TYPES:
+        raise NotImplementedError(
+            f"{model} with operating_type 'starved_condition_even' needs a "
+            f"fixed-geometry bearing, got bearing_type {bearing_type!r}"
         )
     if bearing_type == "pressure_dam":
         raise NotImplementedError(f"{model} does not model the pressure dam")
