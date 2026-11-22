@@ -17,6 +17,8 @@ was not stopped by the budget. The loop names are fixed:
 Loop                        Residual                                Tolerance
 ==========================  ======================================  ==========
 ``film_onset``              pads whose film onset moved (starved)   0 moves
+                            (mass-conserving film: largest change   ``1e-6``
+                            of a pad's inlet film fraction)
 ``newton``                  ``|F_net| / |F_ext|``                   ``2e-3``
 ``tilt``                    worst pad: the smaller of               1
                             ``|M| / (1e-9 M_scale)`` (pivot moment)
@@ -28,6 +30,8 @@ Loop                        Residual                                Tolerance
 ``elasto``                  film deformation change / ``C_b``       ``DEFORM_ERROR``
 ``pivot``                   RMS pivot deflection change / ``C_b``   ``0.01``
 ``sump``                    sump temperature change, K              ``SUMP_TEMP_ERROR``
+``cavitation``              worst pad: scaled residual of the last  ``1e-13``
+                            mass-conserving film solve
 ==========================  ======================================  ==========
 
 The ``tilt`` record also gives the worst pad's ``moment`` (``|M| / M_scale``,
@@ -45,11 +49,21 @@ supply temperature, ``turbulence`` in laminar flow, ``film_onset`` when
 flooded) records one pass with a zero residual; ``newton`` under
 ``equilibrium_type="match_eccentricity"`` records ``reason="not_applicable"``.
 
+The ``cavitation`` record (``cavitation_model="mass_conserving"``) also
+gives ``mass_balance`` (per pad, ``|Q_in - Q_out| / Q_in`` of the last
+solve) and ``solves`` (the film solves of the case, including the
+finite-difference solves of the stiffness); with the Reynolds model it
+records ``reason="not_applicable"``. Every mass-conserving film solve is
+charged to the budget; those of the stiffness are counted but cannot stop
+the case.
+
 Reasons of a failed loop or case: ``"max_iterations"``, ``"diverged"`` (the
 loop gave up after its residual grew for several iterations), ``"budget"``,
 ``"time_limit"``, ``"singular_jacobian"``, ``"pivot_unloaded"``,
-``"non_finite"`` and ``"contact"`` (the final journal position gives a film
-thickness <= 0 on a pad).
+``"non_finite"``, ``"contact"`` (the final journal position gives a film
+thickness <= 0 on a pad), and for the mass-conserving film solve
+``"stalled"``, ``"singular"`` and ``"nan"`` (see
+:func:`~ross.bearings.film.cavitation.solve_elrod_adams`).
 """
 
 import math
@@ -80,6 +94,7 @@ LOOP_NAMES = (
     "elasto",
     "pivot",
     "sump",
+    "cavitation",
 )
 
 REASONS = (
@@ -91,6 +106,9 @@ REASONS = (
     "pivot_unloaded",
     "non_finite",
     "contact",
+    "stalled",
+    "singular",
+    "nan",
 )
 
 
@@ -239,6 +257,19 @@ class CaseBudget:
         self.solves += n
         self.call_solves += n
         self.max_call_solves = max(self.max_call_solves, self.call_solves)
+
+    def count(self, n=1):
+        """Count ``n`` solves that cannot stop the case.
+
+        The finite-difference solves of the mass-conserving stiffness are a
+        fixed number per case, run after the equilibrium.
+
+        Parameters
+        ----------
+        n : int, optional
+            Number of solves. Default is 1.
+        """
+        self.solves += n
 
     @property
     def elapsed(self):

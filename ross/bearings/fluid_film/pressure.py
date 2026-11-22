@@ -867,3 +867,373 @@ dpdx_n, dpdz_n, cavitated
         pad_index, mesh, nodal_pressure, pads.axial_length, dpdx_n, dpdz_n
     )
     return nodal_pressure, dpdx_n, dpdz_n, cavitated
+
+
+CAVITATION_MODELS = ("reynolds", "mass_conserving")
+# Tolerance of the mass-conserving film solves (scaled residual, see
+# ``solve_elrod_adams``).
+FILM_TOLERANCE = 1e-13
+MASS_CONSERVING_THERMAL_TYPES = (None, "adiabatic")
+MASS_CONSERVING_OPERATING_TYPES = ("regular_flooded", "starved_condition_even")
+
+
+def check_cavitation_model(
+    cavitation_model,
+    thermal_type,
+    deform_type,
+    operating_type,
+    bearing_type,
+    pad_arc,
+    cavitation_pressure,
+    ambient_pressure_1=0.0,
+    ambient_pressure_2=0.0,
+):
+    """Check that the engine supports the cavitation model for a bearing.
+
+    Parameters
+    ----------
+    cavitation_model : str
+        ``"reynolds"`` or ``"mass_conserving"``.
+    thermal_type, deform_type, operating_type, bearing_type : str or None
+        Model flags of the bearing.
+    pad_arc : array_like
+        Per-pad arc, rad.
+    cavitation_pressure : float
+        Cavitation pressure, Pa (gauge).
+    ambient_pressure_1, ambient_pressure_2 : float, optional
+        Ambient pressures of the axial edges, Pa (gauge). Default is 0.
+
+    Raises
+    ------
+    ValueError
+        Unknown ``cavitation_model``, or a mass-conserving film whose
+        boundary pressures are below the cavitation pressure.
+    NotImplementedError
+        The mass-conserving model with a thermal model other than None or
+        ``"adiabatic"``, pad deformation, an operating type other than
+        ``"regular_flooded"`` or ``"starved_condition_even"``, a pressure dam
+        or a 360 deg pad.
+
+    Examples
+    --------
+    >>> check_cavitation_model("mass_conserving", None, None,
+    ...                        "regular_flooded", "fixed_geometry", [3.0, 3.0], 0.0)
+    >>> check_cavitation_model("mass_conserving", "full", None,
+    ...                        "regular_flooded", "fixed_geometry", [3.0, 3.0], 0.0)
+    Traceback (most recent call last):
+    ...
+    NotImplementedError: cavitation_model='mass_conserving' needs thermal_type None or 'adiabatic', got 'full'
+    """
+    if cavitation_model not in CAVITATION_MODELS:
+        raise ValueError(
+            f"cavitation_model must be one of {list(CAVITATION_MODELS)}, "
+            f"not {cavitation_model!r}"
+        )
+    if cavitation_model == "reynolds":
+        return
+    model = "cavitation_model='mass_conserving'"
+    if thermal_type not in MASS_CONSERVING_THERMAL_TYPES:
+        raise NotImplementedError(
+            f"{model} needs thermal_type None or 'adiabatic', got {thermal_type!r}"
+        )
+    if deform_type is not None:
+        raise NotImplementedError(
+            f"{model} needs rigid pads (deform_type None), got {deform_type!r}"
+        )
+    if operating_type not in MASS_CONSERVING_OPERATING_TYPES:
+        raise NotImplementedError(
+            f"{model} needs operating_type 'regular_flooded' or "
+            f"'starved_condition_even', got {operating_type!r}"
+        )
+    if bearing_type == "pressure_dam":
+        raise NotImplementedError(f"{model} does not model the pressure dam")
+    if abs(float(np.atleast_1d(pad_arc)[0]) - 2.0 * PI) < 1.0e-6:
+        raise NotImplementedError(
+            f"{model} does not model the 360 deg pad (short-bearing oil seal)"
+        )
+    boundary = 0.0
+    if operating_type != "regular_flooded":
+        boundary = min(0.0, float(ambient_pressure_1), float(ambient_pressure_2))
+    if float(cavitation_pressure) > boundary:
+        raise ValueError(
+            f"{model} needs the film boundary pressures (lowest {boundary} Pa) at "
+            f"or above cavitation_pressure, got {float(cavitation_pressure)} Pa"
+        )
+
+
+class MassConservingFilm:
+    """Film-fraction state of the mass-conserving (Elrod-Adams) pressure solves.
+
+    One instance per case. It holds, per pad, the inlet film fraction, the
+    last solution (the start of the next solve of the pad) and its solver
+    record, and it counts the solves.
+
+    Parameters
+    ----------
+    total_pads : int
+        Number of pads.
+    dim_xz : int
+        Nodes per pad.
+    charge : callable, optional
+        Called once before each solve (the work budget of the case). Default
+        is None (not counted).
+
+    Attributes
+    ----------
+    film_fraction_in : numpy.ndarray
+        Film fraction of the oil entering each pad at its leading edge: 1 for
+        a flooded inlet, less for a starved one.
+    film_fraction : numpy.ndarray
+        Film fraction of the last solve of each pad, shape
+        ``(total_pads, dim_xz)``.
+    inlet_capacity : numpy.ndarray
+        Flow each pad would draw at its leading edge with a full inlet film
+        (the Couette flow ``U G h`` through the leading control-volume
+        faces), m**3/s.
+    inlet_flow : numpy.ndarray
+        Net flow each pad drew through its leading edge in its last solve
+        (the Couette inflow less the pressure-driven backflow into the
+        supply), m**3/s.
+    records : list
+        Per pad, the :class:`~ross.bearings.film.cavitation.CavitationSolution`
+        of the last solve (None before the first one).
+    full_film : numpy.ndarray of bool
+        Per pad, whether the last solve has a full-film (uncavitated) free
+        node; False for a pad whose film is cavitated everywhere.
+    solves : int
+        Solves done.
+    """
+
+    def __init__(self, total_pads, dim_xz, charge=None):
+        self.film_fraction_in = np.ones(total_pads)
+        self.film_fraction = np.ones((total_pads, dim_xz))
+        self.inlet_capacity = np.zeros(total_pads)
+        self.inlet_flow = np.zeros(total_pads)
+        self.records = [None] * total_pads
+        self.full_film = np.ones(total_pads, dtype=bool)
+        self.solves = 0
+        self.charge = charge
+
+    def _count(self):
+        if self.charge is not None:
+            self.charge()
+        self.solves += 1
+
+    def summary(self):
+        """Return the worst pad's record of the last solves.
+
+        Returns
+        -------
+        dict
+            ``iterations`` (most Newton iterations of a pad), ``residual``
+            (largest final residual), ``converged`` (every pad),
+            ``reason`` (of the first pad that did not converge, else
+            ``"converged"``), ``mass_balance`` (per pad) and ``solves``.
+        """
+        solved = [sol for sol in self.records if sol is not None]
+        if not solved:
+            return {
+                "iterations": 0,
+                "residual": 0.0,
+                "converged": True,
+                "reason": "converged",
+                "mass_balance": [0.0] * len(self.records),
+                "solves": self.solves,
+            }
+        failed = [sol for sol in solved if not sol.converged]
+        return {
+            "iterations": max(sol.record.iterations for sol in solved),
+            "residual": max(sol.record.final_residual for sol in solved),
+            "converged": not failed,
+            "reason": failed[0].record.reason if failed else "converged",
+            "mass_balance": [
+                0.0 if sol is None else float(sol.mass_balance) for sol in self.records
+            ],
+            "solves": self.solves,
+        }
+
+
+def cavitation_grid(
+    mesh,
+    operating,
+    pad_index,
+    pads,
+    vis_effect_3d,
+    film_onset,
+    h_n,
+    film_fraction_in=1.0,
+):
+    """Build the finite-volume grid of one pad on the Reynolds nodes.
+
+    The control volumes are centred on the nodes of the engine's Reynolds
+    mesh, so the pressure, film fraction and cavitated mask map one to one
+    to the nodal arrays. The flux per unit width is
+    ``q = h**3 Gamma grad(p) + U G h theta e_x`` with the engine's
+    cross-film functions ``Gamma`` (negative) and ``G``
+    (:func:`gamma_g`) and the surface speed ``U``; the nodes with a
+    prescribed pressure (:func:`press_bc`: axial edges, leading edge and the
+    nodes upstream of the film onset, trailing edge) are the Dirichlet
+    nodes, and the oil entering from them has the film fraction
+    ``film_fraction_in``.
+
+    Parameters
+    ----------
+    mesh, operating, pad_index, pads, vis_effect_3d, film_onset, h_n
+        As for :func:`press`.
+    film_fraction_in : float, optional
+        Film fraction of the oil at the leading-edge nodes (and the nodes
+        upstream of the film onset). Default is 1 (flooded).
+
+    Returns
+    -------
+    grid : ross.bearings.film.cavitation.CavitationGrid
+        The pad's grid, shape ``(total_e_x_film + 1, total_e_z_film + 1)``.
+    inlet_capacity : float
+        Couette flow through the faces from the inlet nodes into the film
+        with a full inlet film, m**3/s.
+    """
+    from ross.bearings.film.cavitation import CavitationGrid
+
+    p = pad_index
+    nx = mesh.total_e_x_film + 1
+    nz = mesh.total_e_z_film + 1
+    n = nx * nz
+    if mesh.total_nodes != n or np.any(np.asarray(mesh.n_index[:n]) != np.arange(n)):
+        raise NotImplementedError(
+            "the mass-conserving film needs a structured Reynolds mesh "
+            "(no pocket nodes)"
+        )
+    x = np.asarray(mesh.x, dtype=float)[p, :n].reshape(nx, nz)
+    z = np.asarray(mesh.z, dtype=float)[p, :n].reshape(nx, nz)
+    h = np.asarray(h_n, dtype=float)[p, :n].reshape(nx, nz)
+    gamma, g = gamma_g(mesh, pad_index, pads, h_n, vis_effect_3d)
+    total_bc, bc_index, bc_value = press_bc(
+        mesh, operating, pad_index, pads, film_onset
+    )
+    dirichlet = np.zeros(n, dtype=bool)
+    dirichlet[bc_index[:total_bc]] = True
+    pressure_bc = np.zeros(n)
+    pressure_bc[bc_index[:total_bc]] = bc_value[:total_bc]
+    inlet_columns = int(film_onset[p]) + 1
+    fraction = np.ones((nx, nz))
+    fraction[:inlet_columns] = float(film_fraction_in)
+    grid = CavitationGrid(
+        x[:, 0],
+        z[0],
+        h,
+        -(h**3) * gamma[:n].reshape(nx, nz),
+        float(operating.speed_surface) * g[:n].reshape(nx, nz),
+        dirichlet.reshape(nx, nz),
+        pressure_bc.reshape(nx, nz),
+        film_fraction_in=fraction,
+    )
+    inlet = (grid.face_left < inlet_columns * nz) & ~dirichlet[grid.face_right]
+    inlet_capacity = float(np.sum(np.clip(grid.face_couette[inlet], 0.0, None)))
+    return grid, inlet_capacity
+
+
+def press_mass_conserving(
+    mesh,
+    operating,
+    pad_index,
+    pads,
+    vis_effect_3d,
+    film_onset,
+    h_n,
+    h_min,
+    x_hmin,
+    nodal_pressure,
+    dpdx_n,
+    dpdz_n,
+    full_cavitate,
+    cavitated=None,
+    film=None,
+    keep=True,
+):
+    """Solve the mass-conserving (Elrod-Adams) film pressure on one pad.
+
+    The drop-in replacement of :func:`press` for
+    ``cavitation_model="mass_conserving"``: the pad's finite-volume grid
+    (:func:`cavitation_grid`) is solved by
+    :func:`ross.bearings.film.cavitation.solve_elrod_adams`, starting from
+    the pad's previous solution when ``film`` holds one (a start that does
+    not converge is solved again from the full film). Rupture and
+    reformation follow from the mass balance; no divergent-zone rule or
+    full-cavitation shortcut is applied.
+
+    Parameters
+    ----------
+    mesh, operating, pad_index, pads, vis_effect_3d, film_onset, h_n, \
+h_min, x_hmin, nodal_pressure, dpdx_n, dpdz_n, full_cavitate, cavitated
+        As for :func:`press` (``h_min``, ``x_hmin`` and ``full_cavitate`` are
+        not used).
+    film : MassConservingFilm, optional
+        Inlet film fractions, previous solutions and solve counter of the
+        case. Default is None (flooded inlet, cold start, not counted).
+    keep : bool, optional
+        Store the solution in ``film`` (the start of the pad's next solve
+        and its reported record). False for the perturbed solves of a finite
+        difference. Default is True.
+
+    Returns
+    -------
+    nodal_pressure, dpdx_n, dpdz_n, cavitated : numpy.ndarray
+        As returned by :func:`press`; ``cavitated`` is the solver's mask of
+        the free nodes in the cavitated zone (film fraction below 1, or at
+        the cavitation pressure on a rupture boundary).
+    """
+    import warnings
+
+    from ross.bearings.film.cavitation import solve_elrod_adams
+    from ross.bearings.film.loops import ConvergenceWarning
+
+    p = pad_index
+    fraction_in = 1.0 if film is None else float(film.film_fraction_in[p])
+    grid, capacity = cavitation_grid(
+        mesh, operating, pad_index, pads, vis_effect_3d, film_onset, h_n, fraction_in
+    )
+    previous = None if film is None else film.records[p]
+    p_cav = float(operating.press_cavitate)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", ConvergenceWarning)
+        if film is not None:
+            film._count()
+        if previous is not None:
+            solution = solve_elrod_adams(
+                grid,
+                p_cav,
+                tol=FILM_TOLERANCE,
+                p_init=previous.p,
+                theta_init=previous.theta,
+            )
+            if not solution.converged:
+                if film is not None:
+                    film._count()
+                solution = solve_elrod_adams(grid, p_cav, tol=FILM_TOLERANCE)
+        else:
+            solution = solve_elrod_adams(grid, p_cav, tol=FILM_TOLERANCE)
+    n = solution.p.size
+    if film is not None and keep:
+        film.records[p] = solution
+        film.full_film[p] = bool(np.any(~grid.dirichlet & ~solution.cavitated))
+        film.inlet_capacity[p] = capacity
+        inlet_columns = int(film_onset[p]) + 1
+        film.inlet_flow[p] = float(np.sum(solution.boundary_flow[:inlet_columns]))
+        film.film_fraction[p, :n] = solution.theta.ravel()
+
+    nodal_pressure = np.array(nodal_pressure, dtype=np.float64, copy=True)
+    nodal_pressure[p, :n] = solution.p.ravel()
+    if cavitated is None:
+        cavitated = np.zeros(nodal_pressure.shape, dtype=bool)
+    cavitated = np.array(cavitated, dtype=bool, copy=True)
+    cavitated[p] = False
+    cavitated[p, :n] = solution.cavitated.ravel()
+    dpdx_n, dpdz_n = press_gradient_node(
+        pad_index,
+        mesh,
+        nodal_pressure,
+        pads.axial_length,
+        np.ascontiguousarray(dpdx_n, dtype=np.float64),
+        np.ascontiguousarray(dpdz_n, dtype=np.float64),
+    )
+    return nodal_pressure, dpdx_n, dpdz_n, cavitated

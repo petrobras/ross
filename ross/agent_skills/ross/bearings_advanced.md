@@ -360,6 +360,16 @@ Useful knobs and post-processing:
 - `plot_pad_temperature_3d()` draws the pads as real geometry colored by the solid pad conduction field, resolved through the pad thickness (`thermal_type="full"` only)
 - `bearing.save(file)` stores the solved coefficient table, 2-D included (reloads as a plain `BearingElement`, no re-solve)
 - `cavitation_pressure` (Pa, gauge): the film never falls below it and the cavitated film is held at it
+- `cavitation_model`: `"reynolds"` (default: pressure floor at `cavitation_pressure`, divergent clearance downstream of the minimum film cavitated) or `"mass_conserving"` (Elrod-Adams pressure and film fraction: oil is conserved through the cavitated zone, rupture and reformation follow from the mass balance). Mass-conserving limits: `thermal_type` `None` or `"adiabatic"`, `deform_type=None`, `operating_type` `"regular_flooded"` or `"starved_condition_even"`, no pressure dam, no 360 deg pad (else `NotImplementedError`; the film boundary pressures must not be below `cavitation_pressure`, else `ValueError`). Starved operation sets each pad's inlet film fraction so that its net draw through the leading edge (Couette inflow less the pressure backflow into the supply) equals the available oil (`oil_flow_v / n_pads` plus the hot-oil carry-over), instead of moving the film onset; a pad whose flooded draw is below the available oil floods and spills the rest (`inlet_flow` in the cavitation record). A film that reforms inside a land converges at first order in the circumferential element size (peak pressure tens of percent off on 40 elements): refine `total_e_x_film` (160+) for such films. With `cavitation_pressure` below the ambient, the axial edges (full film at ambient) feed the cavity. Its stiffness is the central difference of the mass-conserving film force (tilts held for the journal block, journal held for the tilt blocks); its damping comes from the Reynolds perturbation with the cavitated nodes of the mass-conserving film held (an approximation: no film-content perturbation). `results.convergence[i]["loops"]["cavitation"]` holds the film solver's iterations, residual, per-pad `mass_balance`, `solves`, `film_fraction_in` and `inlet_flow`; every film solve counts in `reynolds_solves`. On a flooded two-axial-groove journal the load capacity is within 0.3 % of the Reynolds model; it differs where the film reforms inside a land (starved inlets, partial lands)
+
+```python
+bearing = FluidFilmBearing(
+    ...,  # geometry, lubricant and loads as above
+    thermal_type="adiabatic",  # or None
+    cavitation_model="mass_conserving",
+)
+bearing.results.convergence[0]["loops"]["cavitation"]["mass_balance"]  # per pad, ~1e-16
+```
 - Film force at a prescribed journal position (no equilibrium search, no coefficients), e.g. for a force map or a finite-difference check: `from ross.bearings.fluid_film.sweep import BearingSetup, film_force_at`; `setup = BearingSetup.from_inputs(**bearing._engine_inputs(speed))` meshes once, then `film_force_at(setup, speed, xj, yj, tilts="solve")` (positions in m; the keyword dict itself is accepted too, at the cost of a mesh per call) returns `fx`, `fy`, per-pad forces and pivot moments; `tilts="frozen"` holds the tilts of the equilibrium, an array holds given tilts
 
 See `docs/user_guide/tutorial_bearings_part_2.ipynb` for the full tour.

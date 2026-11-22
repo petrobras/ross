@@ -1362,3 +1362,531 @@ def test_lubricant_and_turbulence_options_are_checked(no_solve, overrides, match
     kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous", **overrides)
     with pytest.raises(ValueError, match=match):
         FluidFilmBearing(**kwargs)
+
+
+# Mass-conserving (Elrod-Adams) film in the journal engine.
+#
+# References, all independent of the mass-conserving film:
+# - the Reynolds-model film of the same engine (finite elements, its own
+#   perturbation coefficients) where nothing cavitates: the two are two
+#   discretisations of the same full-film equation, so they converge
+#   together at second order with the mesh, and the damping (same perturbation
+#   operator, same empty cavitated set) is the same;
+# - the Reynolds model on the flooded two-axial-groove journal, whose film
+#   ruptures and reforms in the grooves, where both conditions agree
+#   (literature: small differences for flooded journals; measured at most
+#   0.3 % on the 40 x 20 mesh);
+# - central differences of the film force of ``film_force_at`` (a whole
+#   case solved from scratch at each position) for the stiffness;
+# - closed forms: the Couette inflow ``U / 2 h`` of a starved inlet.
+
+MC = "mass_conserving"
+MC_MESH = dict(total_e_x_film=40, total_e_z_film=20)
+
+
+def _engine_inputs(case, **changes):
+    inputs = json.loads((DATA_DIR / f"{case}.json").read_text())["inputs"]
+    inputs.update(changes)
+    return inputs
+
+
+def _assert_film(convergence, tolerance=1e-10):
+    """The film solves converged and conserve the mass on every pad."""
+    film = convergence["loops"]["cavitation"]
+    assert film["converged"], film
+    assert max(film["mass_balance"]) < tolerance, film["mass_balance"]
+
+
+def _block_gap(reference, other):
+    """Largest gap of each stiffness block (uu, ue, eu, ee) over its scale."""
+    gaps = []
+    for rows, cols in (
+        (slice(0, 2), slice(0, 2)),
+        (slice(0, 2), slice(2, 3)),
+        (slice(2, 3), slice(0, 2)),
+        (slice(2, 3), slice(2, 3)),
+    ):
+        ref = np.asarray(reference)[rows, cols]
+        gaps.append(
+            np.max(np.abs(np.asarray(other)[rows, cols] - ref)) / np.max(np.abs(ref))
+        )
+    return max(gaps)
+
+
+def _no_cavitation_gaps(position, mesh):
+    """Force, stiffness and damping gaps of the two models, uncavitated pads."""
+    from ross.bearings.fluid_film.driver import run_case
+    from ross.bearings.fluid_film.sweep import film_force_at
+
+    inputs = _engine_inputs(
+        "tilt_5pad_isoviscous",
+        equilibrium_type="match_eccentricity",
+        xj=position[0],
+        yj=position[1],
+        total_e_x_film=mesh[0],
+        total_e_z_film=mesh[1],
+    )
+    speed, cb = inputs["frequency"][0], inputs["radial_clearance"]
+    reynolds = run_case(**inputs, diagnostics=True, pad_matrices=True)
+    tilts = np.asarray(reynolds["tilt_angle"][0])
+    held = dict(inputs, _held_tilts=tilts)
+    reynolds = run_case(**held, diagnostics=True, pad_matrices=True)
+    mass = run_case(**held, cavitation_model=MC, diagnostics=True, pad_matrices=True)
+    _assert_film(mass["convergence"][0])
+    x, y = position[0] * cb, position[1] * cb
+    force_r = film_force_at(inputs, speed, x, y, tilts=tilts)
+    force_m = film_force_at(dict(inputs, cavitation_model=MC), speed, x, y, tilts=tilts)
+    # no node cavitates under either model
+    assert not force_r["cavitated"].any()
+    assert not force_m["cavitated"].any()
+    assert_allclose(force_m["film_fraction"], 1.0, rtol=0, atol=1e-12)
+    load = np.hypot(force_r["fx"], force_r["fy"])
+    force_gap = np.hypot(force_m["fx"] - force_r["fx"], force_m["fy"] - force_r["fy"])
+    pads_r, pads_m = reynolds["pad_matrices"][0], mass["pad_matrices"][0]
+    stiffness_gap = max(
+        _block_gap(pads_r.K[k], pads_m.K[k]) for k in range(len(pads_r.K))
+    )
+    damping_gap = max(
+        np.max(np.abs(np.asarray(pads_m.C[k]) - np.asarray(pads_r.C[k])))
+        / np.max(np.abs(np.asarray(pads_r.C[k])))
+        for k in range(len(pads_r.C))
+    )
+    return force_gap / load, stiffness_gap, damping_gap
+
+
+@pytest.mark.parametrize("position", [(0.0, -0.1), (0.05, -0.2), (0.0, -0.3)])
+def test_mass_conserving_film_without_cavitation_equals_the_reynolds_film(position):
+    """A lightly loaded tilting pad: no node cavitates under either model.
+
+    Reference: the Reynolds-model film and its perturbation coefficients, at
+    the same journal position and pad tilts (those of the Reynolds model) on
+    the 40 x 20 mesh. The force and the finite-difference stiffness of the
+    mass-conserving film are within 1 % (measured 0.31-0.34 %); the damping,
+    which both models take from the same perturbation operator with the same
+    (empty) cavitated set, is the same to 1e-10.
+    """
+    force, stiffness, damping = _no_cavitation_gaps(position, (40, 20))
+    assert force < 0.01
+    assert stiffness < 0.01
+    assert damping < 1e-10
+
+
+def test_mass_conserving_and_reynolds_films_converge_together():
+    """The no-cavitation gap is a discretisation error (second order).
+
+    Reference: as above, on the 20 x 10, 40 x 20 and 80 x 40 meshes: the
+    force and stiffness gaps fall by about four per refinement (measured
+    3.96-4.08).
+    """
+    gaps = np.array(
+        [
+            _no_cavitation_gaps((0.05, -0.2), mesh)
+            for mesh in ((20, 10), (40, 20), (80, 40))
+        ]
+    )
+    for column in (0, 1):
+        ratios = gaps[:-1, column] / gaps[1:, column]
+        assert np.all((ratios > 3.5) & (ratios < 4.5)), ratios
+    assert np.all(gaps[:, 2] < 1e-10)
+
+
+@pytest.mark.parametrize("eccentricity", [0.3, 0.5, 0.7, 0.8])
+@pytest.mark.parametrize("angle", [0.0, 0.5])
+def test_flooded_two_axial_groove_load_capacity(eccentricity, angle):
+    """Flooded journal: the mass-conserving load capacity is the Reynolds one.
+
+    Reference: the Reynolds-model force of the same two-axial-groove journal
+    at the same position (40 x 20 mesh). The oil enters each land full at
+    its leading groove and the film ruptures in the divergent clearance; it
+    reforms only in the next groove, where both cavitation conditions give
+    the same film, so the load capacity agrees closely (literature: small
+    differences for flooded journals). Asserted within 5 %; measured within
+    0.3 %. The film fraction is checked against the complementarity:
+    ``theta <= 1``, ``p >= p_cav``, and the cavitated nodes are at ``p_cav``
+    with ``theta < 1``.
+    """
+    from ross.bearings.fluid_film.sweep import film_force_at
+
+    inputs = _engine_inputs("fixed_isoviscous", **MC_MESH)
+    speed, cb = inputs["frequency"][0], inputs["radial_clearance"]
+    x = eccentricity * np.sin(angle) * cb
+    y = -eccentricity * np.cos(angle) * cb
+    reynolds = film_force_at(inputs, speed, x, y)
+    mass = film_force_at(dict(inputs, cavitation_model=MC), speed, x, y)
+    assert mass["converged"]
+    _assert_film(mass["convergence"])
+    load_r = np.hypot(reynolds["fx"], reynolds["fy"])
+    load_m = np.hypot(mass["fx"], mass["fy"])
+    assert abs(load_m / load_r - 1.0) < 0.05
+    theta = mass["film_fraction"]
+    pressure = mass["nodal_pressure"] / mass["nodal_pressure"].max()
+    cavitated = mass["cavitated"]
+    assert cavitated.any() and (theta < 0.99).any()
+    assert np.all(theta <= 1.0 + 1e-12)
+    assert np.all(pressure >= -1e-9)
+    assert_allclose(np.minimum(pressure, 1.0 - theta), 0.0, rtol=0, atol=1e-9)
+    assert np.all(pressure[cavitated] <= 1e-9)
+
+
+def _starved(oil_flow_v, eccentricity=0.8, hot_oil_lambda=0.0):
+    from ross.bearings.fluid_film.sweep import film_force_at
+
+    inputs = _engine_inputs(
+        "fixed_isoviscous",
+        **MC_MESH,
+        cavitation_model=MC,
+        operating_type="starved_condition_even",
+        ambient_pressure_1=0.0,
+        ambient_pressure_2=0.0,
+        hot_oil_lambda=hot_oil_lambda,
+        oil_flow_v=oil_flow_v,
+    )
+    speed, cb = inputs["frequency"][0], inputs["radial_clearance"]
+    return inputs, film_force_at(inputs, speed, 0.0, -eccentricity * cb)
+
+
+def test_starved_inlet_film_fraction_is_the_supply_over_the_couette_inflow():
+    """The inlet film fraction of a starved land from the Couette inflow.
+
+    Reference (closed form, a regression check of the inlet discretisation
+    rather than an independent physics reference; the supply balance is
+    tested on its own below): without hot-oil carry-over each land gets half
+    the supply ``q``. At this supply the film of both lands cavitates at the
+    leading-edge pressure, so no pressure flow returns to the supply and the
+    inlet draws only the Couette flow ``U / 2 h theta_in``.
+    Through the first control-volume faces of the land, with
+    ``h = C - y_j sin(phi)`` (journal at ``(0, y_j)``) averaged between the
+    leading edge and the next node and the axial width ``L - dz`` of the
+    free nodes, ``theta_in = (q / 2) / (U / 2 h_f (L - dz))``.
+    """
+    q = 3e-4
+    inputs, out = _starved(q)
+    assert out["converged"]
+    _assert_film(out["convergence"])
+    theta_in = np.asarray(out["convergence"]["loops"]["cavitation"]["film_fraction_in"])
+    cb, radius = inputs["radial_clearance"], 0.5 * inputs["journal_diameter"]
+    speed_surface = inputs["frequency"][0] * radius
+    length = inputs["pad_axial_length"][0]
+    width = length - length / inputs["total_e_z_film"]
+    yj = -0.8 * cb
+    expected = []
+    for pivot, arc in zip(inputs["pivot_angle"], inputs["pad_arc"], strict=True):
+        leading = pivot - 0.5 * arc
+        step = arc / inputs["total_e_x_film"]
+        h_face = 0.5 * sum(cb - yj * np.sin(leading + i * step) for i in (0, 1))
+        expected.append(0.5 * q / (0.5 * speed_surface * h_face * width))
+    assert_allclose(theta_in, expected, rtol=1e-9)
+
+
+def test_starved_inlet_draws_exactly_the_available_oil():
+    """The supply conserves the oil: a starved land draws all of its share.
+
+    Reference (mass conservation at the supply): without hot-oil carry-over
+    each land has ``q / 2`` available. A land whose inlet film fraction is
+    below 1 draws exactly that net flow through its leading edge (Couette
+    inflow less the pressure backflow into the supply); a land that floods
+    draws at most ``q / 2`` and spills the rest. At ``q = 5e-4`` the loaded
+    land's pressurised zone reaches its leading edge, so its film fraction
+    is above the Couette-only value ``(q / 2) / C``.
+    """
+    for q in (3e-4, 5e-4, 6e-4, 8e-4):
+        _, out = _starved(q)
+        assert out["converged"]
+        _assert_film(out["convergence"])
+        record = out["convergence"]["loops"]["cavitation"]
+        fraction = np.asarray(record["film_fraction_in"])
+        draw = np.asarray(record["inlet_flow"])
+        starved = fraction < 1.0
+        assert_allclose(draw[starved], 0.5 * q, rtol=1e-5)
+        assert np.all(draw[~starved] <= 0.5 * q * (1 + 1e-5))
+        if q == 5e-4:
+            assert np.all(starved)
+    # The loaded land (journal at -0.8 C_b, the lower land) floods at 6e-4.
+    _, out = _starved(6e-4)
+    assert out["convergence"]["loops"]["cavitation"]["film_fraction_in"][1] == 1.0
+
+
+def test_starved_inlet_load_capacity_falls_with_the_inlet_film_fraction():
+    """Starvation reduces the load capacity.
+
+    Reference (physics trend): at a fixed eccentricity (0.8) the load grows
+    with the inlet film fraction of the loaded land until its inlet floods
+    (here between ``q = 5e-4`` and ``6e-4``); from then on the load is the
+    flooded load, whatever the supply (the unloaded land carries no
+    pressure, so its starvation does not change the force). A supply larger
+    than both inlets can draw gives the flooded film (same boundary
+    pressures, inlet film fraction 1) to 1e-10. Without the mass-conserving
+    film there is no inlet film fraction: the Reynolds model starves the
+    film by moving its onset instead.
+    """
+    from ross.bearings.fluid_film.sweep import film_force_at
+
+    supplies = (2e-4, 3e-4, 4e-4, 5e-4, 6e-4, 8e-4)
+    loads, fractions = [], []
+    for q in supplies:
+        _, out = _starved(q)
+        assert out["converged"]
+        _assert_film(out["convergence"])
+        fractions.append(out["convergence"]["loops"]["cavitation"]["film_fraction_in"])
+        loads.append(np.hypot(out["fx"], out["fy"]))
+    fractions, loads = np.array(fractions), np.array(loads)
+    assert np.all(np.diff(fractions, axis=0) >= 0)
+    assert np.all(np.diff(fractions[:, 0]) > 0)
+    starved = fractions[:, 1] < 1.0
+    assert list(starved) == [True, True, True, True, False, False]
+    assert np.all(np.diff(loads[starved]) > 0)
+
+    inputs, full = _starved(2e-3)
+    assert full["convergence"]["loops"]["cavitation"]["film_fraction_in"] == [1.0, 1.0]
+    flooded_inputs = dict(inputs, operating_type="regular_flooded")
+    cb = inputs["radial_clearance"]
+    flooded = film_force_at(flooded_inputs, inputs["frequency"][0], 0.0, -0.8 * cb)
+    assert_allclose(
+        [full["fx"], full["fy"]], [flooded["fx"], flooded["fy"]], rtol=1e-10, atol=0
+    )
+    flooded_load = np.hypot(flooded["fx"], flooded["fy"])
+    assert np.all(loads[starved] < flooded_load)
+    assert_allclose(loads[~starved], flooded_load, rtol=1e-6)
+
+
+def test_starved_inlet_with_hot_oil_carry_over():
+    """The carry-over makes the inlet film fraction a fixed point; it converges.
+
+    Reference: the available oil of each land, ``q / 2`` plus ``lambda``
+    times the exit flow of the land before it, is at least the supply share,
+    so the inlet film fraction is at least that of the case without
+    carry-over and the load at least as large.
+    """
+    _, cold = _starved(3e-4)
+    _, hot = _starved(3e-4, hot_oil_lambda=0.8)
+    assert hot["converged"]
+    _assert_film(hot["convergence"])
+    record = hot["convergence"]["loops"]["film_onset"]
+    assert record["converged"] and record["residual"] < 1e-6
+    fraction_cold = cold["convergence"]["loops"]["cavitation"]["film_fraction_in"]
+    fraction_hot = hot["convergence"]["loops"]["cavitation"]["film_fraction_in"]
+    assert np.all(np.asarray(fraction_hot) > np.asarray(fraction_cold))
+    assert np.hypot(hot["fx"], hot["fy"]) > np.hypot(cold["fx"], cold["fy"])
+
+
+def _fd_pad_blocks(inputs, x0, y0, tilts, step):
+    """Per-pad ``-dF/du`` of ``film_force_at`` (tilts held), on ``[x, y, tilt]``."""
+    from ross.bearings.fluid_film.sweep import film_force_at
+
+    speed = inputs["frequency"][0]
+    n_pads = len(inputs["pivot_angle"])
+    blocks = np.zeros((n_pads, 3, 3))
+
+    def loads(x, y, held):
+        out = film_force_at(inputs, speed, x, y, tilts=held)
+        return np.array([out["fx_pad"], out["fy_pad"], out["moment_pad"]])
+
+    for column, (dx, dy) in enumerate(((step, 0.0), (0.0, step))):
+        slope = -(loads(x0 + dx, y0 + dy, tilts) - loads(x0 - dx, y0 - dy, tilts)) / (
+            2 * step
+        )
+        blocks[:, :, column] = slope.T
+    if tilts is not None:
+        tilt_step = step / (0.5 * inputs["journal_diameter"])
+        for k in range(n_pads):
+            plus, minus = tilts.copy(), tilts.copy()
+            plus[k] += tilt_step
+            minus[k] -= tilt_step
+            slope = -(loads(x0, y0, plus) - loads(x0, y0, minus)) / (2 * tilt_step)
+            blocks[k, :, 2] = slope[:, k]
+    return blocks
+
+
+@pytest.mark.parametrize(
+    "case, position",
+    [
+        ("fixed_isoviscous", (0.3, -0.6)),
+        ("fixed_isoviscous", (-0.2, -0.75)),
+        ("tilt_5pad_isoviscous", (0.0, -0.5)),
+    ],
+)
+def test_mass_conserving_stiffness_is_the_film_force_derivative(case, position):
+    """The stiffness blocks are central differences of the cavitated film force.
+
+    Reference: central differences (step ``1e-4 C_b``, tilt step
+    ``1e-4 C_b / R``) of the per-pad film force and pivot moment of
+    ``film_force_at`` with the mass-conserving film, each a case solved from
+    scratch at a held journal position and held tilts; measured agreement
+    2e-12 of the largest entry. The films cavitate; the Reynolds-model
+    perturbation stiffness is not this derivative there (it differs by 1 to
+    40 % of the largest entry on these films). Pads cavitated everywhere
+    have no derivative and zero blocks.
+    """
+    from ross.bearings.fluid_film.driver import run_case
+
+    inputs = _engine_inputs(
+        case,
+        cavitation_model=MC,
+        equilibrium_type="match_eccentricity",
+        xj=position[0],
+        yj=position[1],
+    )
+    out = run_case(**inputs, diagnostics=True, pad_matrices=True)
+    assert out["convergence"][0]["converged"]
+    _assert_film(out["convergence"][0])
+    tilting = case.startswith("tilt_")
+    tilts = np.asarray(out["tilt_angle"][0]) if tilting else None
+    cb = inputs["radial_clearance"]
+    fd = _fd_pad_blocks(inputs, position[0] * cb, position[1] * cb, tilts, 1e-4 * cb)
+    pads = out["pad_matrices"][0]
+    loaded = 0
+    for k in range(len(inputs["pivot_angle"])):
+        engine = np.asarray(pads.K[k])
+        size = 3 if tilting else 2
+        if not np.any(engine):
+            continue
+        loaded += 1
+        scale = np.max(np.abs(engine))
+        assert_allclose(
+            engine[:size, :size], fd[k][:size, :size], rtol=0, atol=1e-9 * scale
+        )
+    assert loaded >= 1
+    if not tilting:
+        k_engine = np.array(
+            [[out["kxx"][0], out["kxy"][0]], [out["kyx"][0], out["kyy"][0]]]
+        )
+        scale = np.max(np.abs(k_engine))
+        assert_allclose(k_engine, fd.sum(axis=0)[:2, :2], rtol=0, atol=1e-9 * scale)
+
+
+def test_every_film_solve_is_charged_to_the_budget(monkeypatch):
+    """Each mass-conserving film solve counts as one solve of the budget.
+
+    Reference: a count of the calls of the film solver (a spy, the solver
+    itself runs unchanged) on a load-matched tilting pad, including the
+    finite-difference solves of the stiffness; and a budget smaller than the
+    equilibrium needs stops the case with reason ``"budget"``.
+    """
+    import ross.bearings.film.cavitation as cavitation
+    from ross.bearings.fluid_film.driver import run_case
+
+    calls = []
+    original = cavitation.solve_elrod_adams
+
+    def spy(*args, **kwargs):
+        calls.append(1)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(cavitation, "solve_elrod_adams", spy)
+    inputs = _engine_inputs("tilt_5pad_isoviscous", cavitation_model=MC)
+    out = run_case(**inputs, diagnostics=True)
+    summary = out["convergence"][0]
+    assert summary["converged"]
+    assert summary["reynolds_solves"] == len(calls) > 0
+    assert summary["loops"]["cavitation"]["solves"] == len(calls)
+
+    calls.clear()
+    stopped = run_case(**inputs, diagnostics=True, max_reynolds_solves=20)
+    summary = stopped["convergence"][0]
+    assert not summary["converged"] and summary["reason"] == "budget"
+    assert summary["reynolds_solves"] == len(calls)
+
+
+def test_mass_conserving_thermal_tilting_pad_equilibrium():
+    """An adiabatic tilting pad at its load: converged and mass-conserving.
+
+    Reference: the applied load (force balance of the converged equilibrium,
+    ``|F_net| / |F_ext| < 2e-3``) and the Reynolds model of the same case,
+    whose eccentricity it matches within 2 % (the loaded pads hardly
+    cavitate).
+    """
+    from ross.bearings.fluid_film.driver import run_case
+
+    inputs = _engine_inputs("tilt_5pad_isoviscous", thermal_type="adiabatic")
+    reynolds = run_case(**inputs)
+    mass = run_case(**inputs, cavitation_model=MC, diagnostics=True)
+    assert mass["convergence"][0]["converged"]
+    _assert_film(mass["convergence"][0])
+    load = inputs["weight"]
+    assert_allclose(np.hypot(mass["fx_hydro"][0], mass["fy_hydro"][0]), load, rtol=2e-3)
+    assert_allclose(mass["eccentricity"][0], reynolds["eccentricity"][0], rtol=0.02)
+
+
+@pytest.mark.parametrize(
+    "overrides, error, match",
+    [
+        (dict(thermal_type="full"), NotImplementedError, "thermal_type"),
+        (dict(deform_type="pad_mechanical"), NotImplementedError, "deform_type"),
+        (dict(operating_type="axial_flow"), NotImplementedError, "operating_type"),
+        (
+            dict(operating_type="high_ambient_pressure"),
+            NotImplementedError,
+            "operating_type",
+        ),
+        (
+            dict(operating_type="starved_condition_uneven"),
+            NotImplementedError,
+            "operating_type",
+        ),
+        (
+            dict(operating_type="oil_ring_lubricated"),
+            NotImplementedError,
+            "operating_type",
+        ),
+        (dict(bearing_type="pressure_dam"), NotImplementedError, "pressure dam"),
+        (dict(cavitation_pressure=1e3), ValueError, "cavitation_pressure"),
+        (
+            dict(operating_type="starved_condition_even", ambient_pressure_1=-1e3),
+            ValueError,
+            "cavitation_pressure",
+        ),
+        (dict(cavitation_model="elrod"), ValueError, "cavitation_model must be one of"),
+    ],
+)
+def test_mass_conserving_limits_raise_before_solving(no_solve, overrides, error, match):
+    """Combinations outside the limits of the mass-conserving film raise.
+
+    Both the element (before its first solve) and the engine entry point
+    check them.
+    """
+    from ross.bearings.fluid_film.driver import run_case
+
+    overrides = dict({"cavitation_model": MC, "thermal_type": None}, **overrides)
+    kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous", **overrides)
+    with pytest.raises(error, match=match):
+        FluidFilmBearing(**kwargs)
+    with pytest.raises(error, match=match):
+        run_case(**_engine_inputs("fixed_isoviscous", **overrides))
+
+
+def test_mass_conserving_film_does_not_model_the_360_deg_pad():
+    """The short-bearing oil seal (a first pad of 2 pi) is not supported."""
+    from ross.bearings.fluid_film.pressure import check_cavitation_model
+
+    with pytest.raises(NotImplementedError, match="360 deg"):
+        check_cavitation_model(
+            MC, None, None, "regular_flooded", "fixed_geometry", [2 * np.pi], 0.0
+        )
+    check_cavitation_model(
+        MC, None, None, "regular_flooded", "fixed_geometry", [np.radians(359.9)], 0.0
+    )
+
+
+def test_mass_conserving_bearing_element():
+    """The element with the mass-conserving film, over three speeds.
+
+    Reference: the Reynolds-model element of the same flooded two-axial-groove
+    journal (the coefficients of the two cavitation conditions differ by a
+    few percent on this cavitated film: the perturbation stiffness of the
+    Reynolds model is not the derivative of its force, and the
+    cavitated sets differ), and the convergence records of each speed (the
+    second and third start from the previous speed).
+    """
+    speeds = [94.24777960769379, 150.0, 200.0]
+    kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous", speed=speeds)
+    reynolds = FluidFilmBearing(**kwargs)
+    mass = FluidFilmBearing(**kwargs, cavitation_model=MC)
+    assert mass.cavitation_model == MC
+    for summary in mass.results.convergence:
+        assert summary["converged"]
+        _assert_film(summary)
+    for name in ("kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"):
+        expected = np.asarray(getattr(reynolds, name), dtype=float)
+        actual = np.asarray(getattr(mass, name), dtype=float)
+        assert np.all(np.isfinite(actual)), name
+        assert np.max(np.abs(actual - expected)) < 0.2 * np.max(np.abs(expected)), name

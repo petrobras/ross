@@ -39,6 +39,7 @@ from ross.bearings.fluid_film.diagnostics import (
     SolverBudgetExceeded,
 )
 from ross.bearings.fluid_film.state import (
+    CoefficientBlock,
     EnergyMesh,
     Lubricant,
     OperatingPoint,
@@ -192,6 +193,7 @@ _OPERATING_POINT_KEYS = {
         "press_cavitate",
         "ambient_press1",
         "ambient_press2",
+        "cavitation_model",
     )
 }
 
@@ -1190,6 +1192,19 @@ def _setup_state(kw):
         The solver state shared by every speed of the bearing.
     """
 
+    from ross.bearings.fluid_film.pressure import check_cavitation_model
+
+    check_cavitation_model(
+        kw.get("cavitation_model", "reynolds"),
+        kw["thermal_type"],
+        kw["deform_type"],
+        kw["operating_type"],
+        kw["bearing_type"],
+        kw["pad_arc"],
+        kw["cavitation_pressure"],
+        kw["ambient_pressure_1"],
+        kw["ambient_pressure_2"],
+    )
     total_pads = len(np.atleast_1d(kw["pivot_angle"]))
     # A case solves one speed; the per-case inputs (loads, supply flow) take
     # their first value, as the case loop always did.
@@ -1302,6 +1317,7 @@ def _setup_state(kw):
         "ambient_press1": float(kw["ambient_pressure_1"]),
         "ambient_press2": float(kw["ambient_pressure_2"]),
         "press_cavitate": float(kw["cavitation_pressure"]),
+        "cavitation_model": kw.get("cavitation_model", "reynolds"),
         "press_supply": float(kw["oil_supply_pressure"]),
         "temp_supply": float(kw["oil_supply_temperature"]),
         "temp_ref": float(kw["reference_temperature"]),
@@ -1602,10 +1618,25 @@ def _solve_state(
             tilt_memory=state.get("_tilt_memory"),
         )
 
+    film = None
+    if g["cavitation_model"] == "mass_conserving":
+        film = _press.MassConservingFilm(total_pads, dim_xz, charge=budget.charge)
+        if warm is not None and warm.film_fraction_in is not None:
+            film.film_fraction_in[:] = warm.film_fraction_in
+    g["_film"] = film
+
+    def film_press(*args, **kwargs):
+        # The zeroth-order film solve of the case's cavitation model.
+        if film is None:
+            return _press.press(*args, **kwargs)
+        return _press.press_mass_conserving(*args, film=film, **kwargs)
+
     def counted_press(*args, **kwargs):
-        # Every zeroth-order Reynolds solve of the case goes through here.
-        budget.charge()
-        return _press.press(*args, **kwargs)
+        # Every zeroth-order Reynolds solve of the case goes through here
+        # (the mass-conserving film charges each of its solves itself).
+        if film is None:
+            budget.charge()
+        return film_press(*args, **kwargs)
 
     def jacobian_fn(state):
         # ``state`` is 0-based natural (g is 0-based end-to-end).
@@ -1892,6 +1923,8 @@ def _solve_state(
         g["xj"] = live["state"]["xj"]
         g["yj"] = live["state"]["yj"]
         budget.enabled = False
+        if film is not None:
+            film.charge = budget.count
         g["_monitor"] = None
         # A thermal case stopped before its first temperature pass has no
         # outlet temperatures yet.
@@ -1913,7 +1946,7 @@ def _solve_state(
                 fixed_brg_fn=fixed_brg_fn,
                 jacobian_fn=jacobian_fn,
                 integrate_xz=_integrate_xz_coeff,
-                press=_press.press,
+                press=film_press,
             )
         )
         g["_monitor"] = monitor
@@ -1926,7 +1959,11 @@ def _solve_state(
         g["temp_supply"],
     )
 
+    if film is None:
+        monitor.record("cavitation", 1, np.nan, 0.0, True, "not_applicable")
+
     if film_force_only:
+        _record_film(monitor, film)
         outputs = _film_force_outputs(
             g, monitor, budget, case_start, _integrate_xz_coeff
         )
@@ -1934,7 +1971,12 @@ def _solve_state(
 
     # The stiffness and damping are evaluated at the state the outputs report
     # (the converged equilibrium, or the last iterate of a failed case).
-    stiffness = jacobian_fn(g)
+    if film is None:
+        stiffness = jacobian_fn(g)
+    else:
+        film.charge = budget.count
+        stiffness = _mass_conserving_stiffness(g, film, _integrate_xz_coeff)
+        _record_film(monitor, film)
     damping_block = _adapt(_coeff.damping, g, helpers=helpers)
     matrices = _pad_matrices(g, stiffness, damping_block)
     if whirl_ratios is None:
@@ -2017,6 +2059,180 @@ def _pad_matrices(g, stiffness, damping_block):
     )
 
 
+def _record_film(monitor, film):
+    """Record the last mass-conserving film solves of the case (worst pad)."""
+    from ross.bearings.fluid_film.pressure import FILM_TOLERANCE
+
+    if film is None:
+        return
+    summary = film.summary()
+    monitor.record(
+        "cavitation",
+        max(summary["iterations"], 1),
+        summary["residual"],
+        FILM_TOLERANCE,
+        summary["converged"],
+        "" if summary["converged"] else summary["reason"],
+        mass_balance=summary["mass_balance"],
+        solves=summary["solves"],
+        film_fraction_in=[float(v) for v in film.film_fraction_in],
+        inlet_flow=[float(v) for v in film.inlet_flow],
+    )
+
+
+def _mass_conserving_stiffness(g, film, integrate_xz):
+    """Stiffness blocks of the mass-conserving film by central differences.
+
+    The film force of each pad is evaluated with the mass-conserving film
+    at the journal position moved by ``+-1e-4 C_b`` in ``x`` and ``y`` with
+    the pad tilts held (``K_uu``, ``K_eu``) and at the pad tilt moved by
+    ``+-1e-4 C_b / R`` with the journal held (``K_ue``, ``K_ee``), so the
+    stiffness and the zeroth-order pressure come from one discrete operator.
+    The viscosity field, the film onset and the inlet film fractions are
+    held at the solved state, as in the perturbation solves of the Reynolds
+    model. Each solve starts from the pad's solution at the solved state. A
+    pad whose film is cavitated everywhere gets zero blocks.
+
+    Parameters
+    ----------
+    g : dict
+        Solver state at the solved position.
+    film : MassConservingFilm
+        Film state of the case.
+    integrate_xz : callable
+        Surface integral over the Reynolds mesh.
+
+    Returns
+    -------
+    CoefficientBlock
+        Stiffness blocks, laid out as those of
+        :func:`ross.bearings.fluid_film.coefficients.jacobian` (``-dF/du``).
+    """
+    from ross.bearings.fluid_film import hydrodynamics as _hyd
+    from ross.bearings.fluid_film import pressure as _press
+
+    total_pads = g["total_pads"]
+    pads = g["pads"]
+    operating = g["operating"]
+    cb = float(g["cb"])
+    tilting = g["bearing_type"] in TILTING_PAD_TYPES
+    xj, yj = float(g["xj"]), float(g["yj"])
+    cb_new = cb + np.asarray(g["deform_pivot"], dtype=float)[:total_pads]
+    cp_new = np.asarray(pads.cp, dtype=float)
+    preload_new = 1.0 - cb_new / cp_new[:total_pads]
+    x_rad = np.asarray(g["mesh"].x_rad, dtype=float)
+    nodes = np.asarray(g["mesh"].n_index[: g["mesh"].total_nodes], dtype=np.int64)
+
+    def pad_load(k, x, y, tilt):
+        tilt_angle = np.array(g["tilt_angle"], dtype=float, copy=True)
+        tilt_angle[k] = tilt
+        mesh = dataclasses.replace(g["mesh"], y_3d=np.array(g["mesh"].y_3d))
+        energy_mesh = dataclasses.replace(
+            g["energy_mesh"], y=np.array(g["energy_mesh"].y)
+        )
+        res = _hyd.film_thickness(
+            mesh,
+            k,
+            operating,
+            energy_mesh,
+            g["total_e_y_dambl"],
+            g["total_e_y_damcore"],
+            g["weight_h"],
+            pads,
+            cb,
+            tilt_angle,
+            preload_new,
+            x,
+            y,
+            np.array(g["h_n"], dtype=float),
+            g["dh_n"],
+            np.array(g["dhdx_n"], dtype=float),
+            cp_new,
+            g["unloaded"],
+        )
+        pressure = _press.press_mass_conserving(
+            mesh,
+            operating,
+            k,
+            pads,
+            g["vis_effect_3d"],
+            g["film_onset"],
+            res["h_n"],
+            None,
+            None,
+            g["nodal_pressure"],
+            np.array(g["dpdx_n"], dtype=float),
+            np.array(g["dpdz_n"], dtype=float),
+            None,
+            film=film,
+            keep=False,
+        )[0]
+        field = np.zeros(g["mesh"].dim_xz)
+        angle = pads.leading_angle_rad[k] + x_rad[k, nodes]
+        field[nodes] = -pressure[k, nodes] * np.cos(angle)
+        fx = integrate_xz(k, mesh, field)
+        field[nodes] = -pressure[k, nodes] * np.sin(angle)
+        fy = integrate_xz(k, mesh, field)
+        moment = _hyd.film_moment(mesh, k, pads, pressure, integrate_xz)
+        return np.array([fx, fy, moment])
+
+    step = 1e-4 * cb
+    tilt_step = step / float(pads.journal_radius)
+    tilts = np.array(g["tilt_angle"], dtype=float)
+    blocks = {
+        name: np.zeros(total_pads)
+        for name in (
+            "xxi",
+            "yxi",
+            "xyi",
+            "yyi",
+            "deltax",
+            "deltay",
+            "xdelta",
+            "ydelta",
+            "deltadelta",
+        )
+    }
+    for k in range(total_pads):
+        if not film.full_film[k]:
+            # A pad cavitated everywhere carries no film force; its force
+            # grows on one side only, so it has no derivative (zero blocks,
+            # as the perturbation solves of the Reynolds model give).
+            continue
+        for column, (dx, dy) in (("x", (step, 0.0)), ("y", (0.0, step))):
+            slope = -(
+                pad_load(k, xj + dx, yj + dy, tilts[k])
+                - pad_load(k, xj - dx, yj - dy, tilts[k])
+            ) / (2.0 * step)
+            blocks[f"x{column}i"][k] = slope[0]
+            blocks[f"y{column}i"][k] = slope[1]
+            if tilting:
+                blocks[f"delta{column}"][k] = slope[2]
+        if tilting:
+            slope = -(
+                pad_load(k, xj, yj, tilts[k] + tilt_step)
+                - pad_load(k, xj, yj, tilts[k] - tilt_step)
+            ) / (2.0 * tilt_step)
+            blocks["xdelta"][k] = slope[0]
+            blocks["ydelta"][k] = slope[1]
+            blocks["deltadelta"][k] = slope[2]
+    return CoefficientBlock(
+        float(np.sum(blocks["xxi"])),
+        float(np.sum(blocks["yxi"])),
+        float(np.sum(blocks["xyi"])),
+        float(np.sum(blocks["yyi"])),
+        blocks["deltax"],
+        blocks["deltay"],
+        blocks["xdelta"],
+        blocks["ydelta"],
+        blocks["deltadelta"],
+        blocks["xxi"],
+        blocks["yxi"],
+        blocks["xyi"],
+        blocks["yyi"],
+    )
+
+
 def _reduce(pad_matrices, frequency, monitor):
     """Condense the pad matrices at one whirl frequency, rad/s.
 
@@ -2079,6 +2295,11 @@ def _film_force_outputs(g, monitor, budget, case_start, integrate_xz):
         "h_min": h_min.copy(),
         "nodal_pressure": np.array(g["nodal_pressure"], dtype=float),
         "cavitated": np.array(g["cavitated"], dtype=bool),
+        "film_fraction": (
+            None
+            if g.get("_film") is None
+            else np.array(g["_film"].film_fraction, dtype=float)
+        ),
         "converged": monitor.converged,
         "convergence": monitor.summary(
             budget, wall_time=time.perf_counter() - case_start
@@ -2396,6 +2617,10 @@ def _assemble_field_outputs(g):
         (N, shape ``(total_pads, 2)``, the film force of each pad along
         ``x`` and ``y``).
 
+        With ``cavitation_model="mass_conserving"`` the dict also carries
+        ``"film_fraction"`` (the Elrod-Adams film fraction, shaped like
+        ``"pressure"``).
+
         When the full (conducting-pad) thermal model ran, the dict also
         carries the solid pad temperature: ``"pad_temperature"`` (K,
         shape ``(total_pads, dim_x, total_e_y_pad + 1)``, radial index 0
@@ -2426,6 +2651,8 @@ def _assemble_field_outputs(g):
             ]
         ),
     }
+    if g.get("_film") is not None:
+        fields["film_fraction"] = grid(g["_film"].film_fraction)
 
     if g.get("thermal_type") == "full":
         te_yp = g["total_e_y_pad"]

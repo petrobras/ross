@@ -490,7 +490,7 @@ class FluidFilmBearing(BearingElement):
         pressure does not fall below it, and the cavitated film (where the
         solve reaches it, the divergent clearance downstream of the minimum
         film thickness in flooded operation, and fully cavitated pads) is
-        held at it. Default is 0.
+        held at it (Reynolds model; see ``cavitation_model``). Default is 0.
     oil_supply_pressure : float, pint.Quantity, optional
         Lubricant supply pressure, Pa. Default is 0.
     reference_temperature : float, pint.Quantity, optional
@@ -567,6 +567,17 @@ class FluidFilmBearing(BearingElement):
         different value given here is ignored with a warning. The
         attribute holds the law used. Notes give the size of the difference
         between the two laws.
+    cavitation_model : str, optional
+        ``"reynolds"`` (default): the film pressure is floored at
+        ``cavitation_pressure`` (the Reynolds, or Swift-Stieber, condition)
+        and the divergent clearance downstream of the minimum film is
+        cavitated. ``"mass_conserving"``: the Elrod-Adams film (pressure and
+        film fraction; Notes, "Cavitation models"), which conserves the oil
+        through the cavitated zone and forms rupture and reformation from the
+        mass balance. It needs ``thermal_type`` None or ``"adiabatic"``,
+        ``deform_type=None`` and ``operating_type`` ``"regular_flooded"`` or
+        ``"starved_condition_even"``, and does not model the pressure dam or
+        the 360 deg pad (other combinations raise ``NotImplementedError``).
     tag : str, optional
         A tag to name the element.
 
@@ -590,6 +601,9 @@ class FluidFilmBearing(BearingElement):
         negative frequencies or ``excitation_ratio``, non-positive
         geometry, density or flow, preload or offset out of range,
         overlapping pads, or a pivot model without the data it needs.
+    NotImplementedError
+        ``cavitation_model="mass_conserving"`` with a model the
+        mass-conserving film does not support (see ``cavitation_model``).
     FluidFilmConvergenceError
         With ``on_failure="raise"``, when a case does not converge.
 
@@ -656,6 +670,39 @@ class FluidFilmBearing(BearingElement):
     frequency without a new solve (``frequency=0`` gives the static
     limit). Fixed-geometry films have no pad coordinates and do not depend
     on the whirl frequency.
+
+    Cavitation models. With ``cavitation_model="reynolds"`` the
+    finite-element film is floored at ``cavitation_pressure`` (the Reynolds,
+    or Swift-Stieber, condition: a film that ruptures does not reform within
+    the pad). With ``"mass_conserving"`` each pad's film is the Elrod-Adams
+    film (pressure and film fraction ``theta``, Elrod 1981, in the
+    complementarity form of Giacopini et al. 2010) on finite volumes centred
+    on the same nodes: the oil that crosses the cavitated zone as a striated
+    film is conserved, and the film ruptures and reforms where the mass
+    balance requires (the Jakobsson-Floberg-Olsson conditions). The oil
+    enters each pad full (flooded) or, under ``"starved_condition_even"``,
+    with the inlet film fraction at which the pad's net draw through its
+    leading edge (the Couette inflow less the pressure flow back into the
+    supply) equals the available oil (the supply share plus the hot-oil
+    carry-over); a pad whose flooded draw is less than the available oil
+    floods and spills the rest. The axial edges are held at their ambient
+    (gauge) pressure with a full film (submerged ends): with
+    ``cavitation_pressure`` below the ambient they feed oil into a cavity
+    that reaches them. A film that reforms inside a land converges at first
+    order in the circumferential element size: its peak pressure on the
+    default 40-element pad can be tens of percent off (about 7 % on 160
+    elements against the one-dimensional Jakobsson-Floberg-Olsson film), so
+    such films need a much finer circumferential mesh. The
+    stiffness blocks are central differences of this film's force and pivot
+    moments (step ``1e-4 C_b``, tilt step ``1e-4 C_b / R``; tilts held for
+    the journal block, journal held for the tilt blocks; viscosity held), so
+    they are the derivative of the same discrete film. The damping blocks
+    are the Reynolds-model perturbation with the cavitated nodes of the
+    mass-conserving film held: they omit the change of the film content
+    with the squeeze velocity (an approximation). Without cavitation both
+    models give the same film to the discretisation error (0.3 % on a
+    40 x 20 mesh) and the same damping. The adiabatic energy equation
+    scales the shear dissipation with the film fraction.
 
     Full 360 deg pad. When the first pad spans exactly 2 pi, the engine
     drops the circumferential pressure flow and the leading/trailing-edge
@@ -789,6 +836,7 @@ class FluidFilmBearing(BearingElement):
         max_reynolds_solves=None,
         time_limit=None,
         viscosity_model=None,
+        cavitation_model="reynolds",
         **kwargs,
     ):
         # ``locals()`` of a method that uses zero-argument ``super()`` also
@@ -1206,6 +1254,19 @@ class FluidFilmBearing(BearingElement):
             )
         self._validate_pad_layout()
         self._validate_pivots()
+        from ross.bearings.fluid_film.pressure import check_cavitation_model
+
+        check_cavitation_model(
+            self.cavitation_model,
+            self.thermal_type,
+            self.deform_type,
+            self.operating_type,
+            self.bearing_type,
+            self.pad_arc,
+            float(self.cavitation_pressure),
+            float(self.ambient_pressure_1),
+            float(self.ambient_pressure_2),
+        )
 
         load = {
             "weight": float(self.weight),
@@ -1441,6 +1502,7 @@ class FluidFilmBearing(BearingElement):
             "ambient_pressure_1": float(self.ambient_pressure_1),
             "ambient_pressure_2": float(self.ambient_pressure_2),
             "cavitation_pressure": float(self.cavitation_pressure),
+            "cavitation_model": self.cavitation_model,
             "oil_supply_pressure": float(self.oil_supply_pressure),
             "oil_supply_temperature": float(self.oil_supply_temperature),
             "reference_temperature": float(self.reference_temperature),

@@ -618,3 +618,74 @@ def test_invalid_inputs():
     ):
         with pytest.raises(ValueError):
             solve_elrod_adams(grid, **kwargs)
+
+
+def _engine_pad_state(**changes):
+    """Solved state of the two-axial-groove journal fixture (isoviscous)."""
+    import json
+    from pathlib import Path
+
+    from ross.bearings.fluid_film.sweep import BearingSetup, _solve
+
+    path = Path(__file__).parent / "data" / "fluid_film" / "fixed_isoviscous.json"
+    inputs = json.loads(path.read_text())["inputs"]
+    inputs.update(changes)
+    setup = BearingSetup.from_inputs(**inputs)
+    _, state, _ = _solve(setup, inputs["frequency"][0])
+    return state
+
+
+@pytest.mark.parametrize("film_fraction_in", [1.0, 0.4])
+def test_journal_pad_grid_on_the_reynolds_nodes(film_fraction_in):
+    """The finite-volume grid of a journal pad.
+
+    References (closed forms of a laminar isoviscous film): the grid nodes
+    are the Reynolds nodes of the pad; the Couette coefficient is ``U / 2``
+    (``G = 1/2``, exact for the linear cross-film integrand); the diffusion
+    coefficient is ``h^3 / (12 mu)`` (the engine integrates the quadratic
+    cross-film integrand of ``Gamma`` with the trapezoid rule on its
+    clustered nodes: within 2 %, and the same at every node); the Dirichlet
+    nodes are the four pad edges (flooded); the inlet capacity is the
+    Couette flow ``U / 2 h_f`` through the faces from the leading edge into
+    the free nodes, and the inlet film fraction is set on the leading edge
+    only.
+    """
+    from ross.bearings.fluid_film.pressure import cavitation_grid
+
+    g = _engine_pad_state()
+    mesh, pads, operating = g["mesh"], g["pads"], g["operating"]
+    nx, nz = mesh.total_e_x_film + 1, mesh.total_e_z_film + 1
+    pad = 1
+    grid, capacity = cavitation_grid(
+        mesh,
+        operating,
+        pad,
+        pads,
+        g["vis_effect_3d"],
+        g["film_onset"],
+        g["h_n"],
+        film_fraction_in,
+    )
+    assert grid.shape == (nx, nz)
+    assert_allclose(grid.x, mesh.x[pad, : nx * nz].reshape(nx, nz)[:, 0])
+    assert_allclose(grid.z, mesh.z[pad, : nx * nz].reshape(nx, nz)[0])
+    h = g["h_n"][pad, : nx * nz].reshape(nx, nz)
+    assert_allclose(grid.h, h)
+    assert_allclose(grid.couette, 0.5 * operating.speed_surface, rtol=1e-12)
+    mu = g["vis_effect_3d"][pad, 0]
+    assert np.ptp(g["vis_effect_3d"][pad]) == 0.0
+    ratio = grid.diffusion * 12.0 * mu / h**3
+    assert_allclose(ratio, ratio[0, 0], rtol=1e-9)
+    assert abs(ratio[0, 0] - 1.0) < 0.02
+    edges = np.zeros((nx, nz), dtype=bool)
+    edges[[0, -1], :] = True
+    edges[:, [0, -1]] = True
+    assert np.array_equal(grid.dirichlet, edges)
+    assert np.all(grid.pressure_bc[edges] == 0.0)
+    assert np.all(grid.film_fraction_in[0] == film_fraction_in)
+    assert np.all(grid.film_fraction_in[1:] == 1.0)
+    width = np.diff(grid.z)
+    control = np.r_[0.5 * width[0], 0.5 * (width[:-1] + width[1:]), 0.5 * width[-1]]
+    h_face = 0.5 * (h[0] + h[1])
+    expected = np.sum((0.5 * operating.speed_surface * h_face * control)[1:-1])
+    assert_allclose(capacity, expected, rtol=1e-12)

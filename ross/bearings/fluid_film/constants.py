@@ -102,6 +102,9 @@ NEWTON_ERROR = 2.0e-3
 TILT_ERROR = 1.0e-10
 TILT_MOMENT_ERROR = 1.0e-9
 PIVOT_ERROR = 1.0e-2
+# Inlet film fraction of a starved pad (mass-conserving film): largest change
+# between two equilibrium passes.
+FILM_FRACTION_ERROR = 1.0e-6
 
 # Smallest admissible film thickness of a tilting pad, relative to the bore
 # clearance: a trial tilt whose minimum film is at or below it counts as a
