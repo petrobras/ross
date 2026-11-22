@@ -9,6 +9,10 @@ constants (``turbulence``). The subpackage does not import
 ==============  ==============================================================
 Module          Responsibility
 ==============  ==============================================================
+``cavitation``  Mass-conserving (Elrod-Adams) cavitation: ``p``-``theta``
+                finite volumes on a structured node grid
+                (``CavitationGrid``), Fischer-Burmeister Newton solver
+                (``solve_elrod_adams``, ``CavitationSolution``).
 ``condense``    Condensation of pad coordinates at any whirl frequency, with
                 the closed-form ``w = 0`` and ``w -> infinity`` limits.
 ``lubricant``   Viscosity-temperature laws (Walther / ASTM D341, two-point
@@ -24,6 +28,11 @@ Module          Responsibility
 Everything is SI with temperatures in K.
 """
 
+from ross.bearings.film.cavitation import (
+    CavitationGrid,
+    CavitationSolution,
+    solve_elrod_adams,
+)
 from ross.bearings.film.condense import (
     condense,
     condense_limit,
@@ -48,6 +57,8 @@ from ross.bearings.film.mixing import (
 )
 
 __all__ = [
+    "CavitationGrid",
+    "CavitationSolution",
     "ConvergenceRecord",
     "ConvergenceWarning",
     "Lubricant",
@@ -60,6 +71,7 @@ __all__ = [
     "dynamic_matrix",
     "exponential_viscosity",
     "lubricant_data",
+    "solve_elrod_adams",
     "temp_mixing_carryover",
     "upstream_pads",
 ]
