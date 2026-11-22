@@ -1010,6 +1010,7 @@ class MassConservingFilm:
         self.inlet_capacity = np.zeros(total_pads)
         self.inlet_flow = np.zeros(total_pads)
         self.records = [None] * total_pads
+        self.edge_flow = [(0.0, 0.0)] * total_pads
         self.full_film = np.ones(total_pads, dtype=bool)
         self.solves = 0
         self.charge = charge
@@ -1128,8 +1129,78 @@ def cavitation_grid(
         film_fraction_in=fraction,
     )
     inlet = (grid.face_left < inlet_columns * nz) & ~dirichlet[grid.face_right]
-    inlet_capacity = float(np.sum(np.clip(grid.face_couette[inlet], 0.0, None)))
+    # The x faces between two nodes of an axial edge bound the half-width
+    # strips of film along the edges (see :func:`edge_strip_flows`).
+    edges = _edge_strip_faces(nx, nz)
+    inlet_faces = edges[inlet_columns - 1]
+    inlet_capacity = float(
+        np.sum(np.clip(grid.face_couette[inlet], 0.0, None))
+        + np.sum(np.clip(grid.face_couette[inlet_faces], 0.0, None))
+    )
     return grid, inlet_capacity
+
+
+def _edge_strip_faces(nx, nz):
+    """Indices of the x faces along the two axial edges, shape ``(nx - 1, 2)``."""
+    index = np.arange(nx - 1) * nz
+    return np.stack([index, index + nz - 1], axis=1)
+
+
+def edge_strip_flows(grid, solution, inlet_columns):
+    """Oil carried along the two axial edges of a pad, in and out.
+
+    The nodes of an axial edge hold the ambient pressure, so the solver
+    leaves the faces between them out of the film flow
+    (``CavitationSolution.boundary_flow``). Their control volumes are the
+    half-width strips of film along the edges, which the journal drags
+    through the pad: oil enters each strip at the inlet and leaves it at the
+    trailing edge, and the difference leaks out of the side. Without them
+    the flows of the pad are short by about ``1 / total_e_z_film`` of the
+    Couette flow (first order in the axial element size). The strip flux is
+    the Couette flux of the face with the film fraction of the node upwind
+    in the first row inside the edge (the edge node itself has no film
+    fraction of its own), plus the pressure-driven flux along the edge.
+
+    Parameters
+    ----------
+    grid : ross.bearings.film.cavitation.CavitationGrid
+        The pad's grid.
+    solution : ross.bearings.film.cavitation.CavitationSolution
+        Its solution.
+    inlet_columns : int
+        Number of inlet node columns (leading edge and the columns upstream
+        of the film onset).
+
+    Returns
+    -------
+    strip_in, strip_out : float
+        Flow entering the two strips from the inlet and leaving them at the
+        trailing edge, m**3/s.
+    """
+    nx, nz = grid.shape
+    if nz < 3:
+        return 0.0, 0.0
+    faces = _edge_strip_faces(nx, nz)
+    theta = np.asarray(solution.theta, dtype=float)
+    p = np.ravel(solution.p)
+    inner = (1, nz - 2)
+
+    def flux(column):
+        total = 0.0
+        for side in range(2):
+            face = faces[column, side]
+            couette = grid.face_couette[face]
+            upwind = column if couette >= 0.0 else column + 1
+            if upwind < inlet_columns:
+                fraction = grid.film_fraction_in[upwind, inner[side]]
+            else:
+                fraction = theta[upwind, inner[side]]
+            total += couette * fraction + grid.face_conductance[face] * (
+                p[grid.face_left[face]] - p[grid.face_right[face]]
+            )
+        return float(total)
+
+    return flux(inlet_columns - 1), flux(nx - 2)
 
 
 def press_mass_conserving(
@@ -1237,7 +1308,11 @@ h_min, x_hmin, nodal_pressure, dpdx_n, dpdz_n, full_cavitate, cavitated
         film.full_film[p] = bool(np.any(~grid.dirichlet & ~solution.cavitated))
         film.inlet_capacity[p] = capacity
         inlet_columns = int(film_onset[p]) + 1
-        film.inlet_flow[p] = float(np.sum(solution.boundary_flow[:inlet_columns]))
+        strip_in, strip_out = edge_strip_flows(grid, solution, inlet_columns)
+        film.edge_flow[p] = (strip_in, strip_out)
+        film.inlet_flow[p] = (
+            float(np.sum(solution.boundary_flow[:inlet_columns])) + strip_in
+        )
         film.film_fraction[p, :n] = solution.theta.ravel()
 
     nodal_pressure = np.array(nodal_pressure, dtype=np.float64, copy=True)

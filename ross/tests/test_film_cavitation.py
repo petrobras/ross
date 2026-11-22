@@ -647,8 +647,9 @@ def test_journal_pad_grid_on_the_reynolds_nodes(film_fraction_in):
     clustered nodes: within 2 %, and the same at every node); the Dirichlet
     nodes are the four pad edges (flooded); the inlet capacity is the
     Couette flow ``U / 2 h_f`` through the faces from the leading edge into
-    the free nodes, and the inlet film fraction is set on the leading edge
-    only.
+    the free nodes and into the half-width strips along the axial edges (the
+    full axial width), and the inlet film fraction is set on the leading
+    edge only.
     """
     from ross.bearings.fluid_film.pressure import cavitation_grid
 
@@ -687,5 +688,5 @@ def test_journal_pad_grid_on_the_reynolds_nodes(film_fraction_in):
     width = np.diff(grid.z)
     control = np.r_[0.5 * width[0], 0.5 * (width[:-1] + width[1:]), 0.5 * width[-1]]
     h_face = 0.5 * (h[0] + h[1])
-    expected = np.sum((0.5 * operating.speed_surface * h_face * control)[1:-1])
+    expected = np.sum(0.5 * operating.speed_surface * h_face * control)
     assert_allclose(capacity, expected, rtol=1e-12)

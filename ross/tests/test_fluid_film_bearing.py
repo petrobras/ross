@@ -1557,8 +1557,9 @@ def test_starved_inlet_film_fraction_is_the_supply_over_the_couette_inflow():
     inlet draws only the Couette flow ``U / 2 h theta_in``.
     Through the first control-volume faces of the land, with
     ``h = C - y_j sin(phi)`` (journal at ``(0, y_j)``) averaged between the
-    leading edge and the next node and the axial width ``L - dz`` of the
-    free nodes, ``theta_in = (q / 2) / (U / 2 h_f (L - dz))``.
+    leading edge and the next node and the full axial width ``L`` (the free
+    nodes and the half-width strips along the axial edges),
+    ``theta_in = (q / 2) / (U / 2 h_f L)``.
     """
     q = 3e-4
     inputs, out = _starved(q)
@@ -1568,7 +1569,7 @@ def test_starved_inlet_film_fraction_is_the_supply_over_the_couette_inflow():
     cb, radius = inputs["radial_clearance"], 0.5 * inputs["journal_diameter"]
     speed_surface = inputs["frequency"][0] * radius
     length = inputs["pad_axial_length"][0]
-    width = length - length / inputs["total_e_z_film"]
+    width = length
     yj = -0.8 * cb
     expected = []
     for pivot, arc in zip(inputs["pivot_angle"], inputs["pad_arc"], strict=True):
@@ -1670,7 +1671,14 @@ def test_starved_inlet_with_hot_oil_carry_over():
     assert np.hypot(hot["fx"], hot["fy"]) > np.hypot(cold["fx"], cold["fy"])
 
 
-def _starved_equilibrium(oil_flow_l_min, mesh=(20, 10)):
+def _starved_equilibrium(
+    oil_flow_l_min,
+    mesh=(20, 10),
+    operating_type="starved_condition_even",
+    lam=0.8,
+    model=MC,
+    thermal_type=None,
+):
     """Equilibrium of the starved two-axial-groove journal.
 
     The isoviscous journal of ``fluid_film_bearing_example`` on a
@@ -1692,11 +1700,12 @@ def _starved_equilibrium(oil_flow_l_min, mesh=(20, 10)):
         oil_supply_temperature=Q_(50, "degC"),
         oil_flow_v=Q_(oil_flow_l_min, "l/min"),
         weight=Q_(25361.8, "lbf"),
-        thermal_type=None,
+        thermal_type=thermal_type,
         total_ex_film=mesh[0],
         total_ez_film=mesh[1],
-        operating_type="starved_condition_even",
-        cavitation_model=MC,
+        operating_type=operating_type,
+        cavitation_model=model,
+        hot_oil_lambda=lam,
     )
     return FluidFilmBearing(**kwargs)
 
@@ -1719,6 +1728,107 @@ def _assert_starved_balance(bearing):
         rtol=1e-5,
     )
     assert_allclose(np.sum(operating["pad_load"][0]), weight, rtol=1e-5)
+    _assert_oil_balance(bearing)
+
+
+def _assert_oil_balance(bearing, starved=True):
+    """The reported flows of a mass-conserving case balance the oil.
+
+    Each pad draws ``q_in`` at its inlet, which leaves through the side edges
+    (``q_sides``) or the trailing edge (``q_out``), of which ``hot_oil_lambda``
+    is carried to the next pad and the rest drains. When every land is
+    starved it draws all the oil available to it, so the supply equals the
+    side leakage plus the trailing-edge flow that is not carried over.
+    Tolerances: the mass balance of the film solves (1e-10) per pad, the
+    inlet film-fraction tolerance (1e-6) for the supply.
+    """
+    out = bearing.results.outputs[0]
+    q_in, q_out, q_sides = (
+        np.asarray(out[key], dtype=float).ravel()
+        for key in ("q_in", "q_out", "q_sides")
+    )
+    scale = np.max(q_in)
+    assert_allclose(q_in - q_out - q_sides, 0.0, rtol=0, atol=1e-10 * scale)
+    assert np.all(q_sides >= -1e-12 * scale)
+    film = bearing.results.convergence[0]["loops"]["cavitation"]
+    assert_allclose(q_in, film["inlet_flow"], rtol=1e-12)
+    operating = bearing.operating_results
+    lam = bearing.hot_oil_lambda
+    assert_allclose(operating["q_side"][0], np.sum(q_sides), rtol=1e-12)
+    assert_allclose(operating["q_carryover"][0], lam * np.sum(q_out), rtol=1e-12)
+    drained = operating["q_side"][0] + (1.0 - lam) * np.sum(q_out)
+    if starved:
+        assert_allclose(drained, operating["q_supply"][0], rtol=1e-5)
+    else:
+        # A flooded pad draws less than it is offered and spills the rest.
+        assert drained < operating["q_supply"][0]
+
+
+def test_mass_conserving_flows_converge_to_the_full_film_flows():
+    """Where nothing cavitates the two models report the same flows.
+
+    Reference: the Reynolds-model flows of the same full film (inlet flow
+    and side leakage from the velocity profiles integrated across the film;
+    they move by 1e-3 between the 20 x 10 and 160 x 80 meshes). The
+    mass-conserving flows come from the finite-volume fluxes, including the
+    half-width strips of film along the axial edges, and converge to them at
+    second order: measured gaps 6.6e-4 and 2.1e-4 of the inlet flow, 8.6e-3
+    and 2.5e-3 of the side leakage, on the 20 x 10 and 40 x 20 meshes.
+    """
+    from ross.bearings.fluid_film.driver import run_case
+
+    gaps = []
+    for mesh in ((20, 10), (40, 20)):
+        inputs = _engine_inputs(
+            "tilt_5pad_isoviscous",
+            equilibrium_type="match_eccentricity",
+            xj=0.0,
+            yj=-0.1,
+            total_e_x_film=mesh[0],
+            total_e_z_film=mesh[1],
+        )
+        tilts = np.asarray(run_case(**inputs)["tilt_angle"][0])
+        held = dict(inputs, _held_tilts=tilts)
+        reynolds = run_case(**held, diagnostics=True)
+        mass = run_case(**held, cavitation_model=MC, diagnostics=True)
+        row = []
+        for key in ("q_in", "q_sides"):
+            ref = np.asarray(reynolds[key][0], dtype=float)
+            row.append(np.max(np.abs(np.asarray(mass[key][0]) - ref)) / np.max(ref))
+        gaps.append(row)
+    gaps = np.array(gaps)
+    assert np.all(gaps[1] < [1e-3, 1e-2]), gaps
+    assert np.all(gaps[0] / gaps[1] > 2.5), gaps
+
+
+@pytest.mark.parametrize("hot_oil_lambda", [0.8, 0.0])
+def test_flooded_mass_conserving_oil_balance(hot_oil_lambda):
+    """Flooded two-axial-groove journal: the flows close the oil balance.
+
+    References: the oil balance of :func:`_assert_oil_balance` (each pad's
+    draw leaves through its sides and trailing edge, and a flooded pad
+    spills part of what it is offered), and the side leakage of the
+    Reynolds model on the same journal, whose film ruptures and reforms in
+    the grooves only (measured 0.1 % apart on the 40 x 20 mesh, 1.7 % on the
+    20 x 10 mesh).
+    """
+    reynolds = _starved_equilibrium(
+        100.0,
+        mesh=(40, 20),
+        operating_type="regular_flooded",
+        lam=hot_oil_lambda,
+        model="reynolds",
+    )
+    mass = _starved_equilibrium(
+        100.0, mesh=(40, 20), operating_type="regular_flooded", lam=hot_oil_lambda
+    )
+    assert mass.results.convergence[0]["converged"]
+    _assert_oil_balance(mass, starved=False)
+    assert_allclose(
+        mass.operating_results["q_side"][0],
+        reynolds.operating_results["q_side"][0],
+        rtol=1e-2,
+    )
 
 
 def test_strongly_starved_mass_conserving_equilibrium():
