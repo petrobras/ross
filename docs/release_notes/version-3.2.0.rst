@@ -552,7 +552,7 @@ The frequency-domain model of ``MagneticBearingElement`` already treated ``ks`` 
 stiffness (ISO 14839-1). The two time-domain paths did not, and they also left out the amplifier
 and sensor gains. These paths are ``compute_amb_controller``, used by the Newmark integration of
 ``run_time_response``, and ``AmbTimeResponse``, which uses ``lsim``. Contributed by
-@mariac-souza (`#1464 <https://github.com/petrobras/ross/pull/1464>`_).
+Maria, @mariac-souza (`#1464 <https://github.com/petrobras/ross/pull/1464>`_).
 
 - **The force.** Both paths applied ``+ks * x``. With ``ks < 0`` this is a restoring force, so the
   negative stiffness acted as a positive one. The force is now ``ki * i - ks * x``.
@@ -799,7 +799,10 @@ Changed signatures
     3.2 order is ``..., backlash, mesh_damping_ratio, orientation_angle, position, min_w, max_w,
     rated_w, tag``.
   - **A 3.1 call that passes** ``orientation_angle`` **or a later argument by position now binds
-    it to a different parameter.** Pass those arguments by keyword.
+    it to a different parameter.** Measured on main for these notes, ``orientation_angle=0.5``
+    passed as the eighth positional argument becomes ``mesh_damping_ratio=0.5``, with no error,
+    and passing ``position`` by position as well raises ``TypeError``. Pass those arguments by
+    keyword.
 
 - ``HolePatternSeal.__init__`` has ``gas_model="ideal"`` right after ``gas_composition``.
   ``molar_mass`` and every later parameter move one position to the right, so pass them by keyword
