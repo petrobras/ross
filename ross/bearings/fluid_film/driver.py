@@ -172,6 +172,11 @@ _LUBRICANT_KEYS = {
     "density": "lube_density",
     "cp": "lube_cp",
     "conduct": "lube_conduct",
+    "model": "lube_model",
+    "walther_a": "walther_a",
+    "walther_b": "walther_b",
+    "walther_density": "walther_density",
+    "walther_expansion": "walther_expansion",
 }
 
 
@@ -1076,6 +1081,14 @@ def run_case(**kw):
     the dimensionless and structural inputs (``total_e_x_film``,
     ``bearing_type``, ``operating_type``, ...).
 
+    The lubricant is ``viscosity1``, ``viscosity2`` (Pa*s) at ``temp1``,
+    ``temp2`` (K) with the two-point exponential law, plus the constants
+    ``lube_density``, ``lube_cp`` and ``lube_conduct``. The optional
+    ``lube_model=1`` selects the Walther law instead, with ``walther_a``,
+    ``walther_b``, ``walther_density`` (kg/m**3 at ``temp1``) and
+    ``walther_expansion`` (1/K) (see
+    :class:`~ross.bearings.fluid_film.state.Lubricant`).
+
     Returns a dict of 89 named outputs (equilibrium position, reduced
     stiffness/damping coefficients, power loss, flow rates, film thicknesses,
     temperature fields, per-pad summaries and center-plane profiles), with
@@ -1269,6 +1282,12 @@ def _setup_state(kw):
         "lube_density": float(kw["lube_density"]),
         "lube_cp": float(kw["lube_cp"]),
         "lube_conduct": float(kw["lube_conduct"]),
+        # viscosity law (absent: the two-point exponential law)
+        "lube_model": int(kw.get("lube_model", 0)),
+        "walther_a": float(kw.get("walther_a", 0.0)),
+        "walther_b": float(kw.get("walther_b", 0.0)),
+        "walther_density": float(kw.get("walther_density", 0.0)),
+        "walther_expansion": float(kw.get("walther_expansion", 0.0)),
         "young": float(kw["pad_young"]),
         "poisson": float(kw["pad_poisson"]),
         "pad_conduct": float(kw["pad_conductivity"]),

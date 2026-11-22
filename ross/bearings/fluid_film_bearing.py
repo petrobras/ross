@@ -101,6 +101,178 @@ def _lubricant_properties(lubricant):
     }
 
 
+_RE_TURBULENT_DEFAULT = 1000
+
+
+def _resolve_lubricant(lubricant, viscosity_model, temperature):
+    """Resolve the lubricant of an element and its viscosity law.
+
+    Precedence of the viscosity law: a
+    :class:`ross.bearings.film.lubricant.Lubricant` keeps its own law (a
+    ``viscosity_model`` that differs from it is ignored with a warning), and
+    so does a dictionary holding a ``viscosity_model`` key (the format of
+    :meth:`~ross.bearings.film.lubricant.Lubricant.to_dict`); for a name or
+    another dictionary ``viscosity_model`` applies, None meaning
+    ``"exponential"``.
+
+    A name or a dictionary without a ``viscosity_model`` key, with the
+    exponential law, resolves through :func:`_lubricant_properties`: its
+    table density, specific heat and conductivity are used, and the optional
+    ``volumetric_expansion`` and ``specific_heat_slope`` keys are not.
+    Otherwise the density, specific heat and conductivity of the energy
+    equation are the lubricant's values at the supply ``temperature``, and
+    the viscosity law
+    is passed to the engine (``lube_model`` 1 for Walther; an isoviscous
+    lubricant always runs with the exponential law, which is then exactly
+    constant, as in
+    :meth:`~ross.bearings.film.lubricant.Lubricant.viscosity`).
+
+    Parameters
+    ----------
+    lubricant : str, dict or ross.bearings.film.lubricant.Lubricant
+        The element's lubricant.
+    viscosity_model : str or None
+        ``"exponential"``, ``"walther"`` or None.
+    temperature : float
+        Oil supply temperature, K.
+
+    Returns
+    -------
+    properties : dict
+        The seven solver inputs of :func:`_lubricant_properties`.
+    law : dict
+        Engine keywords of the viscosity law (``lube_model``, ``walther_a``,
+        ``walther_b``, ``walther_density``, ``walther_expansion``).
+    model : str
+        The viscosity law used, ``"exponential"`` or ``"walther"``.
+
+    Raises
+    ------
+    ValueError
+        Unknown ``viscosity_model``; the errors of :func:`_lubricant_properties`
+        and of the ``Lubricant`` constructor; a lubricant without specific
+        heat or thermal conductivity.
+    """
+    from ross.bearings.film.lubricant import VISCOSITY_MODELS, Lubricant
+
+    if viscosity_model is not None and viscosity_model not in VISCOSITY_MODELS:
+        raise ValueError(
+            f"viscosity_model must be one of {list(VISCOSITY_MODELS)} or None, "
+            f"not {viscosity_model!r}"
+        )
+    own = None
+    if isinstance(lubricant, Lubricant):
+        own = lubricant.viscosity_model
+    elif isinstance(lubricant, dict) and "viscosity_model" in lubricant:
+        own = lubricant["viscosity_model"]
+    if own is not None:
+        if viscosity_model is not None and viscosity_model != own:
+            warnings.warn(
+                f"the lubricant carries its own viscosity law: {own!r} is used "
+                f"and viscosity_model={viscosity_model!r} is ignored",
+                UserWarning,
+                skip_file_prefixes=_INTERNAL_FILES,
+            )
+        model = own
+    else:
+        model = "exponential" if viscosity_model is None else viscosity_model
+
+    no_law = {"lube_model": 0}
+    if own is None and model == "exponential":
+        return _lubricant_properties(lubricant), no_law, model
+
+    if isinstance(lubricant, Lubricant):
+        oil = lubricant
+    else:
+        _lubricant_properties(lubricant)  # the errors of a name or dict
+        oil = Lubricant.create(lubricant, model)
+    for name in ("specific_heat", "thermal_conductivity"):
+        if getattr(oil, name) is None:
+            raise ValueError(
+                f"the lubricant has no {name}; the journal bearing needs it"
+            )
+    temp2 = oil.temperature_2
+    if oil.isoviscous and temp2 == oil.temperature_1:
+        temp2 = oil.temperature_1 + 1.0  # the exponential law needs two temperatures
+    properties = {
+        "viscosity1": float(oil.viscosity_1),
+        "temp1": float(oil.temperature_1),
+        "viscosity2": float(oil.viscosity_2),
+        "temp2": float(temp2),
+        "lube_density": float(oil.density_at(temperature)),
+        "lube_cp": float(oil.specific_heat_at(temperature)),
+        "lube_conduct": float(oil.thermal_conductivity_at(temperature)),
+    }
+    if model == "exponential" or oil.isoviscous:
+        return properties, no_law, model
+    law = {
+        "lube_model": 1,
+        "walther_a": float(oil.walther_a),
+        "walther_b": float(oil.walther_b),
+        "walther_density": float(oil.density),
+        "walther_expansion": float(oil.volumetric_expansion),
+    }
+    return properties, law, model
+
+
+def _turbulence_limits(re_laminar, re_turbulent, radius, clearance):
+    """Laminar and turbulent Reynolds limits of an element.
+
+    ``re_laminar="taylor"`` sets the laminar limit to Taylor's onset of
+    vortex flow, ``Re_c = 41.2 sqrt(R / C_b)``. ``re_turbulent=None`` is
+    1000 with a numerical laminar limit and ``2 Re_c`` with
+    ``re_laminar="taylor"``; ``re_turbulent="taylor"`` is ``2 Re_c`` with any
+    laminar limit; a number is used as given. With ``"taylor"`` the limits
+    must increase; numerical limits are not checked.
+
+    Parameters
+    ----------
+    re_laminar : float or str
+        The element's laminar limit, a number or ``"taylor"``.
+    re_turbulent : float, str or None
+        The element's turbulent limit, a number, ``"taylor"`` or None.
+    radius, clearance : float
+        Journal radius and radial clearance ``C_b``, m.
+
+    Returns
+    -------
+    tuple of float
+        ``(re_lower, re_upper)``.
+
+    Raises
+    ------
+    ValueError
+        A string other than ``"taylor"``, or ``"taylor"`` limits that are
+        not increasing.
+
+    Examples
+    --------
+    >>> [round(v, 1) for v in _turbulence_limits("taylor", None, 0.15, 250e-6)]
+    [1009.2, 2018.4]
+    >>> _turbulence_limits(500, None, 0.15, 250e-6)
+    (500.0, 1000.0)
+    """
+    for name, value in (("re_laminar", re_laminar), ("re_turbulent", re_turbulent)):
+        if isinstance(value, str) and value != "taylor":
+            raise ValueError(f"{name} must be a number or 'taylor', not {value!r}")
+    if "taylor" not in (re_laminar, re_turbulent):
+        if re_turbulent is None:
+            re_turbulent = _RE_TURBULENT_DEFAULT
+        return float(re_laminar), float(re_turbulent)
+    re_c = 41.2 * np.sqrt(float(radius) / float(clearance))
+    lower = re_c if re_laminar == "taylor" else float(re_laminar)
+    if re_turbulent is None or re_turbulent == "taylor":
+        upper = 2.0 * re_c
+    else:
+        upper = float(re_turbulent)
+    if not lower < upper:
+        raise ValueError(
+            "with 'taylor' the turbulence limits must satisfy re_laminar < "
+            f"re_turbulent, got {lower!r} and {upper!r}"
+        )
+    return float(lower), float(upper)
+
+
 def _whirl_entries(outputs):
     """Split the outputs of one engine case into one dict per whirl frequency.
 
@@ -207,9 +379,11 @@ class FluidFilmBearing(BearingElement):
         Per-pad pivot offset fraction, ``0 <= offset <= 1`` (0.5 = centered).
         The pad leading edge is at ``pivot_angle - offset * pad_arc``; the
         pads must not overlap and their arcs must add up to 360 deg or less.
-    lubricant : str or dict
-        Key of :data:`ross.bearings.lubricants.lubricants_dict` or a dict
-        with the same field names (SI).
+    lubricant : str, dict or ross.bearings.film.lubricant.Lubricant
+        Key of :data:`ross.bearings.lubricants.lubricants_dict`, a dict
+        with the same field names (SI), or a ``Lubricant`` (for example
+        ``Lubricant.from_datasheet(nu40, nu100, rho15)``). See
+        ``viscosity_model`` for the viscosity law, and Notes.
     oil_supply_temperature : float, pint.Quantity
         Lubricant supply temperature, K.
     oil_flow_v : float, pint.Quantity
@@ -345,9 +519,17 @@ class FluidFilmBearing(BearingElement):
     relax_pressure, relax_temperature, relax_deformation, relax_pivot : float, optional
         Under-relaxation factors of the solver iterations.
         Default is 0.5 / 1 / 1 / 1.
-    re_laminar, re_turbulent : float, optional
-        Reynolds numbers bounding the laminar-turbulent transition.
-        Default is 500 / 1000.
+    re_laminar : float or str, optional
+        Local film Reynolds number ``rho U h / mu`` below which the flow is
+        laminar. Default is 500. ``"taylor"`` uses Taylor's onset of vortex
+        flow, ``Re_c = 41.2 sqrt(R / C_b)`` (see Notes).
+    re_turbulent : float or str, optional
+        Local film Reynolds number above which the flow is fully turbulent;
+        between the two limits the eddy viscosity is blended. Default None:
+        1000 with a numerical ``re_laminar``, ``2 Re_c`` with
+        ``re_laminar="taylor"``. ``"taylor"`` is ``2 Re_c`` with any laminar
+        limit, and a number is used as given. The attribute holds the
+        resolved number.
     n_jobs : int, optional
         Warm-start chains solved at once in worker processes (``spawn``);
         -1 uses one per CPU. The results do not depend on it (see Notes).
@@ -377,6 +559,14 @@ class FluidFilmBearing(BearingElement):
         4,000 solves per pad (at least 20,000).
     time_limit : float, pint.Quantity, optional
         Wall-clock limit of each case, s. Default is None (no limit).
+    viscosity_model : str, optional
+        Viscosity-temperature law of a lubricant given by name or dict,
+        ``"exponential"`` (two-point exponential fit) or ``"walther"``
+        (ASTM D341). Default None: ``"exponential"``. A ``Lubricant``
+        (or a dict with a ``viscosity_model`` key) keeps its own law; a
+        different value given here is ignored with a warning. The
+        attribute holds the law used. Notes give the size of the difference
+        between the two laws.
     tag : str, optional
         A tag to name the element.
 
@@ -422,6 +612,26 @@ class FluidFilmBearing(BearingElement):
 
     Pressures (ambient, cavitation, supply) are gauge pressures relative to
     the drain pressure.
+
+    Lubricant. The film viscosity follows the lubricant's law at the local
+    temperature. The energy equation uses a constant density, specific heat
+    and thermal conductivity: those of a temperature-dependent ``Lubricant``
+    are evaluated at ``oil_supply_temperature``, so their variation across
+    the film is not modelled. Through the same two table points the two
+    viscosity laws differ between and outside them: for ISOVG32 (40 and
+    100 C) the exponential fit is 11 to 18 % above the Walther law between
+    50 and 80 C, 33 % below it at 20 C and 20 % below it at 120 C.
+
+    Turbulence. The flow regime is decided from the largest local film
+    Reynolds number ``re_max``, based on the local film thickness. With
+    ``re_laminar="taylor"`` two choices of this implementation apply: the
+    fully turbulent limit ``2 Re_c`` is not part of Taylor's criterion, and
+    ``Re_c`` is compared with the local Reynolds number, whereas Taylor
+    defines it with the mean clearance. On preloaded pads the local film
+    reaches about twice the bearing clearance, so the onset comes earlier
+    than with Taylor's definition. ``operating_results`` reports ``re_max``,
+    ``re_cb`` (the Reynolds number on the bearing clearance) and
+    ``re_taylor`` for comparison.
 
     Convergence. A case is converged when every iteration of the solver
     (equilibrium Newton, pad tilt, turbulence, film and pad temperature,
@@ -570,7 +780,7 @@ class FluidFilmBearing(BearingElement):
         relax_deformation=1,
         relax_pivot=1,
         re_laminar=500,
-        re_turbulent=1000,
+        re_turbulent=None,
         n_jobs=1,
         num_processes=None,
         warm_start=True,
@@ -578,6 +788,7 @@ class FluidFilmBearing(BearingElement):
         on_failure="warn",
         max_reynolds_solves=None,
         time_limit=None,
+        viscosity_model=None,
         **kwargs,
     ):
         # ``locals()`` of a method that uses zero-argument ``super()`` also
@@ -652,7 +863,24 @@ class FluidFilmBearing(BearingElement):
             (self.n_pads,),
         ).copy()
 
-        self.lubricant_properties = _lubricant_properties(lubricant)
+        (
+            self.lubricant_properties,
+            self._viscosity_law,
+            self.viscosity_model,
+        ) = _resolve_lubricant(
+            lubricant, viscosity_model, float(oil_supply_temperature)
+        )
+
+        re_upper = _turbulence_limits(
+            re_laminar,
+            re_turbulent,
+            0.5 * float(self.journal_diameter),
+            float(self.radial_clearance),
+        )[1]
+        if re_turbulent is None and re_laminar != "taylor":
+            self.re_turbulent = _RE_TURBULENT_DEFAULT
+        elif re_turbulent is None or re_turbulent == "taylor":
+            self.re_turbulent = re_upper
 
         if journal_temperature is None:
             self.journal_temperature = float(oil_supply_temperature)
@@ -781,21 +1009,27 @@ class FluidFilmBearing(BearingElement):
 
     def _bearing_data(self):
         """Inputs the operating table needs besides the solver outputs."""
-        from ross.bearings.film.lubricant import exponential_viscosity
+        from ross.bearings.fluid_film.state import Lubricant as EngineLubricant
 
         props = self.lubricant_properties
+        law = self._viscosity_law
+        oil = EngineLubricant(
+            props["viscosity1"],
+            props["viscosity2"],
+            props["temp1"],
+            props["temp2"],
+            props["lube_density"],
+            props["lube_cp"],
+            props["lube_conduct"],
+            model=law["lube_model"],
+            **{key: value for key, value in law.items() if key != "lube_model"},
+        )
         return {
             "journal_diameter": float(self.journal_diameter),
             "radial_clearance": float(self.radial_clearance),
             "axial_length": float(self.pad_axial_length[0]),
             "viscosity_supply": float(
-                exponential_viscosity(
-                    props["viscosity1"],
-                    props["viscosity2"],
-                    props["temp1"],
-                    props["temp2"],
-                    float(self.oil_supply_temperature),
-                )
+                oil.viscosity_at(float(self.oil_supply_temperature))
             ),
             "density": props["lube_density"],
             "thermal_type": self.thermal_type,
@@ -1128,6 +1362,12 @@ class FluidFilmBearing(BearingElement):
 
         if excitation_ratio is None:
             excitation_ratio = self.excitation_ratio
+        re_lower, re_upper = _turbulence_limits(
+            self.re_laminar,
+            self.re_turbulent,
+            0.5 * float(self.journal_diameter),
+            float(self.radial_clearance),
+        )
         xj, yj = self.initial_position
         inputs = {
             "frequency": float(speed),
@@ -1172,6 +1412,7 @@ class FluidFilmBearing(BearingElement):
             "k_rotate": np.zeros(self.n_pads),
             # lubricant
             **self.lubricant_properties,
+            **(self._viscosity_law or {}),
             # pad material and thermal boundary
             "pad_young": float(self.pad_E),
             "pad_poisson": float(self.pad_poisson),
@@ -1219,8 +1460,8 @@ class FluidFilmBearing(BearingElement):
             "relax_t": float(self.relax_temperature),
             "relax_d": float(self.relax_deformation),
             "relax_pivot": float(self.relax_pivot),
-            "re_lower": float(self.re_laminar),
-            "re_upper": float(self.re_turbulent),
+            "re_lower": re_lower,
+            "re_upper": re_upper,
             "weight_e": 0,
             "weight_h": 0,
             "reichardt_delta": REICHARDT_DELTA,

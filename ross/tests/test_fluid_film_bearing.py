@@ -1010,3 +1010,355 @@ def test_newton_step_regular_system(stiffness, force):
     step = _newton_step(kxx, kxy, kyx, kyy, *force, 75e-6)
     reference = np.linalg.solve([[kxx, kxy], [kyx, kyy]], force)
     assert_allclose(step, reference, rtol=1e-12)
+
+
+COARSE_MESH = dict(
+    total_ex_film=20, total_ez_film=10, total_ey_film=10, total_ey_pad=10
+)
+
+
+def _adiabatic_tilting_pad(**overrides):
+    """Five-pad load-matched adiabatic tilting pad, coarse mesh."""
+    from ross.bearings.tilting_pad import TiltingPad
+
+    kwargs = dict(
+        n=1,
+        speed=Q_([3000], "RPM"),
+        equilibrium_type="match_load",
+        thermal_type="adiabatic",
+        journal_diameter=101.6e-3,
+        radial_clearance=74.9e-6,
+        pad_thickness=12.7e-3,
+        pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
+        pad_arc=Q_([60] * 5, "deg"),
+        pad_axial_length=[50.8e-3] * 5,
+        preload=[0.5] * 5,
+        offset=[0.5] * 5,
+        lubricant="ISOVG32",
+        oil_supply_temperature=Q_(40, "degC"),
+        oil_flow_v=Q_(10, "l/min"),
+        fys_load=-2.8e3,
+        **COARSE_MESH,
+    )
+    kwargs.update(overrides)
+    return TiltingPad(**kwargs)
+
+
+def _same_solution(first, second, rtol):
+    for name in ("kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"):
+        assert_allclose(
+            np.asarray(getattr(first, name), dtype=float),
+            np.asarray(getattr(second, name), dtype=float),
+            rtol=rtol,
+            atol=0.0,
+            err_msg=name,
+        )
+    for key in ("eccentricity", "attitude", "power_loss", "tpad_max"):
+        assert_allclose(
+            first.results.outputs[0][key][0],
+            second.results.outputs[0][key][0],
+            rtol=rtol,
+            atol=0.0,
+            err_msg=key,
+        )
+    assert_allclose(
+        first.results.temperature_fields[0],
+        second.results.temperature_fields[0],
+        rtol=rtol,
+        atol=0.0,
+    )
+
+
+@pytest.fixture(scope="module")
+def viscosity_law_runs():
+    from ross.bearings.film.lubricant import Lubricant
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        runs = {
+            "name": _adiabatic_tilting_pad(),
+            "exponential_instance": _adiabatic_tilting_pad(
+                lubricant=Lubricant.from_name("ISOVG32", "exponential")
+            ),
+            "walther": _adiabatic_tilting_pad(viscosity_model="walther"),
+        }
+    return runs
+
+
+def test_name_and_exponential_instance_give_the_same_bearing(viscosity_law_runs):
+    """A name resolves to the exponential law, as an exponential instance does."""
+    name = viscosity_law_runs["name"]
+    instance = viscosity_law_runs["exponential_instance"]
+    assert name.viscosity_model == instance.viscosity_model == "exponential"
+    assert name.lubricant_properties == instance.lubricant_properties
+    _same_solution(name, instance, rtol=1e-12)
+
+
+def test_an_instance_keeps_its_own_viscosity_law(viscosity_law_runs):
+    """An explicit viscosity_model that differs from the instance's law warns."""
+    from ross.bearings.film.lubricant import Lubricant
+
+    oil = Lubricant.from_name("ISOVG32", "walther")
+    with pytest.warns(UserWarning, match="its own viscosity law: 'walther' is used"):
+        bearing = _adiabatic_tilting_pad(lubricant=oil, viscosity_model="exponential")
+    assert bearing.viscosity_model == "walther"
+    _same_solution(bearing, viscosity_law_runs["walther"], rtol=1e-12)
+    # the same instance with the same (or no) model does not warn
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        from ross.bearings.fluid_film_bearing import _resolve_lubricant
+
+        for model in (None, "walther"):
+            _, law, used = _resolve_lubricant(oil, model, 313.15)
+            assert used == "walther" and law["lube_model"] == 1
+    with pytest.raises(ValueError, match="viscosity_model must be one of"):
+        _resolve_lubricant("ISOVG32", "roelands", 313.15)
+
+
+def test_walther_lowers_the_film_temperature_and_power_loss(viscosity_law_runs):
+    """Sign of the law difference on an adiabatic tilting pad.
+
+    Through the same table points Walther is below the exponential law
+    between them (40 to 100 C for ISOVG32), so the film shears less, runs
+    cooler and loses less power, while its viscosity at the hottest film
+    temperature is still the lower one.
+    """
+    from ross.bearings.film.lubricant import Lubricant
+
+    exponential = viscosity_law_runs["name"].operating_results.iloc[0]
+    walther = viscosity_law_runs["walther"].operating_results.iloc[0]
+    assert exponential["converged"] and walther["converged"]
+    assert walther["T_max_film"] < exponential["T_max_film"]
+    assert walther["power_loss"] < exponential["power_loss"]
+    mu_walther = Lubricant.from_name("ISOVG32", "walther").viscosity(
+        walther["T_max_film"]
+    )
+    mu_exponential = Lubricant.from_name("ISOVG32", "exponential").viscosity(
+        exponential["T_max_film"]
+    )
+    assert mu_walther < mu_exponential
+
+
+def test_walther_on_an_isoviscous_lubricant_equals_the_exponential_run():
+    """Limiting case: both table viscosities equal, so both laws are constant."""
+    lubricant = {
+        "liquid_viscosity1": 0.02,
+        "temperature1": 313.15,
+        "liquid_viscosity2": 0.02,
+        "temperature2": 373.15,
+        "liquid_density": 870.0,
+        "liquid_specific_heat": 1950.0,
+        "liquid_thermal_conductivity": 0.13,
+    }
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        exponential = _adiabatic_tilting_pad(lubricant=lubricant)
+        walther = _adiabatic_tilting_pad(lubricant=lubricant, viscosity_model="walther")
+    assert walther.viscosity_model == "walther"
+    _same_solution(walther, exponential, rtol=1e-12)
+
+
+def test_datasheet_lubricant_runs_with_supply_temperature_properties():
+    """rho, c_p and k of a temperature-dependent lubricant at the supply."""
+    from ross.bearings.film.lubricant import Lubricant
+    from ross.bearings.fluid_film_bearing import _resolve_lubricant
+    from ross.bearings.lubricants import lubricants_dict
+
+    oil = Lubricant.from_datasheet(Q_(32.0, "cSt"), Q_(5.4, "cSt"), 870.0)
+    supply = 323.15
+    properties, law, model = _resolve_lubricant(oil, None, supply)
+    assert model == "walther" and law["lube_model"] == 1
+    assert properties["lube_density"] == oil.density_at(supply)
+    assert properties["lube_cp"] == oil.specific_heat_at(supply)
+    assert properties["lube_conduct"] == oil.thermal_conductivity
+    assert law["walther_density"] == oil.density
+    assert law["walther_expansion"] == oil.volumetric_expansion
+    # the same oil as a dictionary (to_dict) keeps its law and properties
+    assert _resolve_lubricant(oil.to_dict(), None, supply) == (properties, law, model)
+    # a name with constant properties: the seven table values, unchanged
+    from ross.bearings.fluid_film_bearing import _lubricant_properties
+
+    properties, law, model = _resolve_lubricant("ISOVG46", "walther", supply)
+    assert properties == _lubricant_properties("ISOVG46")
+    assert model == "walther" and law["lube_model"] == 1
+    # a plain dictionary with the exponential law keeps its table values,
+    # temperature coefficients included
+    data = dict(lubricants_dict["ISOVG46"], volumetric_expansion=7e-4)
+    data["specific_heat_slope"] = 3.6
+    assert _resolve_lubricant(data, None, supply) == (
+        _lubricant_properties("ISOVG46"),
+        {"lube_model": 0},
+        "exponential",
+    )
+
+
+def _large_fast_journal(**overrides):
+    """300 mm, 12,000 rpm plain journal, Re on the clearance about 1470."""
+    from ross.bearings.plain_journal import PlainJournal
+
+    kwargs = dict(
+        n=0,
+        pad_axial_length=0.2,
+        journal_diameter=0.3,
+        radial_clearance=250e-6,
+        n_pads=2,
+        pad_arc=Q_(160, "deg"),
+        oil_supply_temperature=Q_(40, "degC"),
+        speed=Q_([12000], "RPM"),
+        fys_load=-20000.0,
+        lubricant="ISOVG32",
+        oil_flow_v=Q_(10, "l/min"),
+        thermal_type=None,
+        **COARSE_MESH,
+    )
+    kwargs.update(overrides)
+    return PlainJournal(**kwargs)
+
+
+def test_taylor_transition_limits():
+    """Re_c = 41.2 sqrt(R / C_b) (Taylor 1923); fully turbulent at 2 Re_c."""
+    bearing = _large_fast_journal(re_laminar="taylor")
+    re_c = 41.2 * np.sqrt(0.15 / 250e-6)  # R / C_b = 600, Re_c = 1009
+    assert_allclose(bearing.re_turbulent, 2.0 * re_c, rtol=1e-14)
+    inputs = bearing._engine_inputs(float(bearing.speed_range[0]))
+    assert_allclose(inputs["re_lower"], re_c, rtol=1e-14)
+    assert_allclose(inputs["re_upper"], 2.0 * re_c, rtol=1e-14)
+    op = bearing.operating_results.iloc[0]
+    assert op["converged"]
+    # the local re_max (about 1.5e3) is in the blend between the limits
+    assert re_c < op["re_max"] < 2.0 * re_c
+    assert_allclose(op["re_taylor"], re_c, rtol=1e-14)
+    # re_cb = rho U C_b / mu_supply, by hand from the ISOVG32 table
+    from ross.bearings.lubricants import lubricants_dict
+
+    table = lubricants_dict["ISOVG32"]
+    surface_speed = 12000 * np.pi / 30 * 0.15
+    assert_allclose(
+        op["re_cb"],
+        table["liquid_density"]
+        * surface_speed
+        * 250e-6
+        / table["liquid_viscosity1"],  # supply at the 40 C table point
+        rtol=1e-12,
+    )
+    # Turbulence adds power loss: the Taylor run lies above the forced-laminar
+    # run, and above the run with a higher turbulent limit (smaller blend
+    # weight). The default limits are not a reference here: that run stops
+    # before the equilibrium converges.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        laminar = _large_fast_journal(re_laminar=1e8, re_turbulent=2e8)
+        wider = _large_fast_journal(re_laminar="taylor", re_turbulent=3000.0)
+    for other in (laminar, wider):
+        assert other.operating_results["converged"][0]
+    assert wider.re_turbulent == 3000.0
+    assert (
+        laminar.operating_results["power_loss"][0]
+        < wider.operating_results["power_loss"][0]
+        < op["power_loss"]
+    )
+
+
+def test_turbulence_limits_resolution():
+    from ross.bearings.fluid_film_bearing import _turbulence_limits
+
+    re_c = 41.2 * np.sqrt(0.15 / 250e-6)
+    assert _turbulence_limits(500, None, 0.15, 250e-6) == (500.0, 1000.0)
+    assert _turbulence_limits(500, 1000, 0.15, 250e-6) == (500.0, 1000.0)
+    assert _turbulence_limits(500, "taylor", 0.15, 250e-6) == (500.0, 2.0 * re_c)
+    assert _turbulence_limits("taylor", None, 0.15, 250e-6) == (re_c, 2.0 * re_c)
+    assert _turbulence_limits("taylor", 3000.0, 0.15, 250e-6) == (re_c, 3000.0)
+    # an explicit 1000 is used as given, also when it equals the default of
+    # the numerical case (R / C_b = 400: Re_c = 824 < 1000 < 2 Re_c)
+    re_c = 41.2 * np.sqrt(0.1 / 250e-6)
+    assert _turbulence_limits("taylor", 1000, 0.1, 250e-6) == (re_c, 1000.0)
+    assert _turbulence_limits("taylor", None, 0.1, 250e-6) == (re_c, 2.0 * re_c)
+
+
+@pytest.fixture
+def constructed(monkeypatch):
+    """Stop each element before its solve and keep it, with its inputs."""
+    import ross.bearings.fluid_film_bearing as module
+
+    elements = []
+
+    def solve_all(self):
+        elements.append((self, self._engine_inputs(float(self.speed_range[0]))))
+        raise _SolverCalled
+
+    monkeypatch.setattr(module.FluidFilmBearing, "_solve_all", solve_all)
+    return elements
+
+
+def _build_each_class(**overrides):
+    from ross.bearings.fixed_geometry import EllipticalBearing
+
+    kwargs, _ = bearing_kwargs_from_fixture(
+        "fixed_isoviscous", ambient_pressure_1=0.0, ambient_pressure_2=0.0
+    )
+    kwargs.pop("re_turbulent")  # the fixture states the former default
+    kwargs.update(overrides)
+    builders = [
+        lambda: FluidFilmBearing(**kwargs),
+        lambda: _adiabatic_tilting_pad(**overrides),
+        lambda: _large_fast_journal(**overrides),
+        lambda: EllipticalBearing(
+            n=0,
+            speed=Q_([3000], "RPM"),
+            journal_diameter=0.2,
+            radial_clearance=150e-6,
+            pad_thickness=0.05,
+            pad_arc=Q_(150, "deg"),
+            preload=0.5,
+            pad_axial_length=[0.16, 0.16],
+            lubricant="ISOVG32",
+            oil_supply_temperature=Q_(40, "degC"),
+            oil_flow_v=Q_(30, "l/min"),
+            weight=45e3,
+            thermal_type=None,
+            **COARSE_MESH,
+            **overrides,
+        ),
+    ]
+    for build in builders:
+        with pytest.raises(_SolverCalled):
+            build()
+
+
+def test_default_turbulent_limit_is_unchanged_in_every_class(constructed):
+    """re_turbulent=None resolves to the former default 1000."""
+    _build_each_class()
+    _build_each_class(re_turbulent=1000)
+    assert len(constructed) == 8
+    for element, inputs in constructed:
+        assert type(element.re_turbulent) is int and element.re_turbulent == 1000
+        assert (inputs["re_lower"], inputs["re_upper"]) == (500.0, 1000.0)
+        assert element.viscosity_model == "exponential"
+        assert inputs.get("lube_model", 0) == 0
+
+
+def test_taylor_limits_in_every_class(constructed):
+    _build_each_class(re_laminar="taylor")
+    assert len(constructed) == 4
+    for element, inputs in constructed:
+        radius = 0.5 * element.journal_diameter
+        re_c = 41.2 * np.sqrt(radius / element.radial_clearance)
+        assert element.re_laminar == "taylor"
+        assert_allclose(element.re_turbulent, 2.0 * re_c, rtol=1e-14)
+        assert_allclose(
+            [inputs["re_lower"], inputs["re_upper"]], [re_c, 2.0 * re_c], rtol=1e-14
+        )
+
+
+@pytest.mark.parametrize(
+    "overrides, match",
+    [
+        (dict(re_laminar="laminar"), "re_laminar must be a number or 'taylor'"),
+        (dict(re_laminar="taylor", re_turbulent=900.0), "re_laminar < re_turbulent"),
+        (dict(viscosity_model="roelands"), "viscosity_model must be one of"),
+    ],
+)
+def test_lubricant_and_turbulence_options_are_checked(no_solve, overrides, match):
+    kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous", **overrides)
+    with pytest.raises(ValueError, match=match):
+        FluidFilmBearing(**kwargs)

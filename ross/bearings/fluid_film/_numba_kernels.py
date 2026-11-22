@@ -28,7 +28,10 @@ counters and are unrelated to the 0-based mesh numbering.
 import numpy as np
 from numba import njit
 
-from ross.bearings.film.lubricant import exponential_viscosity_jit
+from ross.bearings.film.lubricant import (
+    exponential_viscosity_jit,
+    walther_viscosity_jit,
+)
 from ross.bearings.fluid_film.constants import INTERFACE_TOL
 
 
@@ -2626,6 +2629,34 @@ viscosity_temp_jit = exponential_viscosity_jit
 
 
 @njit(cache=True, fastmath=False)
+def viscosity_law_jit(
+    model,
+    viscosity1,
+    viscosity2,
+    temp1,
+    temp2,
+    walther_a,
+    walther_b,
+    walther_density,
+    walther_expansion,
+    temp,
+):
+    """Viscosity of the journal lubricant at ``temp`` (scalar, JIT).
+
+    ``model`` 0 is the two-point exponential law (:data:`viscosity_temp_jit`),
+    1 the Walther law
+    (:func:`ross.bearings.film.lubricant.walther_viscosity_jit`); the
+    arguments are the fields of
+    :class:`~ross.bearings.fluid_film.state.Lubricant`.
+    """
+    if model == 1:
+        return walther_viscosity_jit(
+            walther_a, walther_b, walther_density, walther_expansion, temp1, temp
+        )
+    return viscosity_temp_jit(viscosity1, viscosity2, temp1, temp2, temp)
+
+
+@njit(cache=True, fastmath=False)
 def update_vis_jit(
     pad,
     total_n_reynolds,
@@ -2646,12 +2677,18 @@ def update_vis_jit(
     temp2,
     dim_yf,
     dim_xz,
+    model=0,
+    walther_a=0.0,
+    walther_b=0.0,
+    walther_density=0.0,
+    walther_expansion=0.0,
 ):
     """Inner loop body of :func:`thermal.update_vis`.
 
     ``pad`` is 0-based. Mutates ``vis_n_3d`` and ``vis_n_average`` in place;
     returns ``re_max_dam`` so the caller can call ``_update_flow_regime``
-    with it.
+    with it. The viscosity law is that of :func:`viscosity_law_jit`
+    (``model`` 0 exponential, the default, or 1 Walther).
     """
     re_n = np.zeros(dim_xz, dtype=np.float64)
     t = np.zeros(dim_yf, dtype=np.float64)
@@ -2664,8 +2701,17 @@ def update_vis_jit(
         node = n_index_reynolds[i]
         for j in range(1, limit + 1):
             m = match_nodes_xz[node, j - 1]
-            vis_n_3d[pad, m] = viscosity_temp_jit(
-                viscosity1, viscosity2, temp1, temp2, temp_3d[pad, m]
+            vis_n_3d[pad, m] = viscosity_law_jit(
+                model,
+                viscosity1,
+                viscosity2,
+                temp1,
+                temp2,
+                walther_a,
+                walther_b,
+                walther_density,
+                walther_expansion,
+                temp_3d[pad, m],
             )
             t[j - 1] = y_3d[pad, m] - pad_thickness
             f[j - 1] = vis_n_3d[pad, m]
