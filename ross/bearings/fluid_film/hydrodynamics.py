@@ -72,9 +72,12 @@ from ross.bearings.fluid_film.constants import (
     CLOSED_FILM,
     FILM_FRACTION_ERROR,
     MAX_ITERATION,
+    MAX_STEP_HALVINGS,
     NEWTON_ERROR,
     PI,
     SHEAR_ERROR,
+    STARVED_NEWTON_SCALE,
+    UNLOADED_STEP,
     TILT_ERROR,
     TILT_MOMENT_ERROR,
 )
@@ -209,6 +212,26 @@ def hydrodynamics(
     inlet_previous = None
     fraction_tolerance = FILM_FRACTION_ERROR * s.get("_tolerance_scale", 1.0)
     onset_passes = total_e_x_film - 1 if film is None else MAX_ITERATION
+    # Inside the inlet film-fraction loop of a starved mass-conserving case
+    # the force balance is solved to a tighter tolerance, so that the oil the
+    # film draws, which sets the next inlet fraction, is converged well below
+    # the fraction tolerance.
+    fraction_loop = (
+        film is not None
+        and operating_type not in _FLOODED_TYPES
+        and not (
+            (
+                sump_index > 1
+                or elasto_index > 1
+                or mixtemp_index > starve_number
+                or jtemp_index > 1
+                or vis_index > 1
+            )
+            and filmonset_search == 0
+        )
+    )
+    if fraction_loop:
+        newton_tolerance *= STARVED_NEWTON_SCALE
 
     for filmonset_index in range(1, onset_passes + 1):
         unconverge_number = 0
@@ -217,12 +240,27 @@ def hydrodynamics(
         newton_exit = "max_iterations"
         singular_step = False
         onset_travelling = 0
+        halvings = 0
 
         # ``equilpost_index`` is a pure iteration counter (compared ``> 1`` and
         # passed through to ``fixed_brg``); kept 1-based for readability.
         for equilpost_index in range(1, MAX_ITERATION + 1):
             fb = fixed_brg_fn(s, equilpost_index, relaxp, press=press)
             s.update(fb)
+
+            # Mass-conserving film: a Newton step that puts the journal
+            # through a pad surface (closed film) is halved back towards the
+            # last solved position instead of being solved.
+            if (
+                film is not None
+                and equilpost_index > 1
+                and halvings < MAX_STEP_HALVINGS
+                and _film_closed(s["h_min"], total_pads, s["cb"])
+            ):
+                halvings += 1
+                s["xj"] = 0.5 * (xj_old + s["xj"])
+                s["yj"] = 0.5 * (yj_old + s["yj"])
+                continue
 
             forces_out = forces(
                 total_pads,
@@ -298,13 +336,21 @@ def hydrodynamics(
                 delta_xj, delta_yj = _newton_step(
                     kxx_e, kxy_e, kyx_e, kyy_e, fx_net, fy_net, s["cb"]
                 )
-                if delta_xj is None:
+                if delta_xj is None and film is not None and ext_mag > 0.0:
+                    # The mass-conserving film carries no load at this
+                    # position (a starved film cavitated everywhere): step
+                    # along the load from here. The reset below would send
+                    # the journal back to the same unloaded position.
+                    delta_xj = UNLOADED_STEP * s["cb"] * fx_ext / ext_mag
+                    delta_yj = UNLOADED_STEP * s["cb"] * fy_ext / ext_mag
+                elif delta_xj is None:
                     # Singular Jacobian fallback.
                     singular_step = True
                     s["xj"] = 0.0
                     s["yj"] = 0.0
                     delta_xj = 0.0
                     delta_yj = -0.2 * s["cb"]
+                halvings = 0
 
                 xj_old = s["xj"]
                 yj_old = s["yj"]
@@ -369,7 +415,7 @@ def hydrodynamics(
         s.update(flow)
 
         # Starvation: stop here when flooded / suppressed.
-        if operating_type in ("regular_flooded", "axial_flow", "high_ambient_pressure"):
+        if operating_type in _FLOODED_TYPES:
             break
 
         if operating_type in ("starved_condition_even", "oil_ring_lubricated"):
@@ -477,6 +523,14 @@ def hydrodynamics(
     )
 
     return s
+
+
+_FLOODED_TYPES = ("regular_flooded", "axial_flow", "high_ambient_pressure")
+
+
+def _film_closed(h_min, total_pads, cb):
+    """Whether the film of any pad is closed (the journal crosses a pad)."""
+    return bool(np.min(np.asarray(h_min, dtype=float)[:total_pads]) <= CLOSED_FILM * cb)
 
 
 def _record_newton(monitor, iterations, residual, tolerance, exit_kind, singular):

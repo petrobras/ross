@@ -1,4 +1,5 @@
 import json
+import os
 import warnings
 from pathlib import Path
 
@@ -1667,6 +1668,122 @@ def test_starved_inlet_with_hot_oil_carry_over():
     fraction_hot = hot["convergence"]["loops"]["cavitation"]["film_fraction_in"]
     assert np.all(np.asarray(fraction_hot) > np.asarray(fraction_cold))
     assert np.hypot(hot["fx"], hot["fy"]) > np.hypot(cold["fx"], cold["fy"])
+
+
+def _starved_equilibrium(oil_flow_l_min, mesh=(20, 10)):
+    """Equilibrium of the starved two-axial-groove journal.
+
+    The isoviscous journal of ``fluid_film_bearing_example`` on a
+    ``mesh`` (circumferential x axial elements) mesh, supplied with
+    ``oil_flow_l_min`` and the default carry-over ``hot_oil_lambda=0.8``.
+    """
+    kwargs = dict(
+        n=0,
+        speed=Q_([900], "RPM"),
+        journal_diameter=Q_(15.748, "in"),
+        radial_clearance=Q_(0.00766, "in"),
+        pad_thickness=Q_(5.89034, "in"),
+        pivot_angle=Q_([90, 270], "deg"),
+        pad_arc=Q_([176, 176], "deg"),
+        pad_axial_length=Q_([10.36, 10.36], "in"),
+        preload=[0, 0],
+        offset=[0.5, 0.5],
+        lubricant="ISOVG32",
+        oil_supply_temperature=Q_(50, "degC"),
+        oil_flow_v=Q_(oil_flow_l_min, "l/min"),
+        weight=Q_(25361.8, "lbf"),
+        thermal_type=None,
+        total_ex_film=mesh[0],
+        total_ez_film=mesh[1],
+        operating_type="starved_condition_even",
+        cavitation_model=MC,
+    )
+    return FluidFilmBearing(**kwargs)
+
+
+def _assert_starved_balance(bearing):
+    """The case converged, with the oil and load balances of a starved film."""
+    weight = Q_(25361.8, "lbf").to("N").m
+    summary = bearing.results.convergence[0]
+    assert summary["converged"], summary["message"]
+    _assert_film(summary)
+    loops = summary["loops"]
+    assert loops["film_onset"]["residual"] < 1e-6
+    assert loops["newton"]["residual"] < 2e-6
+    fraction = np.asarray(loops["cavitation"]["film_fraction_in"])
+    assert np.all((fraction > 0.0) & (fraction < 1.0))
+    operating = bearing.operating_results
+    assert_allclose(
+        np.sum(loops["cavitation"]["inlet_flow"]),
+        operating["q_supply"][0] + operating["q_carryover"][0],
+        rtol=1e-5,
+    )
+    assert_allclose(np.sum(operating["pad_load"][0]), weight, rtol=1e-5)
+
+
+def test_strongly_starved_mass_conserving_equilibrium():
+    """Strongly starved mass-conserving journals reach their equilibrium.
+
+    At 4 l/min the starved film carries no load at the first trial positions,
+    where the Jacobian is singular: the journal has to step along the load.
+    The inlet-fraction loop needs the force balance solved well inside the
+    fraction tolerance.
+
+    References (independent of the solver's output): the oil balance of the
+    supply, each land drawing all the oil available to it, so the draws of
+    the two lands add up to the supply plus the carry-over; the load balance,
+    the film carrying the weight; and the physics of starvation, the
+    eccentricity falling as the supply grows and staying above that of the
+    flooded journal.
+    """
+    eccentricities = []
+    for oil_flow in (4.0, 6.0, 8.0):
+        bearing = _starved_equilibrium(oil_flow)
+        _assert_starved_balance(bearing)
+        eccentricities.append(bearing.operating_results["eccentricity"][0])
+    assert np.all(np.diff(eccentricities) < 0.0)
+    flooded = _starved_equilibrium(200.0)
+    assert flooded.results.convergence[0]["converged"]
+    assert eccentricities[-1] > flooded.operating_results["eccentricity"][0]
+
+
+@pytest.mark.parametrize("oil_flow", [4.0, 6.0])
+def test_strongly_starved_mass_conserving_equilibrium_fine_mesh(oil_flow):
+    """The strongly starved cases converge on the 40 x 20 mesh.
+
+    On this mesh 4 l/min also needs the step along the load, and 6 l/min
+    needs the tight force balance inside the inlet-fraction loop, without
+    which that loop cycles. References as in
+    :func:`test_strongly_starved_mass_conserving_equilibrium`. The 4 l/min
+    case takes many inlet-fraction passes; it runs with
+    ``ROSS_FLUID_FILM_SLOW`` set.
+    """
+    if oil_flow == 4.0 and not os.environ.get("ROSS_FLUID_FILM_SLOW"):
+        pytest.skip("slow case; set ROSS_FLUID_FILM_SLOW=1 to run")
+    _assert_starved_balance(_starved_equilibrium(oil_flow, mesh=(40, 20)))
+
+
+def test_mass_conserving_film_through_a_pad_is_not_solved():
+    """A journal position through a pad surface does not raise.
+
+    The Newton search of a starved case can step the journal through a pad
+    surface; the finite-volume grid then raised ``ValueError("h must be
+    positive")``, an uncaught exception instead of a failed case. Reference:
+    there is no film on the crossed pad, so it carries no pressure and no
+    force, while the other pad is solved as usual.
+    """
+    from ross.bearings.fluid_film.sweep import film_force_at
+
+    inputs = _engine_inputs("fixed_isoviscous", **MC_MESH, cavitation_model=MC)
+    speed, cb = inputs["frequency"][0], inputs["radial_clearance"]
+    out = film_force_at(inputs, speed, 0.0, -1.02 * cb)
+    crossed = int(np.argmin(out["h_min"]))
+    assert out["h_min"][crossed] < 0.0
+    assert np.all(out["nodal_pressure"][crossed] == 0.0)
+    assert out["fx_pad"][crossed] == 0.0 and out["fy_pad"][crossed] == 0.0
+    other = 1 - crossed
+    assert out["h_min"][other] > 0.0
+    assert np.all(np.isfinite(out["nodal_pressure"][other]))
 
 
 def _fd_pad_blocks(inputs, x0, y0, tilts, step):

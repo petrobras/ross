@@ -1180,7 +1180,10 @@ h_min, x_hmin, nodal_pressure, dpdx_n, dpdz_n, full_cavitate, cavitated
     nodal_pressure, dpdx_n, dpdz_n, cavitated : numpy.ndarray
         As returned by :func:`press`; ``cavitated`` is the solver's mask of
         the free nodes in the cavitated zone (film fraction below 1, or at
-        the cavitation pressure on a rupture boundary).
+        the cavitation pressure on a rupture boundary). A pad whose film is
+        closed (``h <= 0`` at a node: the journal crosses the pad surface)
+        is not solved; it gets zero pressure and gradients, and ``film`` is
+        not updated.
     """
     import warnings
 
@@ -1188,6 +1191,22 @@ h_min, x_hmin, nodal_pressure, dpdx_n, dpdz_n, full_cavitate, cavitated
     from ross.bearings.film.loops import ConvergenceWarning
 
     p = pad_index
+    n_film = (mesh.total_e_x_film + 1) * (mesh.total_e_z_film + 1)
+    if np.any(np.asarray(h_n, dtype=float)[p, :n_film] <= 0.0):
+        # The journal crosses the pad surface (closed film): there is no
+        # film to solve. The pad carries no pressure and its solution is not
+        # stored; the equilibrium Newton halves the step that got here.
+        nodal_pressure = np.array(nodal_pressure, dtype=np.float64, copy=True)
+        nodal_pressure[p] = 0.0
+        if cavitated is None:
+            cavitated = np.zeros(nodal_pressure.shape, dtype=bool)
+        cavitated = np.array(cavitated, dtype=bool, copy=True)
+        cavitated[p] = False
+        dpdx_n = np.array(dpdx_n, dtype=np.float64, copy=True)
+        dpdz_n = np.array(dpdz_n, dtype=np.float64, copy=True)
+        dpdx_n[p] = 0.0
+        dpdz_n[p] = 0.0
+        return nodal_pressure, dpdx_n, dpdz_n, cavitated
     fraction_in = 1.0 if film is None else float(film.film_fraction_in[p])
     grid, capacity = cavitation_grid(
         mesh, operating, pad_index, pads, vis_effect_3d, film_onset, h_n, fraction_in
