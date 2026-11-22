@@ -15,6 +15,7 @@ padding or value shift anywhere (see :mod:`ross.bearings.fluid_film.mesh`).
 The package is SI throughout; ``run_case`` accepts SI and returns SI.
 """
 
+import dataclasses
 import inspect
 import time
 from types import SimpleNamespace
@@ -1132,31 +1133,57 @@ def run_case(**kw):
 
     The internal state dict ``g`` carries SI values across every solver
     module.
+
+    ``run_case(**kw)`` is ``solve_case(BearingSetup.from_inputs(**kw), ...)``
+    (:mod:`ross.bearings.fluid_film.sweep`): it meshes, then solves the first
+    speed of ``frequency`` cold. Several speeds of one bearing are solved on
+    one setup by :func:`~ross.bearings.fluid_film.sweep.solve_sweep`.
     """
-    case_start = time.perf_counter()
-    diagnostics = bool(kw.get("diagnostics", False))
-    tolerance_scale = float(kw.get("_tolerance_scale", 1.0))
-    held_tilts = kw.get("_held_tilts")
-    if held_tilts is not None:
-        held_tilts = np.asarray(held_tilts, dtype=float)
-    monitor = LoopMonitor()
-    budget = _case_budget(kw)
-    from ross.bearings.fluid_film import coefficients as _coeff
-    from ross.bearings.fluid_film import deform as _deform
-    from ross.bearings.fluid_film import hydrodynamics as _hyd
-    from ross.bearings.fluid_film import pressure as _press
+    from ross.bearings.fluid_film.sweep import BearingSetup, solve_case
+
+    excitation = np.atleast_1d(np.asarray(kw["excit_ratios"], dtype=float)).ravel()
+    return solve_case(
+        BearingSetup.from_inputs(**kw),
+        float(np.atleast_1d(np.asarray(kw["frequency"], dtype=float)).ravel()[0]),
+        excitation_ratio=float(excitation[0]),
+        diagnostics=bool(kw.get("diagnostics", False)),
+        _tolerance_scale=float(kw.get("_tolerance_scale", 1.0)),
+        whirl_ratios=kw.get("whirl_ratios"),
+        field_outputs=bool(kw.get("field_outputs", False)),
+        pad_matrices=bool(kw.get("pad_matrices", False)),
+        _held_tilts=kw.get("_held_tilts"),
+        _film_force_only=bool(kw.get("_film_force_only", False)),
+    )
+
+
+def _setup_state(kw):
+    """Build the speed-independent solver state of a bearing.
+
+    Converts the ``run_case`` keywords (every keyword except the per-case
+    ones of :data:`~ross.bearings.fluid_film.sweep.CASE_KEYWORDS`), builds
+    the Reynolds, energy, 3-D and (with deformation) pad meshes and freezes
+    them into their state objects. The applied loads, supply flow and
+    initial temperatures are part of the setup; :func:`_solve_state` adds the
+    speed.
+
+    Parameters
+    ----------
+    kw : dict
+        ``run_case`` keywords (SI).
+
+    Returns
+    -------
+    dict
+        The solver state shared by every speed of the bearing.
+    """
 
     total_pads = len(np.atleast_1d(kw["pivot_angle"]))
-    # ``frequency`` is in rad/s on the SI boundary; case_parameters / the
-    # output writers still operate on RPM downstream, so convert once here.
-    frequency_rad_s = np.atleast_1d(np.asarray(kw["frequency"], dtype=float))
-    speeds_rpm = frequency_rad_s * 60.0 / (2.0 * PI)
-    total_cases = len(speeds_rpm)
+    # A case solves one speed; the per-case inputs (loads, supply flow) take
+    # their first value, as the case loop always did.
+    total_cases = 1
 
     def per_case(name):
-        return np.broadcast_to(
-            np.atleast_1d(np.asarray(kw[name], dtype=float)), (total_cases,)
-        ).copy()
+        return np.atleast_1d(np.asarray(kw[name], dtype=float)).ravel()[:1].copy()
 
     te_x = int(kw["total_e_x_film"])
     te_yf = int(kw["total_e_y_film"])
@@ -1311,9 +1338,6 @@ def run_case(**kw):
         ),
     }
 
-    g["_monitor"] = monitor
-    g["_tolerance_scale"] = tolerance_scale
-
     g.update(_adapt(_mesh_reynolds(), g))
     g.update(_adapt(_mesh_energy(), g))
     g.update(_adapt(_mesh_3d(), g))
@@ -1325,24 +1349,124 @@ def run_case(**kw):
     g["energy_mesh"] = EnergyMesh.from_state(g, _ENERGY_MESH_KEYS)
     g["lube"] = Lubricant.from_state(g, _LUBRICANT_KEYS)
 
+    # Applied loads and supply flow of the bearing; the case adds the speed.
+    g["weight_case"] = float(per_case("weight")[0])
+    g["fxs_case"] = float(per_case("fxs_load")[0])
+    g["fys_case"] = float(per_case("fys_load")[0])
+    g["_qs_supply"] = conv["qs_supply"]
+    g["_t_ambient"] = float(kw.get("t_ambient", g["temp_supply"]))
+    g["_journal_temperature"] = float(kw["journal_temperature"])
+    if g["deform_type"] is not None:
+        g.update(_adapt(_mesh_deform(), g))
+    return g
+
+
+def _solve_state(
+    base,
+    speed,
+    excitation_ratio=1.0,
+    *,
+    budget,
+    warm=None,
+    position=None,
+    diagnostics=False,
+    tolerance_scale=1.0,
+    whirl_ratios=None,
+    field_outputs=False,
+    pad_matrices=False,
+    held_tilts=None,
+    film_force_only=False,
+):
+    """Solve one speed of a bearing whose state :func:`_setup_state` built.
+
+    The setup state is not written: the case works on a shallow copy, with its
+    own copies of the arrays the film-thickness rebuild writes (``y_3d`` of
+    the Reynolds mesh and ``y`` of the energy mesh).
+
+    Parameters
+    ----------
+    base : dict
+        Speed-independent solver state (read-only arrays).
+    speed : float
+        Rotor speed, rad/s.
+    excitation_ratio : float, optional
+        Whirl-to-speed ratio of the coefficients. Default is 1.0.
+    budget : CaseBudget
+        Work budget of the case.
+    warm : WarmStart, optional
+        Converged state of another speed to start from (see
+        :class:`~ross.bearings.fluid_film.sweep.WarmStart`). Default is None
+        (cold start).
+    position : tuple of float, optional
+        Journal position ``(xj, yj)``, m, held instead of solved
+        (``match_eccentricity``). Default is None.
+    diagnostics : bool, optional
+        Add the ``"convergence"`` key and the ``"non_convergence"`` messages.
+    tolerance_scale : float, optional
+        Factor on every loop tolerance. Default is 1.0.
+    whirl_ratios : array_like of float, optional
+        Whirl-to-speed ratios to condense at (one output entry each).
+    field_outputs, pad_matrices : bool, optional
+        Add the ``"fields"`` / ``"pad_matrices"`` keys.
+    held_tilts : array_like of float, optional
+        Pad tilts held instead of solved, rad.
+    film_force_only : bool, optional
+        Return the film force outputs of :func:`_film_force_outputs`.
+
+    Returns
+    -------
+    outputs : dict
+        The outputs of :func:`run_case` (or of :func:`_film_force_outputs`).
+    g : dict
+        The final solver state of the case.
+    monitor : LoopMonitor
+        The convergence records of the case.
+    """
+    case_start = time.perf_counter()
+    if held_tilts is not None:
+        held_tilts = np.asarray(held_tilts, dtype=float)
+    monitor = LoopMonitor()
+    from ross.bearings.fluid_film import coefficients as _coeff
+    from ross.bearings.fluid_film import deform as _deform
+    from ross.bearings.fluid_film import hydrodynamics as _hyd
+    from ross.bearings.fluid_film import pressure as _press
+
+    g = dict(base)
+    total_pads = g["total_pads"]
+    dim_x = g["dim_x"]
+    dim_xz = g["dim_xz"]
+    dim_xy2 = g["dim_xy2"]
+    dim_3d = g["dim_3d"]
+    # The film-thickness rebuild writes the radial node coordinates in place
+    # and each case gets its own copies, so the setup is not written.
+    g["y_3d"] = np.array(base["y_3d"])
+    g["y_energy"] = np.array(base["y_energy"])
+    g["mesh"] = dataclasses.replace(base["mesh"], y_3d=g["y_3d"])
+    g["energy_mesh"] = dataclasses.replace(base["energy_mesh"], y=g["y_energy"])
+    g["_monitor"] = monitor
+    g["_tolerance_scale"] = tolerance_scale
+    if position is not None:
+        g["equilibrium_type"] = "match_eccentricity"
+        g["xj"], g["yj"] = float(position[0]), float(position[1])
+    elif warm is not None and g["equilibrium_type"] == "match_load":
+        g["xj"], g["yj"] = warm.xj, warm.yj
+
+    # ``speed`` is in rad/s on the SI boundary; case_parameters and the output
+    # writers work in RPM.
+    speeds_rpm = np.atleast_1d(np.asarray(speed, dtype=float)) * 60.0 / (2.0 * PI)
     g.update(
         case_parameters(
             1,
             g["journal_diameter"],
             speeds_rpm,
-            per_case("weight"),
-            per_case("fxs_load"),
-            per_case("fys_load"),
-            conv["qs_supply"],
-            per_case("excit_ratios"),
+            [g["weight_case"]],
+            [g["fxs_case"]],
+            [g["fys_case"]],
+            g["_qs_supply"],
+            [float(excitation_ratio)],
         )
     )
 
-    # Raw applied loads for this case, kept for the output summaries: the
-    # solver itself only ever sees the net ``fx_ext``/``fy_ext``.
-    g["weight_case"] = float(per_case("weight")[0])
-    g["fxs_case"] = float(per_case("fxs_load")[0])
-    g["fys_case"] = float(per_case("fys_load")[0])
     # Total and specific (projected-area) load for the case.
     g["f_total"] = float(np.hypot(g["fx_ext"], g["fy_ext"]))
     g["f_specific"] = g["f_total"] / (g["journal_diameter"] * g["axial_length"][0])
@@ -1361,8 +1485,8 @@ def run_case(**kw):
         _adapt(
             initialization,
             g,
-            t_ambient=float(kw.get("t_ambient", g["temp_supply"])),
-            temp_j=float(kw["journal_temperature"]),
+            t_ambient=g["_t_ambient"],
+            temp_j=g["_journal_temperature"],
         )
     )
 
@@ -1396,6 +1520,9 @@ def run_case(**kw):
     g.setdefault("q_carryover", np.zeros(total_pads))
     g.setdefault("q_in", np.zeros(total_pads))
     g.setdefault("q_out", np.zeros(total_pads))
+    if warm is not None:
+        warm.apply(g)
+        g["_newton_relax"] = warm.newton_relax
 
     def _zero_pressure_system_wrap(dim_xz_, total_n, total_col):
         # 0-based band storage: only ``total_col = 2*bw - 1`` columns are used.
@@ -1530,7 +1657,6 @@ def run_case(**kw):
             g.setdefault("relax_t_max", g["relaxt"])
             g.setdefault("hd_converged", 1)
             if g["deform_type"] is not None:
-                g.update(_adapt(_mesh_deform(), g))
                 for name, shape in (
                     ("deform_r_surface", (total_pads, dim_x)),
                     ("force_pivot", (total_pads,)),
@@ -1780,21 +1906,21 @@ def run_case(**kw):
         g["temp_supply"],
     )
 
-    field_outputs = bool(kw.get("field_outputs", False))
-
-    if kw.get("_film_force_only", False):
-        return _film_force_outputs(g, monitor, budget, case_start, _integrate_xz_coeff)
+    if film_force_only:
+        outputs = _film_force_outputs(
+            g, monitor, budget, case_start, _integrate_xz_coeff
+        )
+        return outputs, g, monitor
 
     # The stiffness and damping are evaluated at the state the outputs report
     # (the converged equilibrium, or the last iterate of a failed case).
     stiffness = jacobian_fn(g)
     damping_block = _adapt(_coeff.damping, g, helpers=helpers)
-    pad_matrices = _pad_matrices(g, stiffness, damping_block)
-    whirl_ratios = kw.get("whirl_ratios")
+    matrices = _pad_matrices(g, stiffness, damping_block)
     if whirl_ratios is None:
         whirl_ratios = [g["excit_ratio"]]
     reductions = [
-        _reduce(pad_matrices, float(ratio) * g["speed_rpm"] * PI / 30.0, monitor)
+        _reduce(matrices, float(ratio) * g["speed_rpm"] * PI / 30.0, monitor)
         for ratio in np.atleast_1d(np.asarray(whirl_ratios, dtype=float))
     ]
     outputs = _assemble_outputs(g, hp, reductions[0])
@@ -1826,9 +1952,9 @@ def run_case(**kw):
         ] * n_whirl
     if field_outputs:
         outputs["fields"] = [_assemble_field_outputs(g)] * n_whirl
-    if kw.get("pad_matrices", False):
-        outputs["pad_matrices"] = [pad_matrices] * n_whirl
-    return outputs
+    if pad_matrices:
+        outputs["pad_matrices"] = [matrices] * n_whirl
+    return outputs, g, monitor
 
 
 def _pad_matrices(g, stiffness, damping_block):

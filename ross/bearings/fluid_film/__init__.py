@@ -38,14 +38,18 @@ Module                      Responsibility
                             (``LoopMonitor``), the Reynolds-solve and time
                             budget (``CaseBudget``) and
                             ``FluidFilmConvergenceError``.
-``driver``                 Orchestration: meshes once, then loops over speed
-                            cases through the thermal / deformation /
-                            equilibrium iterations and assembles the outputs.
-                            :func:`~ross.bearings.fluid_film.driver.run_case` is the
-                            entry point.
-``sweep``                   :func:`~ross.bearings.fluid_film.sweep.film_force_at`:
-                            the film force with the journal held at a given
-                            position (finite-difference reference, force
+``driver``                  Orchestration: builds the speed-independent state
+                            (meshes) and solves one speed case through the
+                            thermal / deformation / equilibrium iterations,
+                            then assembles the outputs.
+                            :func:`~ross.bearings.fluid_film.driver.run_case`
+                            is the single-case entry point.
+``sweep``                   ``BearingSetup`` (meshes once, read-only),
+                            ``solve_case``, ``solve_sweep`` (warm-started
+                            chains of speeds, worker processes) and
+                            :func:`~ross.bearings.fluid_film.sweep.film_force_at`
+                            (the film force with the journal held at a given
+                            position: finite-difference reference, force
                             maps).
 ==========================  ==================================================
 

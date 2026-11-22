@@ -13,7 +13,6 @@ tilting pad, ...) subclass this and only translate their user-facing
 geometry into the per-pad arrays this class consumes.
 """
 
-import multiprocessing
 import os
 import time
 import warnings
@@ -124,24 +123,28 @@ def _whirl_entries(outputs):
     ]
 
 
-def _solve_case(inputs):
-    """Run one solver case; module-level so it can cross process boundaries.
+def _solve_case(job):
+    """Solve the speed cases of an element (the single entry to the engine).
 
     Parameters
     ----------
-    inputs : dict
-        Keyword arguments for
-        :func:`ross.bearings.fluid_film.driver.run_case`, for a single
-        rotor speed.
+    job : dict
+        ``inputs``: the engine keyword arguments of the element (see
+        :meth:`FluidFilmBearing._engine_inputs`; the per-case ones are
+        ignored), ``speeds``: rotor speeds, rad/s, and the keyword arguments
+        of :func:`ross.bearings.fluid_film.sweep.solve_sweep`.
 
     Returns
     -------
-    dict
-        The solver output dict (with field arrays).
+    list of dict
+        The solver outputs of each speed (with field arrays), in the order of
+        ``speeds``.
     """
-    from ross.bearings.fluid_film.driver import run_case
+    from ross.bearings.fluid_film.sweep import BearingSetup, solve_sweep
 
-    return run_case(**inputs)
+    job = dict(job)
+    setup = BearingSetup.from_inputs(**job.pop("inputs"))
+    return solve_sweep(setup, job.pop("speeds"), **job)
 
 
 class FluidFilmBearing(BearingElement):
@@ -345,9 +348,21 @@ class FluidFilmBearing(BearingElement):
     re_laminar, re_turbulent : float, optional
         Reynolds numbers bounding the laminar-turbulent transition.
         Default is 500 / 1000.
+    n_jobs : int, optional
+        Warm-start chains solved at once in worker processes (``spawn``);
+        -1 uses one per CPU. The results do not depend on it (see Notes).
+        A script that uses ``n_jobs > 1`` must guard its entry point with
+        ``if __name__ == "__main__":`` (a Jupyter notebook needs no guard);
+        when the worker processes stop before returning their results, a
+        ``RuntimeError`` is raised and nothing is solved. Default is 1
+        (serial).
     num_processes : int, optional
-        Solve the speed cases in ``num_processes`` worker processes
-        instead of serially. Default is None (serial).
+        Alias of ``n_jobs`` (values below 2 solve serially). Default is None.
+    warm_start : bool, optional
+        Start each speed of a chain from the converged state of the previous
+        (lower) speed. Default is True.
+    chunk_size : int, optional
+        Speeds per warm-start chain. Default is 5.
     on_failure : str, optional
         What to do with a case that does not converge (see Notes):
         ``"warn"`` leaves its speed out of the coefficient table with a
@@ -439,6 +454,28 @@ class FluidFilmBearing(BearingElement):
     twice that of the finite bearing. Use an arc slightly below 2 pi (for
     example 359.9 deg) for a full journal solved with the finite-length
     Reynolds equation.
+
+    Speed sweeps. The meshes are built once for all speeds. The speeds are
+    sorted and cut into chains of ``chunk_size`` consecutive speeds that
+    depend only on the speeds; the first speed of a chain starts from
+    ``initial_position``, each later speed from the converged state of the
+    previous one (journal position for ``"match_load"``, pad tilts,
+    temperature and viscosity fields, deformations, film onset). The
+    equilibrium search of a warm-started speed takes full Newton steps:
+    ``relax_pressure`` relaxes the position update of cold starts only. A
+    warm-started speed that does not converge is solved again from
+    ``initial_position``; ``results.convergence[i]["warm_start"]`` records
+    how each case started.
+
+    With ``warm_start=True`` (the default) the coefficients at a speed
+    depend, within the solver tolerances, on which other speeds are in the
+    sweep: a warm start converges to the same tolerances as a cold one but
+    from another point, so the two solutions differ by up to those
+    tolerances. ``warm_start=False`` solves every speed from
+    ``initial_position``, independently of the other speeds, exactly as a
+    bearing built for that speed alone. ``n_jobs`` only sets how many chains
+    run at once, and every chain runs with single-threaded BLAS, so the
+    results are the same for every ``n_jobs``.
 
     Failed cases. With ``on_failure="warn"`` the speeds with a failed case
     are left out of the coefficient table (for a 2-D table, the whole speed
@@ -534,7 +571,10 @@ class FluidFilmBearing(BearingElement):
         relax_pivot=1,
         re_laminar=500,
         re_turbulent=1000,
+        n_jobs=1,
         num_processes=None,
+        warm_start=True,
+        chunk_size=5,
         on_failure="warn",
         max_reynolds_solves=None,
         time_limit=None,
@@ -548,6 +588,14 @@ class FluidFilmBearing(BearingElement):
                 setattr(self, name, value)
 
         self.time_limit = None if time_limit is None else _to_base_unit(time_limit, "s")
+        if num_processes is not None:
+            alias = int(num_processes) if num_processes > 1 else 1
+            if n_jobs not in (1, alias):
+                raise ValueError(
+                    f"num_processes={num_processes} is an alias of n_jobs; "
+                    f"pass only n_jobs (got n_jobs={n_jobs})"
+                )
+            self.n_jobs = alias
         self._validate_solver_controls()
 
         for name, valid in _TYPE_FLAGS.items():
@@ -634,9 +682,7 @@ class FluidFilmBearing(BearingElement):
             self._validate_inputs()
             initial_time = time.time()
             case_outputs = [
-                entry
-                for out in self._solve_all(num_processes, self._engine_cases())
-                for entry in _whirl_entries(out)
+                entry for out in self._solve_all() for entry in _whirl_entries(out)
             ]
             final_time = time.time()
             convergence = [out.pop("convergence")[0] for out in case_outputs]
@@ -757,13 +803,17 @@ class FluidFilmBearing(BearingElement):
         }
 
     def _validate_solver_controls(self):
-        """Check ``on_failure``, ``max_reynolds_solves`` and ``time_limit``.
+        """Check the solver controls before any solve.
 
         Raises
         ------
         ValueError
             If ``on_failure`` is not one of ``"warn"``, ``"raise"``,
-            ``"keep"``, or the budget or time limit is not positive.
+            ``"keep"``, the budget or time limit is not positive, ``n_jobs``
+            is below 1 (other than -1) or ``chunk_size`` below 1.
+        TypeError
+            If ``n_jobs`` or ``chunk_size`` is not an integer or
+            ``warm_start`` not a bool.
         """
         if self.on_failure not in ON_FAILURE:
             raise ValueError(
@@ -779,6 +829,12 @@ class FluidFilmBearing(BearingElement):
         limit = self.time_limit
         if limit is not None and not (np.isfinite(limit) and limit > 0):
             raise ValueError(f"time_limit must be positive, got {limit!r} s")
+        from ross.bearings.fluid_film.sweep import _n_workers, sweep_chains
+
+        _n_workers(self.n_jobs, 1)
+        sweep_chains([], self.chunk_size)
+        if not isinstance(self.warm_start, (bool, np.bool_)):
+            raise TypeError(f"warm_start must be a bool, got {self.warm_start!r}")
 
     def _table_rows(self, converged, convergence):
         """Speed rows of the coefficient table, per ``on_failure``.
@@ -1046,23 +1102,6 @@ class FluidFilmBearing(BearingElement):
         """
         self.save_coefficient_table(file)
 
-    def _engine_cases(self):
-        """List the solver cases of the coefficient table, in table order.
-
-        Returns
-        -------
-        list of dict
-            One :meth:`_engine_inputs` dict per rotor speed. For a 2-D table
-            each case condenses its solved state at every whirl ratio
-            ``frequency / speed``.
-        """
-        if self.frequency_range is None:
-            return [self._engine_inputs(w) for w in self.speed_range]
-        return [
-            self._engine_inputs(w, whirl_ratios=[f / w for f in self.frequency_range])
-            for w in self.speed_range
-        ]
-
     def _engine_inputs(self, speed, excitation_ratio=None, whirl_ratios=None):
         """Assemble the solver keyword arguments for one rotor speed.
 
@@ -1190,26 +1229,31 @@ class FluidFilmBearing(BearingElement):
         }
         return inputs
 
-    def _solve_all(self, num_processes, per_case):
-        """Solve the given engine cases; serial by default.
-
-        Parameters
-        ----------
-        num_processes : int or None
-            Number of worker processes; None or 1 solves serially.
-        per_case : list of dict
-            Engine keyword arguments, one dict per case (see
-            :meth:`_engine_inputs`).
+    def _solve_all(self):
+        """Solve every speed of the element (see Notes, "Speed sweeps").
 
         Returns
         -------
         list of dict
-            One solver output dict per case.
+            One solver output dict per speed, in the order of
+            ``speed_range``; for a 2-D table each holds one entry per
+            frequency of ``frequency_range``.
         """
-        if num_processes is not None and num_processes > 1:
-            with multiprocessing.Pool(num_processes) as pool:
-                return pool.map(_solve_case, per_case)
-        return [_solve_case(inputs) for inputs in per_case]
+        speeds = self.speed_range
+        return _solve_case(
+            {
+                "inputs": self._engine_inputs(float(speeds[0])),
+                "speeds": speeds,
+                "warm_start": bool(self.warm_start),
+                "chunk_size": self.chunk_size,
+                "n_jobs": self.n_jobs,
+                "excitation_ratio": float(self.excitation_ratio),
+                "frequency": self.frequency_range,
+                "diagnostics": True,
+                "field_outputs": True,
+                "pad_matrices": True,
+            }
+        )
 
     def coefficients(self, speed, frequency=None):
         """Return the stiffness and damping matrices at a rotor speed.
