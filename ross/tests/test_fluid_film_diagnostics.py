@@ -242,23 +242,27 @@ def test_overloaded_adiabatic_journal_ends_with_a_reported_failure():
     import subprocess
     import sys
 
+    def literal(value):
+        if isinstance(value, Q_):
+            magnitude = np.asarray(value.magnitude).tolist()
+            return f"Q_({magnitude!r}, {str(value.units)!r})"
+        return repr(value)
+
+    kwargs = dict(HEAVY_JOURNAL, thermal_type="adiabatic", fys_load=-8e5)
+    arguments = ", ".join(f"{key}={literal(value)}" for key, value in kwargs.items())
     code = (
         "import warnings\n"
-        "from ross.tests.test_fluid_film_diagnostics import HEAVY_JOURNAL\n"
+        "from ross.units import Q_\n"
         "from ross.bearings.plain_journal import PlainJournal\n"
         "warnings.simplefilter('ignore')\n"
-        "kwargs = dict(HEAVY_JOURNAL, thermal_type='adiabatic', fys_load=-8e5)\n"
-        "summary = PlainJournal(**kwargs).results.convergence[0]\n"
+        f"summary = PlainJournal({arguments}).results.convergence[0]\n"
         "print('RESULT', summary['converged'], summary['reason'], "
         "bool(summary['message']))\n"
     )
     out = subprocess.run(
-        [sys.executable, "-c", code],
-        capture_output=True,
-        text=True,
-        check=True,
-        timeout=300,
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=300
     )
+    assert out.returncode == 0, out.stderr[-4000:]
     lines = [line for line in out.stdout.splitlines() if line.startswith("RESULT ")]
     assert len(lines) == 1, out.stdout + out.stderr
     converged, reason, message = lines[0].split()[1:]
