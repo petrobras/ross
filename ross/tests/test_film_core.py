@@ -24,6 +24,7 @@ from ross.bearings.film import (
     exponential_viscosity,
     lubricant_data,
 )
+from ross.bearings.film.lubricant import LUBRICANT_KEYS
 from ross.bearings.lubricants import lubricants_dict
 from ross.units import Q_
 
@@ -235,6 +236,216 @@ def test_exponential_law_is_the_journal_law():
             for t in T
         ]
         assert_allclose(jit, film.viscosity(T), rtol=1e-14)
+
+
+def _kinematic_cst(oil, temperature):
+    """Kinematic viscosity in cSt, from the dynamic viscosity and density."""
+    return np.asarray(oil.viscosity(temperature)) / oil.density_at(temperature) * 1e6
+
+
+def test_from_datasheet_reproduces_the_datasheet_viscosities():
+    oil = Lubricant.from_datasheet(Q_(32.0, "cSt"), Q_(5.4, "cSt"), 870.0)
+    assert (oil.temperature_1, oil.temperature_2) == (313.15, 373.15)
+    assert oil.viscosity_model == "walther"
+    # ISO 3104 datasheet values, 40 and 100 C
+    assert_allclose(_kinematic_cst(oil, 313.15), 32.0, rtol=1e-12)
+    assert_allclose(_kinematic_cst(oil, 373.15), 5.4, rtol=1e-12)
+    # SI input (m^2/s) and the exponential law give the same two points
+    exp = Lubricant.from_datasheet(32e-6, 5.4e-6, 870.0, viscosity_model="exponential")
+    assert_allclose(_kinematic_cst(exp, [313.15, 373.15]), [32.0, 5.4], rtol=1e-12)
+    for bad in (
+        dict(nu40=0.0, nu100=5.4e-6, rho15=870.0),
+        dict(nu40=32e-6, nu100=np.nan, rho15=870.0),
+        dict(nu40=32e-6, nu100=5.4e-6, rho15=-1.0),
+    ):
+        with pytest.raises(ValueError, match="positive and finite"):
+            Lubricant.from_datasheet(**bad)
+
+
+@pytest.mark.parametrize(
+    "nu40, nu100, rho15", [(32e-6, 5.4e-6, 870.0), (320e-6, 25e-6, 900.0)]
+)
+def test_walther_kernel_equals_the_lubricant_law(nu40, nu100, rho15):
+    from ross.bearings.film.lubricant import walther_viscosity_jit
+    from ross.bearings.fluid_film import _numba_kernels
+    from ross.bearings.fluid_film.state import Lubricant as JournalLubricant
+
+    oil = Lubricant.from_datasheet(nu40, nu100, rho15)
+    assert oil.volumetric_expansion > 0.0  # the density term is exercised
+    T = np.linspace(280.0, 420.0, 57)
+    args = (
+        oil.walther_a,
+        oil.walther_b,
+        oil.density,
+        oil.volumetric_expansion,
+        oil.temperature_1,
+    )
+    jit = np.array([walther_viscosity_jit(*args, float(t)) for t in T])
+    # numpy's log10 and the libm log10 of numba differ by one ulp on some
+    # temperatures; the double exponential multiplies that 2.2e-16 by
+    # ln(10)^2 log10(nu + 0.7) b log10(T) / (1 - 0.7 / (nu + 0.7)), about 150
+    # at 280 K for the 320 cSt oil, hence 5e-14
+    assert_allclose(jit, oil.viscosity(T), rtol=5e-14, atol=0.0)
+    # the journal state (numpy) and its kernel dispatch (model 1)
+    journal = JournalLubricant(
+        oil.viscosity_1,
+        oil.viscosity_2,
+        oil.temperature_1,
+        oil.temperature_2,
+        oil.density,
+        oil.specific_heat,
+        oil.thermal_conductivity,
+        model=1,
+        walther_a=oil.walther_a,
+        walther_b=oil.walther_b,
+        walther_density=oil.density,
+        walther_expansion=oil.volumetric_expansion,
+    )
+    assert np.array_equal(journal.viscosity_at(T), oil.viscosity(T))
+    kernel = [
+        _numba_kernels.viscosity_law_jit(
+            1,
+            oil.viscosity_1,
+            oil.viscosity_2,
+            oil.temperature_1,
+            oil.temperature_2,
+            *args[:4],
+            float(t),
+        )
+        for t in T
+    ]
+    assert_allclose(kernel, oil.viscosity(T), rtol=5e-14, atol=0.0)
+
+
+@pytest.mark.parametrize(
+    "oil",
+    [
+        Lubricant.from_datasheet(32e-6, 5.4e-6, 870.0),
+        Lubricant.from_datasheet(220e-6, 19e-6, 895.0),
+    ],
+    ids=["VG32", "VG220"],
+)
+def test_walther_chart_is_a_straight_line(oil):
+    # ASTM D341 chart: log10 log10(nu + 0.7) linear in log10 T (nu in cSt)
+    T = np.array([313.15, 343.15, 373.15])
+    y = np.log10(np.log10(_kinematic_cst(oil, T) + 0.7))
+    x = np.log10(T)
+    middle = y[0] + (y[2] - y[0]) * (x[1] - x[0]) / (x[2] - x[0])
+    assert_allclose(y[1], middle, rtol=0.0, atol=1e-13)
+
+
+def test_cragoe_against_the_publication():
+    from ross.bearings.film.lubricant import (
+        cragoe_specific_heat,
+        cragoe_thermal_conductivity,
+    )
+
+    # Cragoe (1929), Bureau of Standards Misc. Publ. 97, in the printed units:
+    # equation (5), p. 26, c = (0.388 + 0.00045 t_F) / sqrt(d) Btu/(lb F), and
+    # equation (4), p. 24, K = 0.813 [1 - 0.0003 (t_F - 32)] / d
+    # Btu in/(h ft^2 F); d is the specific gravity at 60/60 F
+    btu_per_lb_f = 4186.8  # J/(kg K), international-table calorie
+    btu_in = 1055.05585262 * 0.0254 / (3600.0 * 0.3048**2 * 5.0 / 9.0)  # W/(m K)
+    for d in (0.78, 0.87, 0.95):
+        for celsius in (0.0, 40.0, 100.0, 200.0):
+            t_f = 1.8 * celsius + 32.0
+            c = (0.388 + 0.00045 * t_f) / np.sqrt(d) * btu_per_lb_f
+            k = 0.813 * (1.0 - 0.0003 * (t_f - 32.0)) / d * btu_in
+            # the SI constants 1684, 3.39 and 0.1172 are rounded conversions:
+            # 5e-4 covers the rounding, well below the stated 5 % and 10 %
+            assert_allclose(cragoe_specific_heat(d, celsius + 273.15), c, rtol=5e-4)
+            assert_allclose(
+                cragoe_thermal_conductivity(d, celsius + 273.15), k, rtol=5e-4
+            )
+
+
+def test_cragoe_reproduces_the_isovg32_table():
+    # ross.bearings.lubricants ISOVG32 at 40 C: c_p 1948.80 and k 0.13126,
+    # consistent with the same correlations at d = 0.8718
+    table = lubricants_dict["ISOVG32"]
+    rho = table["liquid_density"]
+    nu40 = table["liquid_viscosity1"] / rho
+    nu100 = table["liquid_viscosity2"] / rho
+    oil = Lubricant.from_datasheet(nu40, nu100, 0.8718 * 999.0)
+    assert_allclose(
+        oil.specific_heat_at(313.15), table["liquid_specific_heat"], rtol=1e-3
+    )
+    assert_allclose(
+        oil.thermal_conductivity_at(313.15),
+        table["liquid_thermal_conductivity"],
+        rtol=5e-3,
+    )
+    # the slope of c_p is Cragoe's; an explicit c_p is a constant
+    assert_allclose(oil.specific_heat_slope, 3.39 / np.sqrt(0.8718))
+    fixed = Lubricant.from_datasheet(nu40, nu100, 871.0, specific_heat=2000.0)
+    assert fixed.specific_heat_at(373.15) == 2000.0
+
+
+def test_api_density():
+    from ross.bearings.film.lubricant import api_density
+
+    rho15 = 870.0
+    assert api_density(rho15, 288.15) == rho15
+    assert api_density(rho15, Q_(15.0, "degC")) == rho15
+    # by hand at 40 C: a15 = 0.6278 / 870, dT = 25 K
+    a15 = 0.6278 / 870.0
+    assert_allclose(
+        api_density(rho15, 313.15),
+        870.0 * np.exp(-a15 * 25.0 * (1.0 + 0.8 * a15 * 25.0)),
+        rtol=1e-14,
+    )
+    oil = Lubricant.from_datasheet(32e-6, 5.4e-6, rho15)
+    T = np.linspace(288.15, 393.15, 106)
+    linear = oil.density_at(T)
+    assert np.max(np.abs(linear / api_density(rho15, T) - 1.0)) < 3e-3
+    assert_allclose(oil.density, api_density(rho15, 313.15), rtol=1e-15)
+
+
+def test_lubricant_to_dict_round_trip():
+    for oil in (
+        Lubricant.from_datasheet(46e-6, 6.8e-6, 865.0),
+        Lubricant.from_name("ISOVG46", "exponential"),
+        Lubricant(0.03, 313.15, 0.006, 373.15, 860.0),  # no c_p, no k
+    ):
+        data = oil.to_dict()
+        assert data["viscosity_model"] == oil.viscosity_model
+        assert set(LUBRICANT_KEYS) <= set(data)
+        back = Lubricant.from_dict(data, None)
+        assert repr(back) == repr(oil).replace(f"name={oil.name!r}", "name=None")
+        T = np.linspace(290.0, 410.0, 13)
+        assert np.array_equal(back.viscosity(T), oil.viscosity(T))
+    # from_dict still defaults to Walther for a table entry
+    assert Lubricant.from_dict(lubricants_dict["ISOVG46"]).viscosity_model == "walther"
+
+
+def test_journal_state_lubricant_keeps_the_seven_argument_call():
+    from ross.bearings.fluid_film.state import Lubricant as JournalLubricant
+
+    oil = JournalLubricant(0.039, 0.0054, 313.15, 373.15, 855.0, 2090.0, 0.13)
+    assert oil.model == 0
+    T = np.array([300.0, 340.0, 380.0])
+    assert np.array_equal(
+        oil.viscosity_at(T), exponential_viscosity(0.039, 0.0054, 313.15, 373.15, T)
+    )
+    with pytest.raises(ValueError, match="model must be 0"):
+        JournalLubricant(0.039, 0.0054, 313.15, 373.15, 855.0, 2090.0, 0.13, model=2)
+    # isoviscous limit of the Walther law: b = 0 gives the table viscosity
+    iso = Lubricant(0.03, 313.15, 0.03, 373.15, 860.0)
+    walther = JournalLubricant(
+        0.03,
+        0.03,
+        313.15,
+        373.15,
+        860.0,
+        2000.0,
+        0.13,
+        model=1,
+        walther_a=iso.walther_a,
+        walther_b=iso.walther_b,
+        walther_density=860.0,
+    )
+    assert iso.walther_b == 0.0
+    assert_allclose(walther.viscosity_at(T), 0.03, rtol=1e-12)
 
 
 def test_convergence_record_warns():

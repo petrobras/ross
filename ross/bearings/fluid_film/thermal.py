@@ -2096,6 +2096,11 @@ def update_vis(
         float(lube.temp2),
         dim_yf,
         dim_xz,
+        int(lube.model),
+        float(lube.walther_a),
+        float(lube.walther_b),
+        float(lube.walther_density),
+        float(lube.walther_expansion),
     )
 
     _update_flow_regime(

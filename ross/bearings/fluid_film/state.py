@@ -22,8 +22,8 @@ Built once per analysis
     classify a node against the pocket, :meth:`PadGeometry.node_in_pocket`
     and :meth:`PadGeometry.pocket_edge_is_pad`.
 ``Lubricant``
-    The oil: its two-point viscosity-temperature law (see
-    :meth:`Lubricant.viscosity_at`) and its bulk thermal properties.
+    The oil: its two-point viscosity-temperature law, exponential or Walther
+    (see :meth:`Lubricant.viscosity_at`), and its bulk thermal properties.
 ``Turbulence``
     The transition Reynolds numbers and the Reichardt eddy-viscosity
     constants.
@@ -57,7 +57,7 @@ from dataclasses import dataclass, fields
 
 import numpy as np
 
-from ross.bearings.film.lubricant import exponential_viscosity
+from ross.bearings.film.lubricant import exponential_viscosity, walther_viscosity
 
 __all__ = [
     "CoefficientBlock",
@@ -330,10 +330,20 @@ class EnergyMesh(_FromState):
 class Lubricant(_FromState):
     """Oil properties, in SI.
 
-    The viscosity-temperature law is the two-point Reynolds (exponential) fit
-    through ``(temp1, viscosity1)`` and ``(temp2, viscosity2)``, evaluated by
-    the shared film-core law
-    :func:`ross.bearings.film.lubricant.exponential_viscosity`.
+    The viscosity-temperature law passes through ``(temp1, viscosity1)`` and
+    ``(temp2, viscosity2)``. With ``model = 0`` (default) it is the two-point
+    Reynolds (exponential) fit, evaluated by the shared film-core law
+    :func:`ross.bearings.film.lubricant.exponential_viscosity`; with
+    ``model = 1`` it is the Walther (ASTM D341) law of a
+    :class:`ross.bearings.film.lubricant.Lubricant`, evaluated by
+    :func:`ross.bearings.film.lubricant.walther_viscosity` from the Walther
+    constants and the lubricant's linear density about ``temp1``. The Walther
+    fields are trailing keyword arguments with defaults, so the seven-argument
+    positional call builds the exponential lubricant as before.
+
+    ``density``, ``cp`` and ``conduct`` are constants: the energy equation
+    takes them at the supply temperature (the element evaluates a
+    temperature-dependent lubricant there).
 
     Attributes
     ----------
@@ -347,6 +357,17 @@ class Lubricant(_FromState):
         Specific heat capacity, J/(kg*K).
     conduct : float
         Thermal conductivity, W/(m*K).
+    model : int
+        Viscosity law: 0 exponential (default), 1 Walther.
+    walther_a, walther_b : float
+        Walther constants (``nu`` in cSt, ``T`` in K); used when
+        ``model = 1``.
+    walther_density : float
+        Density at ``temp1`` of the Walther law's kinematic-to-dynamic
+        conversion, kg/m^3; used when ``model = 1``.
+    walther_expansion : float
+        Volumetric expansion coefficient of that density about ``temp1``,
+        1/K; used when ``model = 1``.
     """
 
     viscosity1: float
@@ -356,9 +377,20 @@ class Lubricant(_FromState):
     density: float
     cp: float
     conduct: float
+    model: int = 0
+    walther_a: float = 0.0
+    walther_b: float = 0.0
+    walther_density: float = 0.0
+    walther_expansion: float = 0.0
+
+    def __post_init__(self):
+        if self.model not in (0, 1):
+            raise ValueError(
+                f"model must be 0 (exponential) or 1 (Walther), got {self.model!r}"
+            )
 
     def viscosity_at(self, temp):
-        """Viscosity at ``temp`` (K), from the two-point Reynolds law.
+        """Viscosity at ``temp`` (K), from the lubricant's law.
 
         Parameters
         ----------
@@ -376,6 +408,15 @@ class Lubricant(_FromState):
         >>> float(oil.viscosity_at(323.0))
         2.758e-06
         """
+        if self.model == 1:
+            return walther_viscosity(
+                self.walther_a,
+                self.walther_b,
+                self.walther_density,
+                self.walther_expansion,
+                self.temp1,
+                temp,
+            )
         return exponential_viscosity(
             self.viscosity1, self.viscosity2, self.temp1, self.temp2, temp
         )
