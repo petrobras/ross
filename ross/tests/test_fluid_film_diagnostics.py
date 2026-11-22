@@ -227,17 +227,20 @@ def test_budget_stops_a_case_before_it_would_end_otherwise():
         PlainJournal(**kwargs, max_reynolds_solves=10, on_failure="raise")
 
 
-def test_overloaded_adiabatic_journal_ends_with_a_reported_failure():
-    """An adiabatic journal far beyond capacity returns a failed case.
+@pytest.mark.parametrize("thermal_type", ["adiabatic", "full"])
+def test_overloaded_thermal_journal_ends_on_contact(thermal_type):
+    """A thermal journal far beyond capacity ends on contact, unheated.
 
-    At 8e5 N the Newton search pushes the journal into the bore while the
-    adiabatic viscosity loop diverges, and the case ends on a recorded stop
-    reason instead of hanging or raising. Where it ends depends on the
-    platform: the diverging iteration amplifies round-off (with no budget,
-    contact at a film thickness of -3.8e-5 m with a viscosity residual of
-    3e11 on one machine, -5.0e-5 m and 7e25 on another), so only the outcome
-    is asserted. The case runs in a subprocess with a timeout, so that a
-    regression to the endless film loop fails instead of stopping the suite.
+    At 8e5 N the first equilibrium pass already puts the journal through the
+    loaded pad (minimum film thickness about -4e-6 m, 4 % of the clearance).
+    A closed film has no film to heat, so the energy equation is not solved
+    on it: the case ends there with reason ``"contact"`` and no temperature
+    pass (no ``viscosity`` loop record). Solving the energy equation on the
+    inverted film instead drove its viscosity from 0.2 to 1e13 Pa s within a
+    few passes and on to contact or a ``ZeroDivisionError`` in the kernels,
+    at points that depended on the platform. The case runs in a subprocess
+    with a timeout, so that a regression to the endless film loop on a closed
+    film fails instead of stopping the suite.
     """
     import subprocess
     import sys
@@ -248,7 +251,7 @@ def test_overloaded_adiabatic_journal_ends_with_a_reported_failure():
             return f"Q_({magnitude!r}, {str(value.units)!r})"
         return repr(value)
 
-    kwargs = dict(HEAVY_JOURNAL, thermal_type="adiabatic", fys_load=-8e5)
+    kwargs = dict(HEAVY_JOURNAL, thermal_type=thermal_type, fys_load=-8e5)
     arguments = ", ".join(f"{key}={literal(value)}" for key, value in kwargs.items())
     code = (
         "import warnings\n"
@@ -257,7 +260,7 @@ def test_overloaded_adiabatic_journal_ends_with_a_reported_failure():
         "warnings.simplefilter('ignore')\n"
         f"summary = PlainJournal({arguments}).results.convergence[0]\n"
         "print('RESULT', summary['converged'], summary['reason'], "
-        "bool(summary['message']))\n"
+        "'viscosity' in summary['loops'], bool(summary['message']))\n"
     )
     out = subprocess.run(
         [sys.executable, "-c", code], capture_output=True, text=True, timeout=300
@@ -265,9 +268,10 @@ def test_overloaded_adiabatic_journal_ends_with_a_reported_failure():
     assert out.returncode == 0, out.stderr[-4000:]
     lines = [line for line in out.stdout.splitlines() if line.startswith("RESULT ")]
     assert len(lines) == 1, out.stdout + out.stderr
-    converged, reason, message = lines[0].split()[1:]
+    converged, reason, heated, message = lines[0].split()[1:]
     assert converged == "False"
-    assert reason in REASONS
+    assert reason == "contact"
+    assert heated == "False"
     assert message == "True"
 
 

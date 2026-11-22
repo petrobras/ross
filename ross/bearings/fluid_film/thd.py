@@ -293,6 +293,19 @@ def thermohydrodynamics(
                 if thermal_type is None:
                     return state
 
+                # A closed film (the journal position crosses a pad surface)
+                # has no film to heat: the energy equation is not solved on
+                # it, and the case ends here. The driver reports it as
+                # "contact", as for a final position that crosses a pad.
+                # Solving it anyway fed temperatures and viscosities of an
+                # inverted film back into the equilibrium, which diverged by
+                # many orders of magnitude and could raise in the kernels.
+                if np.any(np.asarray(state["h_min"], dtype=float)[:total_pads] <= 0.0):
+                    # No temperature pass ran: no outlet temperatures.
+                    for name in ("temp_outlet", "temp_outlet_bulk"):
+                        state.setdefault(name, np.full(total_pads, np.nan))
+                    return state
+
                 rms_temp_old = 0.0 if vis_index == 1 else rms_temp
 
                 # Natural-shape (0-based) view of state for the thermal /
