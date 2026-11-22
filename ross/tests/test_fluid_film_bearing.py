@@ -2167,3 +2167,18 @@ def test_film_fraction_field_and_plot():
     assert len(fig.data) == fraction.shape[0]
     for pad, trace in enumerate(fig.data):
         assert_allclose(trace.y, fraction[pad, :, middle], rtol=0, atol=0)
+
+
+def test_rigid_rotor_stability_with_singular_damping():
+    """A singular damping matrix gives no threshold instead of raising.
+
+    Reference: Lund's single-mass criterion divides by the determinant of
+    the damping matrix; with ``cxx cyy = cxy cyx`` there is no finite
+    threshold, which the function reports as zero.
+    """
+    from ross.bearings.fluid_film.driver import _rigid_rotor_stability
+
+    g = dict(f_total=1e4, cb=1e-4, weight_case=1e4, speed_rpm=3000.0)
+    reduced = (1e8, 2e7, -2e7, 1e8, 1e6, 1e6, 1e6, 1e6)
+    threshold, whirl, *_ = _rigid_rotor_stability(g, reduced)
+    assert threshold == 0.0 and whirl == 0.0

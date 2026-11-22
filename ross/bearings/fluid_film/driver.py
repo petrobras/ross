@@ -2581,8 +2581,14 @@ def _rigid_rotor_stability(g, reduced):
     threshold = 0.0
     whirl = 0.0
     with np.errstate(divide="ignore", invalid="ignore"):
-        b1 = (kbxx * cbyy + kbyy * cbxx - kbxy * cbyx - kbyx * cbxy) / (cbxx + cbyy)
-        b2 = ((b1 - kbxx) * (b1 - kbyy) - kbyx * kbxy) / (cbxx * cbyy - cbxy * cbyx)
+        # numpy scalars: a singular damping matrix gives a non-finite
+        # threshold (reported as zero) instead of raising ZeroDivisionError.
+        b1 = np.float64(
+            kbxx * cbyy + kbyy * cbxx - kbxy * cbyx - kbyx * cbxy
+        ) / np.float64(cbxx + cbyy)
+        b2 = np.float64((b1 - kbxx) * (b1 - kbyy) - kbyx * kbxy) / np.float64(
+            cbxx * cbyy - cbxy * cbyx
+        )
         omega_square = np.float64(b1) / np.float64(b2)
     if np.isfinite(omega_square) and omega_square >= 0.0 and weight >= _FORCE_FLOOR:
         omega_j = np.sqrt(omega_square) * np.sqrt(f_total * _GRAVITY / (cb * weight))
