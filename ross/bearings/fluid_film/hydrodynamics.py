@@ -69,6 +69,7 @@ from ross.bearings.fluid_film._numba_kernels import (
     velocity_jit,
 )
 from ross.bearings.fluid_film.constants import (
+    CLOSED_FILM,
     MAX_ITERATION,
     NEWTON_ERROR,
     PI,
@@ -1394,11 +1395,12 @@ class PadTiltSearch:
 
     The search is driven by the caller, which owns the film state:
     :meth:`propose` gives the next trial tilt; the caller builds the film
-    there and calls :meth:`reject` when the film closes (``h_min < 0``),
-    then :meth:`skip` with the flat flag (True: no solve needed, propose
-    again), and otherwise solves the pressure and calls :meth:`update` with
-    the moment. The search ends on the last evaluated tilt, so the caller's
-    film and pressure fields belong to the returned tilt.
+    there and calls :meth:`reject` when the film closes (``h_min`` at or
+    below ``CLOSED_FILM * C_b``), then :meth:`skip` with the flat flag (True:
+    no solve needed, propose again), and otherwise solves the pressure and
+    calls :meth:`update` with the moment. The search ends on the last
+    evaluated tilt, so the caller's film and pressure fields belong to the
+    returned tilt.
 
     Parameters
     ----------
@@ -1495,7 +1497,10 @@ class PadTiltSearch:
         return self._next
 
     def reject(self, delta):
-        """Exclude a trial tilt at which the film closes (``h_min < 0``).
+        """Exclude a trial tilt at which the film closes.
+
+        The film is closed when ``h_min <= CLOSED_FILM * C_b`` (see
+        :data:`~ross.bearings.fluid_film.constants.CLOSED_FILM`).
 
         Parameters
         ----------
@@ -3188,11 +3193,13 @@ def fixed_brg(
                 x_hmin[pad_index] = res["x_hmin"]
                 full_cavitate[pad_index] = res["full_cavitate"]
 
-                # A closed film (h_min < 0) is not admissible; when no tilt
-                # is left to open it (the journal position itself crosses
-                # the pad surface) the closed film is kept.
+                # A closed film (h_min <= CLOSED_FILM * cb: negative, or of
+                # round-off thickness at the touching bound of a zero-preload
+                # pad) is not admissible; when no tilt is left to open it
+                # (the journal position itself crosses the pad surface) the
+                # closed film is kept.
                 if (
-                    h_min[pad_index] < 0.0
+                    h_min[pad_index] <= CLOSED_FILM * cb
                     and search is not None
                     and search.reject(tilt_angle[pad_index])
                 ):

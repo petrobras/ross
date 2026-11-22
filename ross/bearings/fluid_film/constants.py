@@ -103,6 +103,17 @@ TILT_ERROR = 1.0e-10
 TILT_MOMENT_ERROR = 1.0e-9
 PIVOT_ERROR = 1.0e-2
 
+# Smallest admissible film thickness of a tilting pad, relative to the bore
+# clearance: a trial tilt whose minimum film is at or below it counts as a
+# closed film and is rejected by the tilt search. At zero preload the bound
+# of the admissible tilt range is the tilt at which an edge touches the
+# journal, so a search ending there met a film of round-off thickness
+# (1e-20 m) and the flow-regime kernel divided by its zero mean viscosity.
+# The value is far below any film the tilt tolerance resolves
+# (``TILT_ERROR * R``, about 5e-8 of the clearance for R / C_b = 500) and
+# far above the round-off of the film thickness (about 1e-17 m).
+CLOSED_FILM = 1.0e-9
+
 # Work budget of one case, counted in zeroth-order Reynolds solves (``press``
 # calls on the equilibrium, tilt, turbulence and thermal paths; the
 # perturbation solves of the coefficients are not counted). The film is
