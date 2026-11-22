@@ -1836,8 +1836,10 @@ def test_strongly_starved_mass_conserving_equilibrium():
 
     At 4 l/min the starved film carries no load at the first trial positions,
     where the Jacobian is singular: the journal has to step along the load.
-    The inlet-fraction loop needs the force balance solved well inside the
-    fraction tolerance.
+    The inlet-fraction loop of that case also needs the force balance solved
+    well inside the fraction tolerance (with the 2e-3 force tolerance it
+    stalls at a fraction change of 1.7e-5), the coupled update of the inlet
+    fractions and the line search of the Newton steps.
 
     References (independent of the solver's output): the oil balance of the
     supply, each land drawing all the oil available to it, so the draws of
@@ -1861,9 +1863,10 @@ def test_strongly_starved_mass_conserving_equilibrium():
 def test_strongly_starved_mass_conserving_equilibrium_fine_mesh(oil_flow):
     """The strongly starved cases converge on the 40 x 20 mesh.
 
-    On this mesh 4 l/min also needs the step along the load, and 6 l/min
-    needs the tight force balance inside the inlet-fraction loop, without
-    which that loop cycles. References as in
+    On this mesh 4 l/min also needs the step along the load and the tight
+    force balance inside the inlet-fraction loop (with the 2e-3 force
+    tolerance it stalls at a fraction change of 2.7e-5); both cases need the
+    coupled update of the inlet fractions. References as in
     :func:`test_strongly_starved_mass_conserving_equilibrium`. The 4 l/min
     case takes many inlet-fraction passes; it runs with
     ``ROSS_FLUID_FILM_SLOW`` set.
