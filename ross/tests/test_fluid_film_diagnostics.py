@@ -207,26 +207,72 @@ def test_heavy_load_journal_converges_on_the_force_balance(load):
         assert_allclose(op.residual, 1.76e-3, rtol=1e-2)
 
 
-def test_overloaded_journal_stops_on_the_budget():
-    """An adiabatic plain journal far beyond capacity stops on its budget.
+def test_budget_stops_a_case_before_it_would_end_otherwise():
+    """A converging case given a budget below its need stops on the budget.
 
-    Left alone, the Newton search of this case pushes the journal into the
-    bore after about 1,300 Reynolds solves (reason ``"contact"``); budgets
-    below that stop it first.
+    The adiabatic plain journal at 2e4 N converges in 106 Reynolds solves;
+    budgets of 20 and 10 stop it in its first Newton iterations, which are
+    the same on every platform. The reported solve count is the budget.
     """
-    kwargs = dict(HEAVY_JOURNAL, thermal_type="adiabatic", fys_load=-8e5)
-    start = time.perf_counter()
+    kwargs = dict(HEAVY_JOURNAL, thermal_type="adiabatic", fys_load=-2e4)
     with pytest.warns(ConvergenceWarning, match="budget"):
-        bearing = PlainJournal(**kwargs, max_reynolds_solves=500)
-    assert time.perf_counter() - start < 60.0
+        bearing = PlainJournal(**kwargs, max_reynolds_solves=20)
     summary = bearing.results.convergence[0]
     assert not summary["converged"]
     assert summary["reason"] == "budget"
-    assert summary["reynolds_solves"] == 500
+    assert summary["reynolds_solves"] == 20
     assert bearing.operating_results.reason[0] == "budget"
 
     with pytest.raises(FluidFilmConvergenceError, match="budget"):
-        PlainJournal(**kwargs, max_reynolds_solves=200, on_failure="raise")
+        PlainJournal(**kwargs, max_reynolds_solves=10, on_failure="raise")
+
+
+@pytest.mark.parametrize("thermal_type", ["adiabatic", "full"])
+def test_overloaded_thermal_journal_ends_on_contact(thermal_type):
+    """A thermal journal far beyond capacity ends on contact, unheated.
+
+    At 8e5 N the first equilibrium pass already puts the journal through the
+    loaded pad (minimum film thickness about -4e-6 m, 4 % of the clearance).
+    A closed film has no film to heat, so the energy equation is not solved
+    on it: the case ends there with reason ``"contact"`` and no temperature
+    pass (no ``viscosity`` loop record). Solving the energy equation on the
+    inverted film instead drove its viscosity from 0.2 to 1e13 Pa s within a
+    few passes and on to contact or a ``ZeroDivisionError`` in the kernels,
+    at points that depended on the platform. The case runs in a subprocess
+    with a timeout, so that a regression to the endless film loop on a closed
+    film fails instead of stopping the suite.
+    """
+    import subprocess
+    import sys
+
+    def literal(value):
+        if isinstance(value, Q_):
+            magnitude = np.asarray(value.magnitude).tolist()
+            return f"Q_({magnitude!r}, {str(value.units)!r})"
+        return repr(value)
+
+    kwargs = dict(HEAVY_JOURNAL, thermal_type=thermal_type, fys_load=-8e5)
+    arguments = ", ".join(f"{key}={literal(value)}" for key, value in kwargs.items())
+    code = (
+        "import warnings\n"
+        "from ross.units import Q_\n"
+        "from ross.bearings.plain_journal import PlainJournal\n"
+        "warnings.simplefilter('ignore')\n"
+        f"summary = PlainJournal({arguments}).results.convergence[0]\n"
+        "print('RESULT', summary['converged'], summary['reason'], "
+        "'viscosity' in summary['loops'], bool(summary['message']))\n"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=300
+    )
+    assert out.returncode == 0, out.stderr[-4000:]
+    lines = [line for line in out.stdout.splitlines() if line.startswith("RESULT ")]
+    assert len(lines) == 1, out.stdout + out.stderr
+    converged, reason, heated, message = lines[0].split()[1:]
+    assert converged == "False"
+    assert reason == "contact"
+    assert heated == "False"
+    assert message == "True"
 
 
 def test_hang_case_terminates_with_a_reason():

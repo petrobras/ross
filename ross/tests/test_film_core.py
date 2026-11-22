@@ -491,30 +491,41 @@ def test_film_does_not_import_fluid_film():
             assert not any("fluid_film" in n for n in names), path
 
 
-def test_importing_the_core_compiles_nothing():
+def _result_line(code):
+    """Run ``code`` in a fresh interpreter and return what it prints as ``RESULT``.
+
+    Packages that ``ross`` imports may print to stdout while being imported
+    (``ccp`` prints a notice when REFPROP cannot be loaded), so the value is
+    printed on its own prefixed line and only that line is read.
+    """
     import subprocess
 
-    code = (
-        "import ross.bearings.film, ross.bearings.film.lubricant as m;"
-        "print(len(m.exponential_viscosity_jit.signatures))"
-    )
     out = subprocess.run(
         [sys.executable, "-c", code], capture_output=True, text=True, check=True
     )
-    assert out.stdout.strip() == "0"
+    lines = [
+        line.removeprefix("RESULT ")
+        for line in out.stdout.splitlines()
+        if line.startswith("RESULT ")
+    ]
+    assert len(lines) == 1, out.stdout
+    return lines[0]
+
+
+def test_importing_the_core_compiles_nothing():
+    code = (
+        "import ross.bearings.film, ross.bearings.film.lubricant as m;"
+        "print('RESULT', len(m.exponential_viscosity_jit.signatures))"
+    )
+    assert _result_line(code) == "0"
 
 
 def test_importing_ross_does_not_load_the_core():
-    import subprocess
-
     code = (
         "import sys, ross;"
-        "print(any(m.startswith('ross.bearings.film') for m in sys.modules))"
+        "print('RESULT', any(m.startswith('ross.bearings.film') for m in sys.modules))"
     )
-    out = subprocess.run(
-        [sys.executable, "-c", code], capture_output=True, text=True, check=True
-    )
-    assert out.stdout.strip() == "False"
+    assert _result_line(code) == "False"
 
 
 def test_turbulence_constants_are_the_journal_values():
