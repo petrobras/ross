@@ -368,7 +368,9 @@ def test_periodic_equals_open_with_repeated_feed():
     assert_allclose(sol.p[:, 0], sol_open.p[:-1, 0], rtol=0, atol=1e-9 * p_s)
     assert_allclose(sol.theta[1:, 0], sol_open.theta[1:-1, 0], rtol=0, atol=1e-10)
     assert_allclose(sol.boundary_flow[0, 0], np.sum(sol_open.boundary_flow), atol=1e-12)
-    assert sol.flow_out == 0.0
+    # The feed is the only boundary node: what it supplies leaves through it,
+    # so the net flows are round-off (exactly 0 on some platforms only).
+    assert_allclose(sol.flow_out, 0.0, atol=1e-10 * sol_open.flow_in)
     assert_allclose(sol.flow_in, 0.0, atol=1e-10 * sol_open.flow_in)
 
 
