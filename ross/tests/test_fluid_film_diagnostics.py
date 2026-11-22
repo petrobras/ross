@@ -207,26 +207,64 @@ def test_heavy_load_journal_converges_on_the_force_balance(load):
         assert_allclose(op.residual, 1.76e-3, rtol=1e-2)
 
 
-def test_overloaded_journal_stops_on_the_budget():
-    """An adiabatic plain journal far beyond capacity stops on its budget.
+def test_budget_stops_a_case_before_it_would_end_otherwise():
+    """A converging case given a budget below its need stops on the budget.
 
-    Left alone, the Newton search of this case pushes the journal into the
-    bore after about 1,300 Reynolds solves (reason ``"contact"``); budgets
-    below that stop it first.
+    The adiabatic plain journal at 2e4 N converges in 106 Reynolds solves;
+    budgets of 20 and 10 stop it in its first Newton iterations, which are
+    the same on every platform. The reported solve count is the budget.
     """
-    kwargs = dict(HEAVY_JOURNAL, thermal_type="adiabatic", fys_load=-8e5)
-    start = time.perf_counter()
+    kwargs = dict(HEAVY_JOURNAL, thermal_type="adiabatic", fys_load=-2e4)
     with pytest.warns(ConvergenceWarning, match="budget"):
-        bearing = PlainJournal(**kwargs, max_reynolds_solves=500)
-    assert time.perf_counter() - start < 60.0
+        bearing = PlainJournal(**kwargs, max_reynolds_solves=20)
     summary = bearing.results.convergence[0]
     assert not summary["converged"]
     assert summary["reason"] == "budget"
-    assert summary["reynolds_solves"] == 500
+    assert summary["reynolds_solves"] == 20
     assert bearing.operating_results.reason[0] == "budget"
 
     with pytest.raises(FluidFilmConvergenceError, match="budget"):
-        PlainJournal(**kwargs, max_reynolds_solves=200, on_failure="raise")
+        PlainJournal(**kwargs, max_reynolds_solves=10, on_failure="raise")
+
+
+def test_overloaded_adiabatic_journal_ends_with_a_reported_failure():
+    """An adiabatic journal far beyond capacity returns a failed case.
+
+    At 8e5 N the Newton search pushes the journal into the bore while the
+    adiabatic viscosity loop diverges, and the case ends on a recorded stop
+    reason instead of hanging or raising. Where it ends depends on the
+    platform: the diverging iteration amplifies round-off (with no budget,
+    contact at a film thickness of -3.8e-5 m with a viscosity residual of
+    3e11 on one machine, -5.0e-5 m and 7e25 on another), so only the outcome
+    is asserted. The case runs in a subprocess with a timeout, so that a
+    regression to the endless film loop fails instead of stopping the suite.
+    """
+    import subprocess
+    import sys
+
+    code = (
+        "import warnings\n"
+        "from ross.tests.test_fluid_film_diagnostics import HEAVY_JOURNAL\n"
+        "from ross.bearings.plain_journal import PlainJournal\n"
+        "warnings.simplefilter('ignore')\n"
+        "kwargs = dict(HEAVY_JOURNAL, thermal_type='adiabatic', fys_load=-8e5)\n"
+        "summary = PlainJournal(**kwargs).results.convergence[0]\n"
+        "print('RESULT', summary['converged'], summary['reason'], "
+        "bool(summary['message']))\n"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=300,
+    )
+    lines = [line for line in out.stdout.splitlines() if line.startswith("RESULT ")]
+    assert len(lines) == 1, out.stdout + out.stderr
+    converged, reason, message = lines[0].split()[1:]
+    assert converged == "False"
+    assert reason in REASONS
+    assert message == "True"
 
 
 def test_hang_case_terminates_with_a_reason():
