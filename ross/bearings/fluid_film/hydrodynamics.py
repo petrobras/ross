@@ -70,10 +70,14 @@ from ross.bearings.fluid_film._numba_kernels import (
 )
 from ross.bearings.fluid_film.constants import (
     CLOSED_FILM,
+    FILM_FRACTION_ERROR,
     MAX_ITERATION,
+    MAX_STEP_HALVINGS,
     NEWTON_ERROR,
     PI,
     SHEAR_ERROR,
+    STARVED_NEWTON_SCALE,
+    UNLOADED_STEP,
     TILT_ERROR,
     TILT_MOMENT_ERROR,
 )
@@ -201,20 +205,63 @@ def hydrodynamics(
     onset_moves = np.zeros(total_pads, dtype=np.int64)
     onset_travelling = 0
     onset_searched = False
+    # The mass-conserving film keeps its film onset at the leading edge and
+    # starves the pad through the film fraction of its inlet instead.
+    film = s.get("_film")
+    fraction_change = 0.0
+    inlet_previous = None
+    fraction_tolerance = FILM_FRACTION_ERROR * s.get("_tolerance_scale", 1.0)
+    onset_passes = total_e_x_film - 1 if film is None else MAX_ITERATION
+    # Inside the inlet film-fraction loop of a starved mass-conserving case
+    # the force balance is solved to a tighter tolerance, so that the oil the
+    # film draws, which sets the next inlet fraction, is converged well below
+    # the fraction tolerance.
+    fraction_loop = (
+        film is not None
+        and operating_type not in _FLOODED_TYPES
+        and not (
+            (
+                sump_index > 1
+                or elasto_index > 1
+                or mixtemp_index > starve_number
+                or jtemp_index > 1
+                or vis_index > 1
+            )
+            and filmonset_search == 0
+        )
+    )
+    if fraction_loop:
+        newton_tolerance *= STARVED_NEWTON_SCALE
 
-    for filmonset_index in range(1, total_e_x_film - 1 + 1):
+    for filmonset_index in range(1, onset_passes + 1):
         unconverge_number = 0
         hd_converged = 0
         newton_residual = np.nan
         newton_exit = "max_iterations"
         singular_step = False
         onset_travelling = 0
+        halvings = 0
+        f_accepted = np.inf
 
         # ``equilpost_index`` is a pure iteration counter (compared ``> 1`` and
         # passed through to ``fixed_brg``); kept 1-based for readability.
         for equilpost_index in range(1, MAX_ITERATION + 1):
             fb = fixed_brg_fn(s, equilpost_index, relaxp, press=press)
             s.update(fb)
+
+            # Mass-conserving film: a Newton step that puts the journal
+            # through a pad surface (closed film) is halved back towards the
+            # last solved position instead of being solved.
+            if (
+                film is not None
+                and equilpost_index > 1
+                and halvings < MAX_STEP_HALVINGS
+                and _film_closed(s["h_min"], total_pads, s["cb"])
+            ):
+                halvings += 1
+                s["xj"] = 0.5 * (xj_old + s["xj"])
+                s["yj"] = 0.5 * (yj_old + s["yj"])
+                continue
 
             forces_out = forces(
                 total_pads,
@@ -255,7 +302,21 @@ def hydrodynamics(
                 hd_converged = 0 if unconverge_number > 0 else 1
                 newton_exit = "converged"
                 break
-            elif f > f_old and equilpost_index > 1:
+            elif (
+                film is not None
+                and equilibrium_type != "match_eccentricity"
+                and f > f_accepted
+                and halvings < MAX_STEP_HALVINGS
+            ):
+                # Mass-conserving film: a step that raises the force
+                # residual is halved back towards the position it started
+                # from (a backtracking line search), instead of counting
+                # towards abandoning the pass.
+                halvings += 1
+                s["xj"] = 0.5 * (xj_old + s["xj"])
+                s["yj"] = 0.5 * (yj_old + s["yj"])
+                continue
+            elif film is None and f > f_old and equilpost_index > 1:
                 unconverge_number += 1
                 if unconverge_number > 5:
                     newton_exit = "diverged"
@@ -290,13 +351,22 @@ def hydrodynamics(
                 delta_xj, delta_yj = _newton_step(
                     kxx_e, kxy_e, kyx_e, kyy_e, fx_net, fy_net, s["cb"]
                 )
-                if delta_xj is None:
+                if delta_xj is None and film is not None and ext_mag > 0.0:
+                    # The mass-conserving film carries no load at this
+                    # position (a starved film cavitated everywhere): step
+                    # along the load from here. The reset below would send
+                    # the journal back to the same unloaded position.
+                    delta_xj = UNLOADED_STEP * s["cb"] * fx_ext / ext_mag
+                    delta_yj = UNLOADED_STEP * s["cb"] * fy_ext / ext_mag
+                elif delta_xj is None:
                     # Singular Jacobian fallback.
                     singular_step = True
                     s["xj"] = 0.0
                     s["yj"] = 0.0
                     delta_xj = 0.0
                     delta_yj = -0.2 * s["cb"]
+                halvings = 0
+                f_accepted = f
 
                 xj_old = s["xj"]
                 yj_old = s["yj"]
@@ -358,10 +428,18 @@ def hydrodynamics(
             s["yj"],
             s.get("q_available", np.full(total_pads, np.inf)),
         )
+        if film is not None:
+            # The flows above integrate full-film velocity profiles; the
+            # mass-conserving film takes them from its own boundary flows.
+            flow.update(
+                film_boundary_flows(
+                    film, mesh, total_pads, s["film_onset"], s["hotoil_lamda"]
+                )
+            )
         s.update(flow)
 
         # Starvation: stop here when flooded / suppressed.
-        if operating_type in ("regular_flooded", "axial_flow", "high_ambient_pressure"):
+        if operating_type in _FLOODED_TYPES:
             break
 
         if operating_type in ("starved_condition_even", "oil_ring_lubricated"):
@@ -391,6 +469,29 @@ def hydrodynamics(
         ) and filmonset_search == 0:
             break
 
+        if film is not None:
+            onset_searched = True
+            outflow = np.asarray(s["q_out"], dtype=float)[:total_pads]
+            fraction = inlet_film_fraction(
+                film.film_fraction_in,
+                s["q_available"],
+                film.inlet_flow,
+                film.inlet_capacity,
+                previous=inlet_previous,
+                outflow=outflow,
+                carryover=float(s["hotoil_lamda"]),
+            )
+            inlet_previous = (
+                film.film_fraction_in.copy(),
+                film.inlet_flow.copy(),
+                outflow.copy(),
+            )
+            fraction_change = float(np.max(np.abs(fraction - film.film_fraction_in)))
+            film.film_fraction_in[:] = fraction
+            if fraction_change < fraction_tolerance:
+                break
+            continue
+
         onset_old = np.array(s["film_onset"], dtype=np.int64)
         s["film_onset"] = update_film_onset(
             total_pads,
@@ -404,7 +505,21 @@ def hydrodynamics(
         onset_travelling = int(np.sum((move != 0) & (move * onset_moves >= 0)))
         onset_moves = move
 
-    if monitor is not None and (onset_searched or "film_onset" not in monitor.records):
+    if film is not None:
+        if monitor is not None and (
+            onset_searched or "film_onset" not in monitor.records
+        ):
+            monitor.record(
+                "film_onset",
+                filmonset_index,
+                fraction_change,
+                fraction_tolerance,
+                fraction_change < fraction_tolerance,
+                searched=onset_searched,
+            )
+    elif monitor is not None and (
+        onset_searched or "film_onset" not in monitor.records
+    ):
         # The film-onset search steps one element per pass; it has found the
         # discrete balance once no pad keeps moving in the same direction.
         # The later calls of a thermal or deformation case skip the search
@@ -418,7 +533,11 @@ def hydrodynamics(
             searched=onset_searched,
         )
 
-    # Heat-dissipation scale factor for the cavitation/starvation effects.
+    # Heat-dissipation scale factor for the cavitation/starvation effects:
+    # the film fraction of the mass-conserving film.
+    if film is not None:
+        s["scale_dissip"] = np.array(film.film_fraction, copy=True)
+        return s
     s["scale_dissip"] = cavitation_scale(
         total_pads,
         mesh,
@@ -432,6 +551,72 @@ def hydrodynamics(
     )
 
     return s
+
+
+def film_boundary_flows(film, mesh, total_pads, film_onset, hotoil_lamda):
+    """Pad flows of the mass-conserving film from its boundary flows.
+
+    The finite-volume solution gives the flow each prescribed-pressure node
+    supplies to the film (``CavitationSolution.boundary_flow``, positive in);
+    a face between two such nodes carries no film flow. Per pad, the inlet
+    nodes (the leading edge and the nodes upstream of the film onset) give the
+    net draw ``q_in``, the trailing edge the outflow ``q_out`` and the two
+    axial edges the side leakage, so ``q_in = q_out + q_sides`` to the mass
+    balance of the solve. The carry-over is ``hotoil_lamda * q_out``: the oil
+    that leaves the trailing edge, not the flow past the minimum film used by
+    :func:`flow_rates` for the Reynolds film.
+
+    Parameters
+    ----------
+    film : MassConservingFilm
+        Film state of the case, holding the last solution of each pad.
+    mesh : ReynoldsMesh
+        Film (x-z) mesh.
+    total_pads : int
+        Number of pads.
+    film_onset : numpy.ndarray of int
+        Per-pad film-onset element index.
+    hotoil_lamda : float
+        Hot-oil carry-over fraction.
+
+    Returns
+    -------
+    dict
+        ``q_in``, ``q_out``, ``q_sides``, ``q_carryover``, ``q_sidea``,
+        ``q_sideb``: per-pad flows, m^3/s, signed as those of
+        :func:`flow_rates` (``q_sidea`` negative when oil leaves through the
+        ``z = 0`` edge, ``q_sideb`` positive when it leaves through the other).
+    """
+    nx = mesh.total_e_x_film + 1
+    nz = mesh.total_e_z_film + 1
+    out = {
+        key: np.zeros(total_pads, dtype=np.float64)
+        for key in ("q_in", "q_out", "q_sides", "q_carryover", "q_sidea", "q_sideb")
+    }
+    for p in range(total_pads):
+        solution = film.records[p]
+        if solution is None:
+            continue
+        flow = np.asarray(solution.boundary_flow, dtype=float).reshape(nx, nz)
+        inlet = int(film_onset[p]) + 1
+        side_a = float(np.sum(flow[inlet : nx - 1, 0]))
+        side_b = float(np.sum(flow[inlet : nx - 1, nz - 1]))
+        strip_in, strip_out = film.edge_flow[p]
+        out["q_in"][p] = float(np.sum(flow[:inlet])) + strip_in
+        out["q_out"][p] = -float(np.sum(flow[nx - 1])) + strip_out
+        out["q_sides"][p] = strip_in - strip_out - (side_a + side_b)
+        out["q_sidea"][p] = side_a
+        out["q_sideb"][p] = -side_b
+        out["q_carryover"][p] = float(hotoil_lamda) * out["q_out"][p]
+    return out
+
+
+_FLOODED_TYPES = ("regular_flooded", "axial_flow", "high_ambient_pressure")
+
+
+def _film_closed(h_min, total_pads, cb):
+    """Whether the film of any pad is closed (the journal crosses a pad)."""
+    return bool(np.min(np.asarray(h_min, dtype=float)[:total_pads]) <= CLOSED_FILM * cb)
 
 
 def _record_newton(monitor, iterations, residual, tolerance, exit_kind, singular):
@@ -856,6 +1041,115 @@ def available_flow_even(total_pads, q_supply, q_carryover):
         else:
             q_available[pad_index] = q_carryover[pad_index - 1] + q_supply / total_pads
     return q_available
+
+
+def inlet_film_fraction(
+    film_fraction_in,
+    q_available,
+    inlet_flow,
+    inlet_capacity,
+    previous=None,
+    outflow=None,
+    carryover=0.0,
+):
+    """Update the film fraction of the oil entering each pad (mass-conserving film).
+
+    The supply conserves the oil: a starved pad draws exactly the oil
+    available at its leading edge, and a pad whose flooded draw is less than
+    the available oil floods (fraction 1) and spills the rest. The net draw
+    of the last solve is the Couette inflow ``theta_in C`` (``C`` the inlet
+    capacity) less the backflow ``B`` the pressure gradient drives back into
+    the supply once the pressurised zone reaches the leading edge.
+
+    The available oil of pad ``p`` is its share of the supply plus
+    ``carryover`` times the trailing-edge outflow of the pad before it
+    (pad ``p - 1``, cyclically, as
+    :func:`available_flow_even`), and that outflow grows with the inlet
+    fraction of that pad. The update is one Newton step on the coupled
+    residuals ``r_p = q_available_p - draw_p``,
+
+    ``-a_p d_p + carryover * b_(p-1) d_(p-1) = -r_p``,
+
+    with ``a_p`` the slope of pad ``p``'s draw and ``b_p`` the slope of its
+    outflow with its inlet fraction: ``C`` (``a``) and 0 (``b``) without a
+    previous iterate, else the secant slopes, kept within ``[0.05 C, C]``
+    and ``[0, a]``. A pad that is flooded with oil to spare
+    (``theta_in = 1``, ``r_p >= 0``) keeps ``theta_in = 1`` and drops out of
+    the system. The fractions are clipped to ``[0, 1]``. Without
+    ``outflow`` (or with ``carryover = 0``) the pads decouple and each takes
+    the step ``r_p / a_p``.
+
+    Parameters
+    ----------
+    film_fraction_in : numpy.ndarray
+        Inlet film fraction of the last solve of each pad.
+    q_available : numpy.ndarray
+        Oil available at each pad's leading edge, m**3/s.
+    inlet_flow : numpy.ndarray
+        Net flow each pad drew through its leading edge in its last solve,
+        m**3/s.
+    inlet_capacity : numpy.ndarray
+        Couette flow each pad draws with a full inlet film, m**3/s.
+    previous : tuple of numpy.ndarray, optional
+        ``(film_fraction_in, inlet_flow)`` or ``(film_fraction_in,
+        inlet_flow, outflow)`` of the iterate before the last; gives the
+        secant slopes. Default is None.
+    outflow : numpy.ndarray, optional
+        Trailing-edge outflow of each pad in its last solve, m**3/s.
+        Default is None (no coupling).
+    carryover : float, optional
+        Fraction of a pad's outflow carried to the next pad. Default is 0.
+
+    Returns
+    -------
+    numpy.ndarray
+        Inlet film fraction per pad, in ``[0, 1]``.
+
+    Examples
+    --------
+    Without backflow the draw is ``theta_in C``: the first pad (draw 2,
+    capacity 2) floods but 1 is available, so it starves to 0.5; the second
+    (3 available) stays flooded and spills; the third has no oil.
+
+    >>> inlet_film_fraction(
+    ...     np.ones(3), np.array([1.0, 3.0, 0.0]), np.full(3, 2.0), np.full(3, 2.0)
+    ... )
+    array([0.5, 1. , 0. ])
+    """
+    theta = np.asarray(film_fraction_in, dtype=float)
+    q_available = np.asarray(q_available, dtype=float)
+    draw = np.asarray(inlet_flow, dtype=float)
+    capacity = np.asarray(inlet_capacity, dtype=float)
+    n = theta.size
+    draw_slope = capacity.copy()
+    out_slope = np.zeros(n)
+    coupled = outflow is not None and carryover > 0.0
+    if previous is not None:
+        d_theta = theta - np.asarray(previous[0], dtype=float)
+        moved = np.abs(d_theta) > 1e-12
+        d_draw = draw - np.asarray(previous[1], dtype=float)
+        secant = np.divide(d_draw, d_theta, out=capacity.copy(), where=moved)
+        draw_slope = np.clip(secant, 0.05 * capacity, capacity)
+        if coupled and len(previous) > 2:
+            d_out = np.asarray(outflow, dtype=float) - np.asarray(
+                previous[2], dtype=float
+            )
+            secant = np.divide(d_out, d_theta, out=np.zeros(n), where=moved)
+            out_slope = np.clip(secant, 0.0, draw_slope)
+    finite = np.isfinite(q_available)
+    residual = np.where(finite, q_available - draw, 0.0)
+    free = finite & (draw_slope > 0.0) & ~((theta >= 1.0) & (residual >= 0.0))
+    step = np.zeros(n)
+    if np.any(free):
+        jac = np.diag(-draw_slope)
+        if coupled:
+            for p in range(n):
+                jac[p, (p - 1) % n] += carryover * out_slope[(p - 1) % n]
+        index = np.flatnonzero(free)
+        step[index] = np.linalg.solve(jac[np.ix_(index, index)], -residual[index])
+    step[finite & ~free & (residual >= 0.0)] = 1.0
+    step[~finite] = 1.0
+    return np.clip(theta + step, 0.0, 1.0)
 
 
 def cool_oil(total_pads, film_onset, q_x, q_carryover):
@@ -3046,7 +3340,7 @@ def fixed_brg(
         )
 
     def _press():
-        if full_cavitate[pad_index]:
+        if full_cavitate[pad_index] and operating.cavitation_model == "reynolds":
             # A fully cavitated pad is at the cavitation pressure: no
             # Reynolds solve (the fields equal those of ``press``).
             return press_full_cavitation(

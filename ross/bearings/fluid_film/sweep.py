@@ -226,6 +226,9 @@ class WarmStart:
         its root (:class:`~ross.bearings.fluid_film.hydrodynamics.PadTiltSearch`).
         Default is None (the search steps by a fixed fraction of the
         admissible range from the copied tilt).
+    film_fraction_in : numpy.ndarray, optional
+        Inlet film fraction of each pad (mass-conserving film, starved
+        operation). Default is None (flooded inlets to start from).
     """
 
     xj: float
@@ -236,6 +239,7 @@ class WarmStart:
     deformation: dict
     newton_relax: float = 1.0
     tilt_slope: np.ndarray = None
+    film_fraction_in: np.ndarray = None
 
     @classmethod
     def from_state(cls, g):
@@ -261,6 +265,11 @@ class WarmStart:
             tilt_slope=(
                 np.array(g["_tilt_memory"]["slope"], dtype=float)
                 if "_tilt_memory" in g
+                else None
+            ),
+            film_fraction_in=(
+                np.array(g["_film"].film_fraction_in, copy=True)
+                if g.get("_film") is not None
                 else None
             ),
         )
@@ -674,6 +683,10 @@ def film_force_at(setup, speed, xj, yj, tilts="solve", tolerance_scale=1.0, warm
             Film pressure, Pa, shape ``(total_pads, dim_xz)``.
         ``cavitated`` : numpy.ndarray of bool
             Nodes held at the cavitation pressure, same shape.
+        ``film_fraction`` : numpy.ndarray or None
+            Film fraction (Elrod-Adams ``theta``), same shape, with
+            ``cavitation_model="mass_conserving"``; None with the Reynolds
+            model.
         ``converged`` : bool
             Every loop that ran converged (the Newton loop is not run).
         ``convergence`` : dict

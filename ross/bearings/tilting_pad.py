@@ -110,7 +110,8 @@ class TiltingPad(FluidFilmBearing):
         :class:`ross.bearings.fluid_film_bearing.FluidFilmBearing`
         (``bearing_type``, ``pivot_type``, ``deform_type``,
         ``pivot_stiffness``, ``house_diameter``, ``pivot_diameter``,
-        ``hot_oil_lambda``, ...).
+        ``hot_oil_lambda``, ``cavitation_model`` (``"reynolds"`` or
+        ``"mass_conserving"``), ...).
 
     Returns
     -------

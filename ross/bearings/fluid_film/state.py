@@ -447,6 +447,11 @@ class OperatingPoint(_FromState):
         Cavitation pressure, Pa.
     ambient_press1, ambient_press2 : float
         Ambient pressure at the two axial ends, Pa.
+    cavitation_model : str
+        ``"reynolds"`` (cavitation pressure floor) or ``"mass_conserving"``
+        (Elrod-Adams film, see
+        :func:`~ross.bearings.fluid_film.pressure.press_mass_conserving`).
+        Default is ``"reynolds"``.
     """
 
     bearing_type: str
@@ -457,6 +462,7 @@ class OperatingPoint(_FromState):
     press_cavitate: float
     ambient_press1: float
     ambient_press2: float
+    cavitation_model: str = "reynolds"
 
 
 @dataclass(frozen=True)

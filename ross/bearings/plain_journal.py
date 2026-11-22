@@ -67,7 +67,8 @@ class PlainJournal(FixedGeometryBearing):
     **kwargs : dict
         Further parameters of
         :class:`ross.bearings.fluid_film_bearing.FluidFilmBearing`
-        (``thermal_type``, ``operating_type``, ``deform_type``, mesh
+        (``thermal_type``, ``operating_type``, ``deform_type``,
+        ``cavitation_model`` (``"reynolds"`` or ``"mass_conserving"``), mesh
         overrides such as ``total_ex_film`` / ``total_ez_film``, ...).
 
     Returns
