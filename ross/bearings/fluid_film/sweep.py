@@ -220,6 +220,12 @@ class WarmStart:
         Newton steps: the start is the equilibrium of a nearby speed; the
         relaxed update converges only linearly, about one iteration per
         halving of the force residual).
+    tilt_slope : numpy.ndarray, optional
+        Slope of each pad's pivot moment over its tilt, N*m/rad (NaN where
+        unknown). With the tilts it starts each pad's tilt search close to
+        its root (:class:`~ross.bearings.fluid_film.hydrodynamics.PadTiltSearch`).
+        Default is None (the search steps by a fixed fraction of the
+        admissible range from the copied tilt).
     """
 
     xj: float
@@ -229,6 +235,7 @@ class WarmStart:
     temperature: dict
     deformation: dict
     newton_relax: float = 1.0
+    tilt_slope: np.ndarray = None
 
     @classmethod
     def from_state(cls, g):
@@ -251,6 +258,11 @@ class WarmStart:
             film_onset=np.array(g["film_onset"], copy=True),
             temperature={k: _copy(g[k]) for k in WARM_TEMPERATURE_KEYS if k in g},
             deformation={k: _copy(g[k]) for k in WARM_DEFORMATION_KEYS if k in g},
+            tilt_slope=(
+                np.array(g["_tilt_memory"]["slope"], dtype=float)
+                if "_tilt_memory" in g
+                else None
+            ),
         )
 
     def apply(self, g):
@@ -266,6 +278,15 @@ class WarmStart:
             Solver state of the case being started (updated in place).
         """
         g["tilt_angle"] = np.array(self.tilt_angle, copy=True)
+        total_pads = len(self.tilt_angle)
+        g["_tilt_memory"] = {
+            "known": np.ones(total_pads, dtype=bool),
+            "slope": (
+                np.array(self.tilt_slope, dtype=float, copy=True)
+                if self.tilt_slope is not None
+                else np.full(total_pads, np.nan)
+            ),
+        }
         g["film_onset"] = np.array(self.film_onset, copy=True)
         for name, value in {**self.temperature, **self.deformation}.items():
             g[name] = _copy(value)

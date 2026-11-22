@@ -100,9 +100,16 @@ def test_stiffness_is_evaluated_at_the_reported_position(case):
     2.8e-3 (pressure dam), 2.2e-3 (starved) and 3.6e-3 (tilting pad) of the
     largest stiffness. Laminar isoviscous cases only: a thermal or turbulent
     case held at a position converges its outer loops along another path.
+    The tilting pad runs at 1e-3 of the default tolerances: the equilibrium
+    solve starts each tilt search from the tilts of the previous Newton
+    iterate and the held case from the middle of the range, so the two
+    reach different tilts within the tilt tolerance (at the default
+    tolerances their coefficients differ by up to 3.5e-6 of a coefficient,
+    at 1e-3 of them by 7e-11).
     """
     inputs = _inputs(case)
-    out = run_case(**inputs, diagnostics=True)
+    scale = 1e-3 if case.startswith("tilt_") else 1.0
+    out = run_case(**inputs, diagnostics=True, _tolerance_scale=scale)
     assert out["convergence"][0]["converged"]
     held = run_case(
         **dict(
@@ -110,7 +117,8 @@ def test_stiffness_is_evaluated_at_the_reported_position(case):
             equilibrium_type="match_eccentricity",
             xj=out["xj_cb"][0],
             yj=out["yj_cb"][0],
-        )
+        ),
+        _tolerance_scale=scale,
     )
     for key in COEFFICIENT_KEYS:
         assert_allclose(out[key], held[key], rtol=1e-10, atol=0.0, err_msg=key)
@@ -355,7 +363,11 @@ def test_film_force_at_the_equilibrium_balances_the_load(tilting_pad_equilibrium
     Reference: the applied load (``weight`` downwards, no horizontal load)
     and the Newton tolerance ``|F_net| / |F_ext| < 2e-3``. With the tilts
     re-solved at that position the tilts and the force equal those of the
-    equilibrium solve, and each pad's pivot moment is balanced.
+    equilibrium solve within the tilt tolerance (the two searches start from
+    different tilts; the force is compared at the scale of the load, as its
+    horizontal component is the Newton residual, about 4e-4 of the load,
+    and the two forces differ by about 1.3e-8 of the load), and each pad's
+    pivot moment is balanced.
     """
     inputs, out, x0, y0 = tilting_pad_equilibrium
     speed = inputs["frequency"][0]
@@ -365,16 +377,24 @@ def test_film_force_at_the_equilibrium_balances_the_load(tilting_pad_equilibrium
     assert np.hypot(solved["fx"], solved["fy"] - weight) < 2e-3 * weight
     assert_allclose(solved["tilt_angle"], out["tilt_angle"][0], rtol=0, atol=1e-8)
     assert_allclose(
-        [solved["fx"], solved["fy"]], [out["fx_hydro"][0], out["fy_hydro"][0]]
+        [solved["fx"], solved["fy"]],
+        [out["fx_hydro"][0], out["fy_hydro"][0]],
+        rtol=0,
+        atol=1e-7 * weight,
     )
     loaded = solved["moment_pad"][2:]
     lever = 0.5 * inputs["journal_diameter"] + inputs["pad_thickness"]
     pad_force = np.hypot(solved["fx_pad"][2:], solved["fy_pad"][2:])
-    # bisection to 1e-8 rad: the residual moment is far below force x lever
+    # tilt search to 1e-9 of the moment scale: far below force x lever
     assert np.all(np.abs(loaded) < 1e-3 * pad_force * lever)
     frozen = film_force_at(inputs, speed, x0, y0, tilts="frozen")
     assert_allclose(frozen["tilt_angle"], out["tilt_angle"][0], rtol=0, atol=0)
-    assert_allclose([frozen["fx"], frozen["fy"]], [solved["fx"], solved["fy"]])
+    assert_allclose(
+        [frozen["fx"], frozen["fy"]],
+        [solved["fx"], solved["fy"]],
+        rtol=0,
+        atol=1e-7 * weight,
+    )
 
 
 def test_film_force_at_rejects_bad_tilts():

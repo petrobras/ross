@@ -74,6 +74,7 @@ from ross.bearings.fluid_film.constants import (
     PI,
     SHEAR_ERROR,
     TILT_ERROR,
+    TILT_MOMENT_ERROR,
 )
 
 
@@ -1311,10 +1312,11 @@ def tilt_angle_range(
     cb_new,
     dh_n,
 ):
-    """Bisection search bounds for the pad tilt angle.
+    """Admissible range of the pad tilt angle.
 
     The bounds correspond to the trailing edge and the leading edge just
     touching the journal (preload taken as zero, so the bound is conservative).
+    :class:`PadTiltSearch` looks for the pad's moment balance inside it.
 
     Parameters
     ----------
@@ -1366,6 +1368,491 @@ def tilt_angle_range(
     ) / (radius * np.sin(-pads.x_pivot_rad[p]))
 
     return tilt_angle_max, tilt_angle_min
+
+
+class PadTiltSearch:
+    """Root of one pad's pivot moment over its tilt angle.
+
+    Finds the tilt ``delta`` at which the pivot moment ``M(delta)`` of a pad
+    changes sign, inside the admissible range of :func:`tilt_angle_range`.
+    The moment decreases with the tilt (the old bisection relied on it), so
+    the root is bracketed by stepping from a start point towards it, then
+    refined by Brent's method (inverse quadratic interpolation and secant
+    steps with a bisection safeguard, after the ``brentq`` of SciPy [1]_).
+    Each moment evaluation is one Reynolds solve of the pad.
+
+    A pad whose film diverges from its leading edge on (``full_cavitate``,
+    called *flat* here) carries the cavitation pressure only: its moment
+    needs no Reynolds solve, and it jumps where the pad leaves that state
+    (an unloaded pad: zero moment up to a tilt, a finite negative moment
+    beyond). When the sign change lies between a flat and a non-flat tilt,
+    the search first locates the edge of the flat range from the film
+    thickness alone (no solve), then decides from the two tilts at the edge
+    whether the sign changes at the edge (the answer is the tilt there with
+    the non-negative moment, as for the bisection) or on either side of it
+    (Brent's method continues there).
+
+    The search is driven by the caller, which owns the film state:
+    :meth:`propose` gives the next trial tilt; the caller builds the film
+    there and calls :meth:`reject` when the film closes (``h_min < 0``),
+    then :meth:`skip` with the flat flag (True: no solve needed, propose
+    again), and otherwise solves the pressure and calls :meth:`update` with
+    the moment. The search ends on the last evaluated tilt, so the caller's
+    film and pressure fields belong to the returned tilt.
+
+    Parameters
+    ----------
+    lower, upper : float
+        Admissible tilt range, rad.
+    tilt_tolerance : float
+        Width of the root bracket at which the search stops, rad.
+    moment_tolerance : float
+        Pivot moment, relative to the moment scale passed to :meth:`update`,
+        at which the search stops (an exactly zero moment, or any moment of a
+        flat film, does not stop it; a flat film's moment below it, and a
+        round-off moment off a root bracket, count as zero).
+    start : float, optional
+        Start tilt, rad (the pad's tilt of the previous film solve). Default
+        is None: the search starts at the middle of the range.
+    slope : float, optional
+        Estimate of ``dM/d(delta)`` from the previous solve, N*m/rad. With a
+        start point it sets the first step: four times the secant distance
+        ``|M / slope|`` towards the root. Default is None (a fixed fraction of
+        the range).
+
+    Attributes
+    ----------
+    iterations : int
+        Moment evaluations so far.
+    converged : bool
+        The last evaluated tilt meets a tolerance, or is the end of the
+        admissible range towards which the moment keeps its sign.
+    residual : float
+        ``min(|M| / (moment_tolerance * scale), width / tilt_tolerance)`` of
+        the last evaluation: at most 1 when converged.
+    moment_ratio : float
+        ``|M| / scale`` of the last evaluation.
+    width : float
+        Width of the last root bracket, rad.
+    slope : float or None
+        Secant estimate of ``dM/d(delta)`` from the final bracket.
+
+    References
+    ----------
+    .. [1] Brent, R. P. (1973). Algorithms for minimization without
+           derivatives. Prentice-Hall, chapter 4.
+    """
+
+    #: Expansion factor of the start step and of each further step while the
+    #: root is not bracketed.
+    expand = 4.0
+    #: First step of a start point without a slope estimate, as a fraction of
+    #: the range.
+    start_fraction = 1.0 / 64.0
+    #: Moment, relative to the moment scale, below which it is round-off and
+    #: counts as zero off a root bracket (64 machine epsilons; 70 times
+    #: below the tightest moment tolerance used, ``1e-12``).
+    roundoff = 64.0 * np.finfo(float).eps
+
+    def __init__(
+        self, lower, upper, tilt_tolerance, moment_tolerance, start=None, slope=None
+    ):
+        lower, upper = float(lower), float(upper)
+        if upper < lower:
+            lower, upper = upper, lower
+        self._lo = lower
+        self._hi = upper
+        self._tol_x = float(tilt_tolerance)
+        self._tol_m = float(moment_tolerance)
+        self._cold = start is None or not np.isfinite(start)
+        if self._cold:
+            self._next = 0.5 * (lower + upper)
+        else:
+            self._next = min(max(float(start), lower), upper)
+        self.slope = (
+            float(slope)
+            if slope is not None and np.isfinite(slope) and slope < 0.0
+            else None
+        )
+        self._phase = "bracket"
+        self._ref = None  # last admissible point of the bracketing phase
+        self._dir = 0.0
+        self._step = 0.0
+        self._brent = None
+        self._flip = None
+        self._last = None
+        self._plateau = False  # a round-off moment has been counted as zero
+        self.iterations = 0
+        self.converged = False
+        self.at_bound = False
+        self.residual = np.inf
+        self.moment_ratio = np.inf
+        self.width = upper - lower
+
+    # -- caller protocol ---------------------------------------------------
+    def propose(self):
+        """Next trial tilt, rad."""
+        return self._next
+
+    def reject(self, delta):
+        """Exclude a trial tilt at which the film closes (``h_min < 0``).
+
+        Parameters
+        ----------
+        delta : float
+            The trial tilt, rad.
+
+        Returns
+        -------
+        bool
+            True when another trial is proposed; False when the admissible
+            range has shrunk below the tilt tolerance (the caller keeps the
+            closed film, as the bisection did).
+        """
+        if self._hi - self._lo < self._tol_x:
+            return False
+        if self._phase != "bracket":
+            # Between two admissible tilts the film cannot close (h_min is
+            # concave in the tilt); bisect towards the last point if it
+            # happens anyway.
+            last = self._last[0]
+            if abs(delta - last) < self._tol_x:
+                return False
+            self._next = 0.5 * (delta + last)
+            return True
+        ref = self._ref
+        if ref is None:
+            # The bisection's rule: a positive tilt closes the trailing edge.
+            if delta > 0.0:
+                self._hi = delta
+            else:
+                self._lo = delta
+            self._next = 0.5 * (self._lo + self._hi)
+        elif delta > ref[0]:
+            self._hi = delta
+            self._next = 0.5 * (ref[0] + delta)
+        else:
+            self._lo = delta
+            self._next = 0.5 * (ref[0] + delta)
+        return True
+
+    def skip(self, delta, flat):
+        """Report whether the film at a trial tilt is flat; skip its solve.
+
+        Parameters
+        ----------
+        delta : float
+            The trial tilt, rad.
+        flat : bool
+            The film at ``delta`` diverges from the leading edge on
+            (``full_cavitate``).
+
+        Returns
+        -------
+        bool
+            True when the trial only located the edge of the flat range and
+            another trial is proposed (no pressure solve); False when the
+            caller solves the pressure and calls :meth:`update`.
+        """
+        if self._phase != "flip":
+            return False
+        f = self._flip
+        if bool(flat):
+            f["flat_x"] = float(delta)
+        else:
+            f["solid_x"] = float(delta)
+        if abs(f["solid_x"] - f["flat_x"]) < self._tol_x:
+            self._phase = "flip_solid"
+            self._next = f["solid_x"]
+        else:
+            self._next = 0.5 * (f["flat_x"] + f["solid_x"])
+        return True
+
+    def update(self, delta, moment, scale, flat=False):
+        """Record the pivot moment at the last proposed tilt.
+
+        Parameters
+        ----------
+        delta : float
+            The evaluated tilt, rad.
+        moment : float
+            Pivot moment there, N*m.
+        scale : float
+            Moment scale of the pad, N*m (see :func:`moment_scale`).
+        flat : bool, optional
+            The film at ``delta`` is flat (see :meth:`skip`). Default is
+            False.
+
+        Returns
+        -------
+        bool
+            True when the search has ended at ``delta``.
+        """
+        self.iterations += 1
+        tol_m = self._tol_m * scale
+        flat = bool(flat)
+        moment = float(moment)
+        # A film of uniform pressure (the cavitation pressure of a flat or
+        # fully clamped film, the axial ambient profile of an unloaded pad
+        # under high ambient pressure) has no moment about a central pivot,
+        # computed as round-off of either sign whenever that pressure is not
+        # zero, against a moment scale that holds the full ``|p| * area``.
+        # Such a moment counts as exactly zero, so the answer does not hang
+        # on the sign of the round-off: a flat film's moment below the
+        # moment tolerance, and a moment below ``roundoff`` times the scale
+        # while the root is not yet bracketed or once such a range has been
+        # met. Inside a bracket between moments of genuine sign a moment that
+        # small is a root and ends the search.
+        if flat and abs(moment) <= tol_m:
+            moment = 0.0
+        elif (
+            moment != 0.0
+            and abs(moment) <= self.roundoff * scale
+            and (self._plateau or self._phase != "brent")
+        ):
+            moment = 0.0
+            self._plateau = True
+        point = (float(delta), moment, flat)
+        self._last = point
+        self.moment_ratio = abs(point[1]) / scale if scale > 0.0 else np.inf
+        if self._phase == "final":
+            # Re-evaluation of the chosen end of a collapsed bracket.
+            return self._finish(self.residual)
+        # A flat film never meets the moment test, nor does a zero moment
+        # (which counts as positive, as in the bisection): a pad whose film
+        # carries a uniform pressure over a range of tilts settles at the
+        # edge of that range, where the moment jumps. A tilt passing the test
+        # there would end the search wherever it first lands in the range;
+        # inside such a range the search ends on the bracket width.
+        if not point[2] and point[1] != 0.0 and abs(point[1]) <= tol_m:
+            return self._finish(abs(point[1]) / tol_m)
+        self.residual = self.moment_ratio / self._tol_m if self._tol_m > 0.0 else np.inf
+        if self._phase == "bracket":
+            return self._bracket(point)
+        if self._phase == "flip_solid":
+            self._flip["solid"] = point
+            self._phase = "flip_flat"
+            self._next = self._flip["flat_x"]
+            return False
+        if self._phase == "flip_flat":
+            return self._flip_decide(point)
+        return self._brent_step(point)
+
+    # -- phases --------------------------------------------------------------
+    @staticmethod
+    def _positive(moment):
+        return moment >= 0.0
+
+    def _finish(self, residual, width=None):
+        self.converged = True
+        self.residual = residual
+        if width is not None:
+            self.width = width
+        return True
+
+    def _start_root(self, a, b):
+        """Refine the sign change between the evaluated points ``a``, ``b``."""
+        if a[2] != b[2]:
+            flat, solid = (a, b) if a[2] else (b, a)
+            self._flip = {
+                "flat_end": flat,
+                "solid_end": solid,
+                "flat_x": flat[0],
+                "solid_x": solid[0],
+            }
+            self._phase = "flip"
+            self.width = abs(solid[0] - flat[0])
+            if self.width < self._tol_x:
+                self._phase = "flip_solid"
+                self._next = solid[0]
+            else:
+                self._next = 0.5 * (flat[0] + solid[0])
+            return False
+        self._phase = "brent"
+        self._brent = {
+            "xpre": a[0],
+            "fpre": a[1],
+            "xcur": b[0],
+            "fcur": b[1],
+            "xblk": 0.0,
+            "fblk": 0.0,
+            "spre": 0.0,
+            "scur": 0.0,
+        }
+        return self._brent_next(self._brent)
+
+    def _bracket(self, point):
+        delta, moment = point[0], point[1]
+        ref = self._ref
+        if ref is not None and self._positive(moment) != self._positive(ref[1]):
+            return self._start_root(ref, point)
+        if ref is None:
+            self._dir = 1.0 if self._positive(moment) else -1.0
+            if self._cold:
+                step = 0.125 * (self._hi - self._lo)
+            elif self.slope is not None:
+                step = abs(moment / self.slope)
+            else:
+                step = self.start_fraction * (self._hi - self._lo)
+            self._step = self.expand * max(step, self._tol_x)
+        else:
+            self._step *= self.expand
+        self._ref = point
+        target = delta + self._dir * self._step
+        target = min(max(target, self._lo), self._hi)
+        if abs(target - delta) < self._tol_x:
+            # The moment keeps its sign up to the end of the range: the end
+            # is the answer, as the bisection converged to it.
+            self.at_bound = True
+            return self._finish(0.0, width=0.0)
+        self._next = target
+        return False
+
+    def _flip_decide(self, flat_point):
+        f = self._flip
+        solid_point = f["solid"]
+        if self._positive(flat_point[1]) != self._positive(f["flat_end"][1]):
+            # The sign changes inside the flat range (pivot spring moment).
+            return self._start_root(f["flat_end"], flat_point)
+        if self._positive(solid_point[1]) == self._positive(flat_point[1]):
+            # The sign changes beyond the edge, in the solid range.
+            return self._start_root(f["solid_end"], solid_point)
+        # The sign changes at the edge: keep the tilt with the non-negative
+        # moment.
+        width = abs(solid_point[0] - flat_point[0])
+        residual = width / self._tol_x if self._tol_x > 0.0 else 0.0
+        self.width = width
+        if self._positive(flat_point[1]):
+            return self._finish(residual, width=width)
+        self._phase = "final"
+        self.residual = residual
+        self._next = solid_point[0]
+        return False
+
+    def _brent_step(self, point):
+        b = self._brent
+        b["xcur"] = point[0]
+        b["fcur"] = point[1]
+        return self._brent_next(b)
+
+    def _brent_next(self, b):
+        # One pass of SciPy's ``brentq`` loop (``Zeros/brentq.c``) after the
+        # evaluation of ``xcur``, with a zero moment counted as positive and
+        # no exit on an exact zero (see :meth:`update`).
+        newest = self._last[0]
+        if self._positive(b["fpre"]) != self._positive(b["fcur"]):
+            b["xblk"] = b["xpre"]
+            b["fblk"] = b["fpre"]
+            b["spre"] = b["scur"] = b["xcur"] - b["xpre"]
+        if abs(b["fblk"]) < abs(b["fcur"]):
+            b["xpre"], b["xcur"], b["xblk"] = b["xcur"], b["xblk"], b["xcur"]
+            b["fpre"], b["fcur"], b["fblk"] = b["fcur"], b["fblk"], b["fcur"]
+        width = abs(b["xblk"] - b["xcur"])
+        self.width = width
+        if b["xblk"] != b["xcur"]:
+            slope = (b["fblk"] - b["fcur"]) / (b["xblk"] - b["xcur"])
+            if np.isfinite(slope) and slope < 0.0:
+                self.slope = slope
+        tol = self._tol_x + 4.0 * np.finfo(float).eps * abs(b["xcur"])
+        delta_tol = 0.5 * tol
+        sbis = 0.5 * (b["xblk"] - b["xcur"])
+        if abs(sbis) < delta_tol:
+            if b["xcur"] == newest:
+                return self._finish(width / tol, width=width)
+            # The bracket has collapsed but the newest tilt is not its end
+            # with the smaller moment: evaluate that end once more.
+            self._phase = "final"
+            self.residual = width / tol
+            self._next = b["xcur"]
+            return False
+        if abs(b["spre"]) > delta_tol and abs(b["fcur"]) < abs(b["fpre"]):
+            if b["xpre"] == b["xblk"]:
+                stry = -b["fcur"] * (b["xcur"] - b["xpre"]) / (b["fcur"] - b["fpre"])
+            else:
+                dpre = (b["fpre"] - b["fcur"]) / (b["xpre"] - b["xcur"])
+                dblk = (b["fblk"] - b["fcur"]) / (b["xblk"] - b["xcur"])
+                stry = (
+                    -b["fcur"]
+                    * (b["fblk"] * dblk - b["fpre"] * dpre)
+                    / (dblk * dpre * (b["fblk"] - b["fpre"]))
+                )
+            if 2.0 * abs(stry) < min(abs(b["spre"]), 3.0 * abs(sbis) - delta_tol):
+                b["spre"] = b["scur"]
+                b["scur"] = stry
+            else:
+                b["spre"] = b["scur"] = sbis
+        else:
+            b["spre"] = b["scur"] = sbis
+        b["xpre"] = b["xcur"]
+        b["fpre"] = b["fcur"]
+        if abs(b["scur"]) > delta_tol:
+            self._next = b["xcur"] + b["scur"]
+        else:
+            self._next = b["xcur"] + (delta_tol if sbis > 0.0 else -delta_tol)
+        self.residual = min(self.residual, width / tol)
+        return False
+
+
+def moment_scale(
+    mesh,
+    operating,
+    pad_index,
+    pads,
+    nodal_pressure,
+    pressback_n,
+    k_rotate,
+    tilt_angle,
+    integrate_xz,
+):
+    """Scale of a pad's pivot moment, the reference of its tilt tolerance.
+
+    The sum of the magnitudes of the terms of :func:`moment`: the film
+    pressure and the back pressure, each as ``(R + t) * integral |p| dA``
+    (the moment of the pressure force with the full pivot radius as lever),
+    the inlet-groove pocket moment and the pivot spring moment
+    ``|k_rotate * tilt|``.
+
+    Parameters
+    ----------
+    mesh : ReynoldsMesh
+        Film (x-z) mesh.
+    operating : OperatingPoint
+        Speed and pressure conditions of the case.
+    pad_index : int
+        0-based pad index.
+    pads : PadGeometry
+        Per-pad geometry.
+    nodal_pressure, pressback_n : numpy.ndarray
+        Film and back pressure at Reynolds nodes, Pa, shape
+        ``(total_pads, dim_xz)``.
+    k_rotate : numpy.ndarray
+        Per-pad pivot rotational stiffness, N*m/rad.
+    tilt_angle : numpy.ndarray
+        Per-pad tilt angle, rad.
+    integrate_xz : callable
+        ``integrate_xz(pad_index, mesh, f)`` -> the surface integral of the
+        nodal field ``f`` over the Reynolds mesh.
+
+    Returns
+    -------
+    float
+        Moment scale, N*m.
+    """
+    p = pad_index
+    idx = np.asarray(mesh.n_index, dtype=np.int64)[: mesh.total_nodes]
+    integrand = np.zeros(mesh.dim_xz, dtype=float)
+    integrand[idx] = np.abs(np.asarray(nodal_pressure)[p, idx]) + np.abs(
+        np.asarray(pressback_n)[p, idx]
+    )
+    lever = pads.journal_radius + pads.pad_thickness
+    scale = lever * abs(integrate_xz(pad_index, mesh, integrand))
+    if operating.bearing_type == "inlet_groove_tilting_pad":
+        scale += abs(
+            operating.press_supply
+            * (pads.length_pocket * pads.axial_length_pocket)
+            * pads.x_pivot[p]
+        )
+    return scale + abs(k_rotate[p] * tilt_angle[p])
 
 
 def film_thickness(
@@ -2302,11 +2789,13 @@ def fixed_brg(
     tolerance_scale=1.0,
     held_tilts=None,
     cavitated=None,
+    tilt_memory=None,
 ):
     """Solve the bearing film at a *fixed* journal position (isoviscous).
 
-    For each pad it bisection-searches the tilt angle (zero range for fixed
-    geometry and pressure dams), and for each trial angle:
+    For each pad it finds the tilt angle at which the pivot moment vanishes
+    (:class:`PadTiltSearch`; zero range for fixed geometry and pressure
+    dams), and for each trial angle:
     builds the film thickness (:func:`film_thickness`), the flow regime
     (:func:`flow_regime`) and effective viscosity (:func:`effective_viscosity`),
     solves the pressure (injected ``press``), computes velocity gradients
@@ -2409,8 +2898,8 @@ def fixed_brg(
         Receives the ``tilt`` and ``turbulence`` records of this call (worst
         pad). Default is None (nothing recorded).
     tolerance_scale : float, optional
-        Factor on the tilt-bracket and shear-stress tolerances. Default is
-        1.0.
+        Factor on the tilt (``TILT_ERROR`` rad, ``TILT_MOMENT_ERROR`` of the
+        moment scale) and shear-stress tolerances. Default is 1.0.
     held_tilts : array_like of float, optional
         Tilt angle of each pad, rad, held instead of solving the pad moment
         balance (one film solve per pad at that tilt). Ignored for fixed
@@ -2419,6 +2908,12 @@ def fixed_brg(
         Cavitated-node mask of the previous solve, shape
         ``(total_pads, dim_xz)``; each pad's row is replaced by its new solve.
         Default is None (all False).
+    tilt_memory : dict, optional
+        The ``_tilt_memory`` of a previous call: ``known`` (bool per pad, the
+        pad's ``tilt_angle`` is a solved tilt) and ``slope`` (moment slope
+        ``dM/d(delta)`` per pad, N*m/rad, NaN if unknown). A known pad starts
+        its search at its current tilt with a step from the slope. Default
+        is None (every search starts at the middle of the admissible range).
 
     Returns
     -------
@@ -2442,9 +2937,13 @@ def fixed_brg(
         ``cavitated`` : numpy.ndarray of bool, shape ``(total_pads, dim_xz)``
             Nodes held at the cavitation pressure (see
             :func:`ross.bearings.fluid_film.pressure.press`).
+        ``_tilt_memory`` : dict
+            Start information of the next call (see ``tilt_memory``).
     """
     y_energy = energy_mesh.y
     y_3d = mesh.y_3d
+    from ross.bearings.fluid_film.pressure import press_full_cavitation
+
     if press is None:
         from ross.bearings.fluid_film.pressure import press
 
@@ -2542,6 +3041,22 @@ def fixed_brg(
         )
 
     def _press():
+        if full_cavitate[pad_index]:
+            # A fully cavitated pad is at the cavitation pressure: no
+            # Reynolds solve (the fields equal those of ``press``).
+            return press_full_cavitation(
+                mesh,
+                operating,
+                pad_index,
+                pads,
+                h_n,
+                h_min,
+                x_hmin,
+                nodal_pressure,
+                dpdx_n,
+                dpdz_n,
+                cavitated,
+            )
         return press(
             mesh,
             operating,
@@ -2583,9 +3098,19 @@ def fixed_brg(
 
     full_cavitate = np.zeros(total_pads, dtype=bool)
     tilt_tolerance = TILT_ERROR * tolerance_scale
+    moment_tolerance = TILT_MOMENT_ERROR * tolerance_scale
     shear_tolerance = SHEAR_ERROR * tolerance_scale
     tilt_width = np.zeros(total_pads)
+    tilt_moment = np.zeros(total_pads)
+    tilt_residual = np.zeros(total_pads)
+    tilt_converged = np.ones(total_pads, dtype=bool)
     tilt_iterations = np.zeros(total_pads, dtype=np.int64)
+    if tilt_memory is not None:
+        memory_known = np.array(tilt_memory["known"], dtype=bool, copy=True)
+        memory_slope = np.array(tilt_memory["slope"], dtype=float, copy=True)
+    else:
+        memory_known = np.zeros(total_pads, dtype=bool)
+        memory_slope = np.full(total_pads, np.nan)
     shear_residual = np.zeros(total_pads)
     shear_iterations = np.ones(total_pads, dtype=np.int64)
 
@@ -2629,14 +3154,30 @@ def fixed_brg(
                 lower_limit *= 0.9
                 upper_limit *= 0.9
 
-        # Bisection search on the tilt angle.
+        # Tilt search: one film solve at the held (or zero) tilt, or the
+        # root of the pivot moment inside the admissible range.
+        search = None
+        if lower_limit != upper_limit:
+            warm_tilt = None
+            warm_slope = None
+            if tilt_memory is not None and bool(tilt_memory["known"][pad_index]):
+                warm_tilt = float(tilt_angle[pad_index])
+                warm_slope = float(tilt_memory["slope"][pad_index])
+            search = PadTiltSearch(
+                lower_limit,
+                upper_limit,
+                tilt_tolerance,
+                moment_tolerance,
+                start=warm_tilt,
+                slope=warm_slope,
+            )
         for _tilt_index in range(1, MAX_ITERATION + 1):
             tilt_iterations[pad_index] = _tilt_index
             while True:
-                if abs(upper_limit - lower_limit) < tilt_tolerance:
+                if search is None:
                     tilt_angle[pad_index] = lower_limit
                 else:
-                    tilt_angle[pad_index] = 0.5 * (lower_limit + upper_limit)
+                    tilt_angle[pad_index] = search.propose()
 
                 res = _film(xj, yj)
                 h_n = res["h_n"]
@@ -2647,16 +3188,20 @@ def fixed_brg(
                 x_hmin[pad_index] = res["x_hmin"]
                 full_cavitate[pad_index] = res["full_cavitate"]
 
-                if h_min[pad_index] < 0.0:
-                    if abs(upper_limit - lower_limit) < tilt_tolerance:
-                        # No tilt is left to open the film: the journal
-                        # position itself crosses the pad surface. Before
-                        # this exit the loop repeated the same film forever.
-                        break
-                    if tilt_angle[pad_index] > 0.0:
-                        upper_limit = tilt_angle[pad_index]
-                    else:
-                        lower_limit = tilt_angle[pad_index]
+                # A closed film (h_min < 0) is not admissible; when no tilt
+                # is left to open it (the journal position itself crosses
+                # the pad surface) the closed film is kept.
+                if (
+                    h_min[pad_index] < 0.0
+                    and search is not None
+                    and search.reject(tilt_angle[pad_index])
+                ):
+                    continue
+                # Locating the edge of a fully cavitated range needs the
+                # film only.
+                if search is not None and search.skip(
+                    tilt_angle[pad_index], full_cavitate[pad_index]
+                ):
                     continue
                 break
 
@@ -2720,13 +3265,36 @@ def fixed_brg(
                 integrate_xz,
             )
 
-            tilt_width[pad_index] = abs(upper_limit - lower_limit)
-            if abs(upper_limit - lower_limit) < tilt_tolerance:
+            if search is None:
+                tilt_residual[pad_index] = 0.0
+                tilt_converged[pad_index] = True
                 break
-            if moment_pivot >= 0.0:
-                lower_limit = tilt_angle[pad_index]
-            else:
-                upper_limit = tilt_angle[pad_index]
+            done = search.update(
+                tilt_angle[pad_index],
+                moment_pivot,
+                moment_scale(
+                    mesh,
+                    operating,
+                    pad_index,
+                    pads,
+                    nodal_pressure,
+                    pressback_n,
+                    k_rotate,
+                    tilt_angle,
+                    integrate_xz,
+                ),
+                flat=full_cavitate[pad_index],
+            )
+            tilt_residual[pad_index] = search.residual
+            tilt_converged[pad_index] = search.converged
+            tilt_width[pad_index] = search.width
+            tilt_moment[pad_index] = search.moment_ratio
+            if done:
+                break
+        if search is not None:
+            memory_known[pad_index] = True
+            if search.slope is not None:
+                memory_slope[pad_index] = search.slope
 
         # Tilting pad under axial flow / high ambient pressure: loading check.
         if operating.operating_type in (
@@ -2805,14 +3373,20 @@ def fixed_brg(
                     shear_residual[pad_index] = 0.0
 
     if monitor is not None:
-        worst = int(np.argmax(tilt_width))
+        unconverged = ~tilt_converged
+        if np.any(unconverged):
+            worst = int(np.flatnonzero(unconverged)[0])
+        else:
+            worst = int(np.argmax(tilt_residual))
         monitor.record(
             "tilt",
             tilt_iterations[worst],
-            tilt_width[worst],
-            tilt_tolerance,
-            tilt_width[worst] < tilt_tolerance,
+            tilt_residual[worst],
+            1.0,
+            bool(tilt_converged[worst]),
             pad=worst,
+            moment=float(tilt_moment[worst]),
+            width=float(tilt_width[worst]),
         )
         worst = int(np.argmax(shear_residual))
         monitor.record(
@@ -2850,4 +3424,5 @@ def fixed_brg(
         "unloaded": unloaded,
         "full_cavitate": full_cavitate,
         "cavitated": cavitated,
+        "_tilt_memory": {"known": memory_known, "slope": memory_slope},
     }

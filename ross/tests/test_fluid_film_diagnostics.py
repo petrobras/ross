@@ -277,11 +277,12 @@ def test_default_budget_scales_with_the_pad_count():
 
 
 def test_multi_pad_thermal_tilting_pad_converges_on_the_default_budget():
-    """A 4-pad full-TEHD tilting pad needs 320,000 solves and converges.
+    """A 4-pad full-TEHD tilting pad converges on the default budget.
 
-    A budget of 300,000 solves per case would report this valid bearing as
-    failed on ``"budget"``. Its equilibrium is checked
-    on the force balance recomputed from the outputs.
+    With the tilt bisection it needed about 341,000 Reynolds solves, so a
+    budget of 300,000 per case would have reported this valid bearing as
+    failed on ``"budget"``; the tilt root finding needs about 129,000. Its
+    equilibrium is checked on the force balance recomputed from the outputs.
     """
     from ross.bearings.tilting_pad import TiltingPad
 
@@ -310,7 +311,7 @@ def test_multi_pad_thermal_tilting_pad_converges_on_the_default_budget():
     )
     summary = bearing.results.convergence[0]
     assert summary["converged"], summary["message"]
-    assert summary["reynolds_solves"] > 300_000
+    assert summary["reynolds_solves"] < default_budget(4)[0]
     assert summary["max_call_solves"] < default_budget(4)[1]
     out = bearing.results.outputs[0]
     assert np.hypot(out["fx_hydro"][0], out["fy_hydro"][0] - 2e4) / 2e4 < 2e-3
@@ -334,7 +335,9 @@ def test_stopped_thermal_case_reports_the_last_newton_iterate(monkeypatch):
         return original(**kwargs)
 
     monkeypatch.setattr(hyd, "fixed_brg", spy)
-    outputs = run_case(**inputs, diagnostics=True, max_reynolds_solves=12)
+    # Six solves: one per Newton step, as the fully cavitated lower land
+    # needs no Reynolds solve (when it did, twelve stopped at this iterate).
+    outputs = run_case(**inputs, diagnostics=True, max_reynolds_solves=6)
     summary = outputs["convergence"][0]
     assert summary["reason"] == "budget"
     assert summary["hydrodynamics_calls"] == 1  # stopped in the first pass

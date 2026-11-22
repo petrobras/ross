@@ -3374,3 +3374,425 @@ def lu_solve_band_jit(
         if ll < total_column:
             ll += 1
     return b
+
+
+@njit(cache=True, fastmath=False)
+def press_bc_jit(
+    p,
+    total_n_reynolds,
+    n_index_reynolds,
+    x_reynolds,
+    z_reynolds,
+    axial_length_p,
+    pad_length_p,
+    film_onset_p,
+    total_e_z_film,
+    is_360,
+    linear_edges,
+    edge1_press,
+    edge2_press,
+    ambient_press1,
+    ambient_press2,
+    press_bc_index,
+    prescribed_press,
+):
+    """Prescribed-pressure nodes of one pad, in node-scan order.
+
+    Backs :func:`ross.bearings.fluid_film.pressure.press_bc`. A node on the
+    axial edge ``z = 0`` gets ``edge1_press``, else on ``z = L``
+    ``edge2_press``; else, unless the pad is a full 360 degree land, a node
+    upstream of the film onset or on the trailing edge gets the
+    leading/trailing-edge pressure: linear between the ambient pressures in
+    ``z`` when ``linear_edges`` (axial flow, high ambient pressure), zero
+    otherwise. Fills ``press_bc_index`` (0-based node ids) and
+    ``prescribed_press`` from slot 0 and returns the number of nodes.
+    """
+    count = 0
+    onset_limit = (film_onset_p + 1) * (total_e_z_film + 1)
+    for i in range(total_n_reynolds):
+        node = n_index_reynolds[i]
+        z = z_reynolds[p, node]
+        x = x_reynolds[p, node]
+        if abs(z) < 1.0e-6:
+            value = edge1_press
+        elif abs(z - axial_length_p) < 1.0e-6:
+            value = edge2_press
+        elif not is_360 and (node < onset_limit or abs(x - pad_length_p) < 1.0e-6):
+            if linear_edges:
+                value = (
+                    z * (ambient_press2 - ambient_press1)
+                ) / axial_length_p + ambient_press1
+            else:
+                value = 0.0
+        else:
+            continue
+        press_bc_index[count] = node
+        prescribed_press[count] = value
+        count += 1
+    return count
+
+
+@njit(cache=True, fastmath=False)
+def press_postprocess_jit(
+    p,
+    total_n_reynolds,
+    n_index_reynolds,
+    total_e_z_film,
+    global_column_p,
+    clamped,
+    full_cavitate_p,
+    press_cavitate,
+    divergent_rule,
+    h_n,
+    h_min_p,
+    x_hmin_p,
+    x_reynolds,
+    nodal_pressure,
+    cavitated,
+):
+    """Write one pad's Reynolds solution and apply the cavitation rules.
+
+    Backs the end of :func:`ross.bearings.fluid_film.pressure.press`: copies
+    the solution and the clamp mask of the back substitution to the pad's
+    row of ``nodal_pressure`` and ``cavitated``, sets a fully cavitated pad
+    to ``press_cavitate`` everywhere, and with ``divergent_rule`` (flooded
+    operation, no pressure dam) sets every node of the divergent clearance
+    downstream of the minimum film to ``press_cavitate``. Mutates
+    ``nodal_pressure`` and ``cavitated`` in place.
+    """
+    for k in range(cavitated.shape[1]):
+        cavitated[p, k] = False
+    for i in range(total_n_reynolds):
+        node = n_index_reynolds[i]
+        nodal_pressure[p, node] = global_column_p[node]
+        cavitated[p, node] = clamped[node]
+    if full_cavitate_p:
+        for i in range(total_n_reynolds):
+            node = n_index_reynolds[i]
+            nodal_pressure[p, node] = press_cavitate
+            cavitated[p, node] = True
+    if divergent_rule:
+        step = total_e_z_film + 1
+        for i in range(total_n_reynolds - total_e_z_film - 1):
+            node = n_index_reynolds[i]
+            if (
+                h_n[p, node] > h_n[p, node + step]
+                and h_n[p, node] > h_min_p
+                and x_reynolds[p, node] > x_hmin_p
+            ):
+                nodal_pressure[p, node] = press_cavitate
+                cavitated[p, node] = True
+
+
+@njit(cache=True, fastmath=False)
+def adiab_assemble_all_jit(
+    pad,
+    total_elements,
+    e_index,
+    node_i,
+    node_j,
+    node_k,
+    node_l,
+    kx_n,
+    kz_n,
+    mx_n,
+    mz_n,
+    q_n,
+    e_length,
+    e_width,
+    no_axial_convection,
+    bandwidth,
+    global_matrix,
+    global_column,
+):
+    """Assemble every element of the adiabatic energy equation of one pad.
+
+    Backs :func:`ross.bearings.fluid_film.thermal.temp_adiabatic`: element
+    averages of the nodal coefficients, the closed-form element matrix and
+    column of :func:`ross.bearings.fluid_film.thermal.element_adiab` and the
+    banded assembly of ``assemble_press_jit``, in the same order of
+    operations. ``no_axial_convection`` zeroes the axial convection (pressure
+    dam). Mutates ``global_matrix`` and ``global_column`` in place.
+    """
+    e = np.empty((4, 4), dtype=np.float64)
+    nodes = np.empty(4, dtype=np.int64)
+    for i in range(total_elements):
+        current = e_index[i]
+        ni = node_i[current]
+        nj = node_j[current]
+        nk = node_k[current]
+        nl = node_l[current]
+        nodes[0] = ni
+        nodes[1] = nj
+        nodes[2] = nk
+        nodes[3] = nl
+        kx_e = (kx_n[ni] + kx_n[nj] + kx_n[nk] + kx_n[nl]) / 4.0
+        kz_e = (kz_n[ni] + kz_n[nj] + kz_n[nk] + kz_n[nl]) / 4.0
+        mx_e = (mx_n[ni] + mx_n[nj] + mx_n[nk] + mx_n[nl]) / 4.0
+        mz_e = (mz_n[ni] + mz_n[nj] + mz_n[nk] + mz_n[nl]) / 4.0
+        q_e = (q_n[ni] + q_n[nj] + q_n[nk] + q_n[nl]) / 4.0
+        l_e = e_length[pad, current]
+        w_e = e_width[pad, current]
+        if no_axial_convection:
+            mz_e = 0.0
+        kxw = kx_e * w_e
+        kzl = kz_e * l_e
+        mxw = mx_e * w_e
+        mzl = mz_e * l_e
+        # fmt: off
+        e[0, 0] = kxw / (3.0 * l_e) + kzl / (3.0 * w_e) - (-mxw / 6.0) - (-mzl / 6.0)
+        e[0, 1] = -kxw / (3.0 * l_e) + kzl / (6.0 * w_e) - (mxw / 6.0) - (-mzl / 12.0)
+        e[0, 2] = -kxw / (6.0 * l_e) - kzl / (6.0 * w_e) - (mxw / 12.0) - (mzl / 12.0)
+        e[0, 3] = kxw / (6.0 * l_e) - kzl / (3.0 * w_e) - (-mxw / 12.0) - (mzl / 6.0)
+        e[1, 0] = -kxw / (3.0 * l_e) + kzl / (6.0 * w_e) - (-mxw / 6.0) - (-mzl / 12.0)
+        e[1, 1] = kxw / (3.0 * l_e) + kzl / (3.0 * w_e) - (mxw / 6.0) - (-mzl / 6.0)
+        e[1, 2] = kxw / (6.0 * l_e) - kzl / (3.0 * w_e) - (mxw / 12.0) - (mzl / 6.0)
+        e[1, 3] = -kxw / (6.0 * l_e) - kzl / (6.0 * w_e) - (-mxw / 12.0) - (mzl / 12.0)
+        e[2, 0] = -kxw / (6.0 * l_e) - kzl / (6.0 * w_e) - (-mxw / 12.0) - (-mzl / 12.0)
+        e[2, 1] = kxw / (6.0 * l_e) - kzl / (3.0 * w_e) - (mxw / 12.0) - (-mzl / 6.0)
+        e[2, 2] = kxw / (3.0 * l_e) + kzl / (3.0 * w_e) - (mxw / 6.0) - (mzl / 6.0)
+        e[2, 3] = -kxw / (3.0 * l_e) + kzl / (6.0 * w_e) - (-mxw / 6.0) - (mzl / 12.0)
+        e[3, 0] = kxw / (6.0 * l_e) - kzl / (3.0 * w_e) - (-mxw / 12.0) - (-mzl / 6.0)
+        e[3, 1] = -kxw / (6.0 * l_e) - kzl / (6.0 * w_e) - (mxw / 12.0) - (-mzl / 12.0)
+        e[3, 2] = -kxw / (3.0 * l_e) + kzl / (6.0 * w_e) - (mxw / 6.0) - (mzl / 12.0)
+        e[3, 3] = kxw / (3.0 * l_e) + kzl / (3.0 * w_e) - (-mxw / 6.0) - (mzl / 6.0)
+        # fmt: on
+        column = q_e * l_e * w_e / 4.0
+        for a in range(4):
+            irow = nodes[a]
+            for b in range(4):
+                jcol = nodes[b] - irow + bandwidth - 1
+                global_matrix[irow, jcol] += e[a, b]
+            global_column[irow] += column
+
+
+@njit(cache=True, fastmath=False)
+def pert_press_rhs_all_jit(
+    p,
+    total_e_reynolds,
+    e_index_reynolds,
+    node_i_reynolds,
+    node_j_reynolds,
+    node_k_reynolds,
+    node_l_reynolds,
+    e_length_reynolds,
+    e_width_reynolds,
+    q_per_element,
+    global_column_p,
+):
+    """Assemble only the right-hand side of a perturbation Reynolds system.
+
+    The column part of :func:`pert_press_assemble_all_jit`, with the same
+    order of operations, for the further right-hand sides of a pad whose
+    matrix is already assembled and factored. Mutates ``global_column_p``.
+    """
+    for i in range(total_e_reynolds):
+        ce = e_index_reynolds[i]
+        l_e = e_length_reynolds[p, ce]
+        w_e = e_width_reynolds[p, ce]
+        rhs = q_per_element[i] * l_e * w_e * 0.25
+        global_column_p[node_i_reynolds[ce]] += rhs
+        global_column_p[node_j_reynolds[ce]] += rhs
+        global_column_p[node_k_reynolds[ce]] += rhs
+        global_column_p[node_l_reynolds[ce]] += rhs
+
+
+@njit(cache=True, fastmath=False)
+def adiab_node_in_track_jit(
+    x,
+    z,
+    pad_length_p,
+    axial_length_p,
+    axial_length_dam_p,
+    axial_length_track_p,
+    length_track_p,
+):
+    """Whether a film node belongs to the pocket (track) or to the dam region.
+
+    The classification of :func:`ross.bearings.fluid_film.thermal.pde_coeff_adiab`
+    and ``update_vis_adiab``: inside the pocket, True; in the dam, False; on
+    the pocket edge, True where the edge is a pad boundary
+    (:meth:`ross.bearings.fluid_film.state.PadGeometry.pocket_edge_is_pad`).
+    """
+    if (
+        z > axial_length_dam_p
+        and z < axial_length_dam_p + axial_length_track_p
+        and x < length_track_p
+    ):
+        return True
+    if (
+        x > length_track_p
+        or z < axial_length_dam_p
+        or z > axial_length_dam_p + axial_length_track_p
+    ):
+        return False
+    on_circumferential_edge = (
+        abs(x - pad_length_p) < 1.0e-6
+        and z > axial_length_dam_p
+        and z < axial_length_track_p + axial_length_dam_p
+    )
+    on_axial_end = (
+        abs(z) < 1.0e-6 or abs(z - axial_length_p) < 1.0e-6
+    ) and x < length_track_p
+    return on_circumferential_edge or on_axial_end
+
+
+@njit(cache=True, fastmath=False)
+def pde_coeff_adiab_jit(
+    pad,
+    total_n_reynolds,
+    n_index_reynolds,
+    match_nodes_xz,
+    total_e_y_film,
+    limit1,
+    x_reynolds,
+    z_reynolds,
+    y_3d,
+    pad_thickness,
+    depth_track_p,
+    pad_length_p,
+    axial_length_p,
+    axial_length_dam_p,
+    axial_length_track_p,
+    length_track_p,
+    velocity_x_n,
+    velocity_z_n,
+    dudy_n,
+    dwdy_n,
+    vis_effect_3d,
+    h_n,
+    density,
+    cp,
+    conduct,
+    dissip_factor,
+    square,
+    kx_n,
+    kz_n,
+    mx_n,
+    mz_n,
+    q_n,
+):
+    """Nodal coefficients of the adiabatic energy equation of one pad.
+
+    Backs :func:`ross.bearings.fluid_film.thermal.pde_coeff_adiab` with the
+    same operations in the same order: per node, the cross-film trapezoid
+    integrals of the velocities and of the dissipation over the pocket
+    (track) or dam part of the film. ``square`` is the exponent 2.0 passed at
+    run time, so that the squares are computed by the C library ``pow``
+    like the Python ``** 2`` (a literal exponent is compiled to ``x * x``,
+    which differs in the last bit). Fills the five coefficient arrays.
+    """
+    limit2 = total_e_y_film + 1
+    dim_yf = match_nodes_xz.shape[1]
+    t = np.zeros(dim_yf)
+    f1 = np.zeros(dim_yf)
+    f2 = np.zeros(dim_yf)
+    f3 = np.zeros(dim_yf)
+    for i in range(total_n_reynolds):
+        node = n_index_reynolds[i]
+        kx_n[node] = -conduct
+        kz_n[node] = -conduct
+        track = adiab_node_in_track_jit(
+            x_reynolds[pad, node],
+            z_reynolds[pad, node],
+            pad_length_p,
+            axial_length_p,
+            axial_length_dam_p,
+            axial_length_track_p,
+            length_track_p,
+        )
+        if track:
+            jlo = 1
+            depth_offset = 0.0
+        else:
+            jlo = limit1
+            depth_offset = depth_track_p
+        for j in range(jlo, limit2 + 1):
+            m = match_nodes_xz[node, j - 1]
+            t[j - 1] = y_3d[pad, m] - pad_thickness - depth_offset
+            f1[j - 1] = velocity_x_n[pad, m]
+            f2[j - 1] = velocity_z_n[pad, m]
+            f3[j - 1] = (
+                vis_effect_3d[pad, m]
+                * (dudy_n[pad, m] ** square + dwdy_n[pad, m] ** square)
+                / dissip_factor
+            )
+        inte_u = trapezoid_jit(t, f1, jlo - 1, limit2)
+        inte_w = trapezoid_jit(t, f2, jlo - 1, limit2)
+        inte_dissip = trapezoid_jit(t, f3, jlo - 1, limit2)
+        h = h_n[pad, node]
+        mx_n[node] = density * cp * inte_u / h
+        mz_n[node] = density * cp * inte_w / h
+        q_n[node] = -inte_dissip / h
+
+
+@njit(cache=True, fastmath=False)
+def vis_average_adiab_jit(
+    pad,
+    total_n_reynolds,
+    n_index_reynolds,
+    match_nodes_xz,
+    total_e_y_film,
+    limit1,
+    x_reynolds,
+    z_reynolds,
+    y_3d,
+    pad_thickness,
+    depth_track_p,
+    pad_length_p,
+    axial_length_p,
+    axial_length_dam_p,
+    axial_length_track_p,
+    length_track_p,
+    vis_n_3d,
+    h_n,
+    density,
+    speed_surface,
+    vis_n_average,
+):
+    """Cross-film average viscosity and the largest Reynolds numbers of a pad.
+
+    Backs the node loop of
+    :func:`ross.bearings.fluid_film.thermal.update_vis_adiab` (after the
+    viscosity update): the trapezoid average of the viscosity over the
+    pocket (track) or dam part of the film, written to ``vis_n_average``,
+    and the local Reynolds number ``rho U h / mu``. Returns the largest
+    Reynolds number of the track and of the dam nodes.
+    """
+    limit2 = total_e_y_film + 1
+    dim_yf = match_nodes_xz.shape[1]
+    t = np.zeros(dim_yf)
+    f = np.zeros(dim_yf)
+    re_max_track = 0.0
+    re_max_dam = 0.0
+    for i in range(total_n_reynolds):
+        node = n_index_reynolds[i]
+        track = adiab_node_in_track_jit(
+            x_reynolds[pad, node],
+            z_reynolds[pad, node],
+            pad_length_p,
+            axial_length_p,
+            axial_length_dam_p,
+            axial_length_track_p,
+            length_track_p,
+        )
+        if track:
+            jlo = 1
+            depth_offset = 0.0
+        else:
+            jlo = limit1
+            depth_offset = depth_track_p
+        for j in range(jlo, limit2 + 1):
+            m = match_nodes_xz[node, j - 1]
+            t[j - 1] = y_3d[pad, m] - pad_thickness - depth_offset
+            f[j - 1] = vis_n_3d[pad, m]
+        inte = trapezoid_jit(t, f, jlo - 1, limit2)
+        h = h_n[pad, node]
+        vis_n_average[pad, node] = inte / h
+        re_n = density * speed_surface * h / vis_n_average[pad, node]
+        if track:
+            if re_n > re_max_track:
+                re_max_track = re_n
+        elif re_n > re_max_dam:
+            re_max_dam = re_n
+    return re_max_track, re_max_dam

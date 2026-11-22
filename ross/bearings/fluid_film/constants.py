@@ -94,9 +94,13 @@ TEMP_INLET_ERROR = 0.25
 SUMP_TEMP_ERROR = 0.5
 DEFORM_ERROR = 1.0e-3
 # Equilibrium force balance |F_net| / |F_ext|, pad-tilt bracket (rad) and RMS
-# pivot-deflection change relative to the bore clearance.
+# pivot-deflection change relative to the bore clearance. A pad tilt is
+# converged when its pivot moment is below ``TILT_MOMENT_ERROR`` times the
+# pad's moment scale or its root bracket is narrower than ``TILT_ERROR``
+# (the bisection of the earlier versions stopped at a 1e-8 rad bracket).
 NEWTON_ERROR = 2.0e-3
-TILT_ERROR = 1.0e-8
+TILT_ERROR = 1.0e-10
+TILT_MOMENT_ERROR = 1.0e-9
 PIVOT_ERROR = 1.0e-2
 
 # Work budget of one case, counted in zeroth-order Reynolds solves (``press``

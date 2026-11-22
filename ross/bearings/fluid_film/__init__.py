@@ -18,10 +18,12 @@ Module                      Responsibility
                             deformation mesh, and the 3-D film mesh that ties
                             the two orthogonal 2-D meshes together.
 ``hydrodynamics``           Film thickness, velocities, flow rates, turbulence
-                            regime and effective viscosity; drives the journal
+                            regime and effective viscosity; the pad-tilt root
+                            finding (``PadTiltSearch``); drives the journal
                             equilibrium search and the starvation iteration.
 ``pressure``                Solves the generalized Reynolds equation for the
-                            film pressure on one pad.
+                            film pressure on one pad (no solve for a fully
+                            cavitated pad).
 ``thermal``                 Film and pad temperature: the adiabatic 2-D energy
                             equation over the Reynolds mesh, and the full
                             energy equation over the film+pad mesh with
@@ -29,7 +31,8 @@ Module                      Responsibility
 ``deform``                  Elastic and thermal deformation of the pads and
                             the pivot flexibility.
 ``coefficients``            Perturbation solves for the stiffness and damping
-                            coefficients and the journal-equilibrium Jacobian.
+                            coefficients and the journal-equilibrium Jacobian
+                            (one factorisation per pad and perturbation set).
 ``padmatrices``             Unreduced journal, pad tilt and pivot matrices
                             (``PadMatrices``), the pad inertia about the
                             pivot, and their exact condensation at any whirl

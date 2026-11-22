@@ -74,7 +74,9 @@ from ross.bearings.fluid_film._numba_kernels import (
     gamma_g_loop_jit,
     include_press_jit,
     press_assemble_all_jit,
+    press_bc_jit,
     press_gradient_node_jit,
+    press_postprocess_jit,
 )
 from ross.bearings.fluid_film.constants import PI
 
@@ -118,71 +120,40 @@ def press_bc(
     prescribed_press : numpy.ndarray of float
         Prescribed nodal pressures, length ``dim_xz``, Pa.
     """
-    x_reynolds = mesh.x
-    z_reynolds = mesh.z
-    x_reynolds = np.asarray(x_reynolds, dtype=float)
-    z_reynolds = np.asarray(z_reynolds, dtype=float)
-
+    p = pad_index
     press_bc_index = np.zeros(mesh.dim_xz, dtype=np.int64)
     prescribed_press = np.zeros(mesh.dim_xz, dtype=float)
-
-    p = pad_index
     is_360 = abs(pads.arc_length_rad[0] - 2.0 * PI) < 1.0e-6
-
-    # Vectorized over the node scan: each node hits at most the first matching
-    # branch (if/elif precedence), and matches are emitted in scan order, so
-    # boolean masking on the ordered node list reproduces the sequential fill.
-    idx = np.asarray(mesh.n_index[: mesh.total_nodes], dtype=np.int64)
-    z = z_reynolds[p, idx]
-    x = x_reynolds[p, idx]
-
-    # The four edge predicates, with if/elif precedence.
-    on_edge1 = np.abs(z) < 1.0e-6
-    on_edge2 = ~on_edge1 & (np.abs(z - pads.axial_length[p]) < 1.0e-6)
-    before_onset = (
-        ~on_edge1 & ~on_edge2 & (idx < (film_onset[p] + 1) * (mesh.total_e_z_film + 1))
-    )
-    on_te = (
-        ~on_edge1
-        & ~on_edge2
-        & ~before_onset
-        & (np.abs(x - pads.pad_length[p]) < 1.0e-6)
-    )
-
-    # Leading/trailing edges are skipped for a 360-degree pad
-    # ``goto 100``); the axial edges always prescribe.
-    le_te = (before_onset | on_te) & (not is_360)
-    selected = on_edge1 | on_edge2 | le_te
-
-    if operating.operating_type in ("axial_flow", "high_ambient_pressure"):
+    linear_edges = operating.operating_type in ("axial_flow", "high_ambient_pressure")
+    if linear_edges or operating.operating_type != "regular_flooded":
         edge1_press = operating.ambient_press1
         edge2_press = operating.ambient_press2
-        le_te_press = (
-            z * (operating.ambient_press2 - operating.ambient_press1)
-        ) / pads.axial_length[p] + operating.ambient_press1
     else:
-        # regular_flooded / starved / oil-ring: zero everywhere except the
-        # axial edges of the non-flooded cases.
-        edge1_press = (
-            0.0
-            if operating.operating_type == "regular_flooded"
-            else operating.ambient_press1
-        )
-        edge2_press = (
-            0.0
-            if operating.operating_type == "regular_flooded"
-            else operating.ambient_press2
-        )
-        le_te_press = np.zeros_like(z)
+        # Flooded: zero on every edge.
+        edge1_press = edge2_press = 0.0
 
-    values = np.select(
-        [on_edge1, on_edge2, le_te],
-        [np.full_like(z, edge1_press), np.full_like(z, edge2_press), le_te_press],
+    # One pass over the nodes in scan order; each node takes the first edge
+    # rule it meets (axial edge z = 0, z = L, then the leading/trailing
+    # edges, which a 360 degree land does not have).
+    total_bc_reynolds = press_bc_jit(
+        p,
+        int(mesh.total_nodes),
+        np.ascontiguousarray(mesh.n_index, dtype=np.int64),
+        np.ascontiguousarray(mesh.x, dtype=np.float64),
+        np.ascontiguousarray(mesh.z, dtype=np.float64),
+        float(pads.axial_length[p]),
+        float(pads.pad_length[p]),
+        int(film_onset[p]),
+        int(mesh.total_e_z_film),
+        bool(is_360),
+        bool(linear_edges),
+        float(edge1_press),
+        float(edge2_press),
+        float(operating.ambient_press1),
+        float(operating.ambient_press2),
+        press_bc_index,
+        prescribed_press,
     )
-
-    total_bc_reynolds = int(np.count_nonzero(selected))
-    press_bc_index[:total_bc_reynolds] = idx[selected]
-    prescribed_press[:total_bc_reynolds] = values[selected]
     return total_bc_reynolds, press_bc_index, prescribed_press
 
 
@@ -748,38 +719,20 @@ def press(
         return_clamped=True,
     )
 
-    # Assign the nodal pressure and the nodes the clamp held at the
-    # cavitation pressure.
-    if cavitated is None:
-        cavitated = np.zeros(nodal_pressure.shape, dtype=bool)
-    cavitated = np.array(cavitated, dtype=bool, copy=True)
-    cavitated[p, :] = False
-    for i in range(mesh.total_nodes):
-        node = int(mesh.n_index[i])
-        nodal_pressure[p, node] = global_column_p[node]
-        cavitated[p, node] = clamped[node]
-
-    # A fully cavitated pad is at the cavitation pressure everywhere.
-    if full_cavitate[p]:
-        for i in range(mesh.total_nodes):
-            node = int(mesh.n_index[i])
-            nodal_pressure[p, node] = operating.press_cavitate
-            cavitated[p, node] = True
-
-    # Cavitation due to insufficient lubricant in a divergent clearance
-    # (flooded condition, no pressure dam): downstream of the minimum film
-    # the film is cavitated.
-    if operating.operating_type == "regular_flooded":
-        for i in range(mesh.total_nodes - mesh.total_e_z_film - 1):
-            node = int(mesh.n_index[i])
-            if (
-                h_n[p, node] > h_n[p, node + mesh.total_e_z_film + 1]
-                and h_n[p, node] > h_min[p]
-                and x_reynolds[p, node] > x_hmin[p]
-                and operating.bearing_type != "pressure_dam"
-            ):
-                nodal_pressure[p, node] = operating.press_cavitate
-                cavitated[p, node] = True
+    nodal_pressure, cavitated = _postprocess(
+        mesh,
+        operating,
+        p,
+        global_column_p,
+        clamped,
+        bool(full_cavitate[p]),
+        h_n,
+        h_min,
+        x_hmin,
+        x_reynolds,
+        nodal_pressure,
+        cavitated,
+    )
 
     # Nodal pressure gradients.
     if operating.bearing_type == "pressure_dam":
@@ -801,4 +754,116 @@ def press(
             dpdz_n,
         )
 
+    return nodal_pressure, dpdx_n, dpdz_n, cavitated
+
+
+def _postprocess(
+    mesh,
+    operating,
+    p,
+    global_column_p,
+    clamped,
+    full_cavitate_p,
+    h_n,
+    h_min,
+    x_hmin,
+    x_reynolds,
+    nodal_pressure,
+    cavitated,
+):
+    """Write one pad's solution, its clamp mask and the cavitation rules.
+
+    The nodal pressure takes the solution and ``cavitated`` the nodes the
+    clamp held at the cavitation pressure; a fully cavitated pad is at the
+    cavitation pressure everywhere; in flooded operation without a pressure
+    dam, the divergent clearance downstream of the minimum film is
+    cavitated (``press_postprocess_jit``).
+
+    Returns
+    -------
+    nodal_pressure, cavitated : numpy.ndarray
+        Updated copies (``cavitated`` is a new array).
+    """
+    if cavitated is None:
+        cavitated = np.zeros(nodal_pressure.shape, dtype=bool)
+    cavitated = np.array(cavitated, dtype=bool, copy=True)
+    press_postprocess_jit(
+        int(p),
+        int(mesh.total_nodes),
+        np.ascontiguousarray(mesh.n_index, dtype=np.int64),
+        int(mesh.total_e_z_film),
+        np.ascontiguousarray(global_column_p, dtype=np.float64),
+        np.ascontiguousarray(clamped, dtype=np.bool_),
+        bool(full_cavitate_p),
+        float(operating.press_cavitate),
+        operating.operating_type == "regular_flooded"
+        and operating.bearing_type != "pressure_dam",
+        np.ascontiguousarray(h_n, dtype=np.float64),
+        float(h_min[p]),
+        float(x_hmin[p]),
+        np.ascontiguousarray(x_reynolds, dtype=np.float64),
+        nodal_pressure,
+        cavitated,
+    )
+    return nodal_pressure, cavitated
+
+
+def press_full_cavitation(
+    mesh,
+    operating,
+    pad_index,
+    pads,
+    h_n,
+    h_min,
+    x_hmin,
+    nodal_pressure,
+    dpdx_n,
+    dpdz_n,
+    cavitated=None,
+):
+    """Pressure of a fully cavitated pad, without a Reynolds solve.
+
+    A pad whose film diverges from its leading edge on (``full_cavitate``,
+    see :func:`ross.bearings.fluid_film.hydrodynamics.film_thickness`) is at
+    the cavitation pressure everywhere: :func:`press` overwrites its
+    Reynolds solution with it. This returns the same fields as
+    :func:`press` for such a pad, bit for bit, without the solve.
+
+    Parameters
+    ----------
+    mesh, operating, pad_index, pads, h_n, h_min, x_hmin, nodal_pressure, \
+dpdx_n, dpdz_n, cavitated
+        As for :func:`press`.
+
+    Returns
+    -------
+    nodal_pressure, dpdx_n, dpdz_n, cavitated : numpy.ndarray
+        As returned by :func:`press` with ``full_cavitate[pad_index]`` true.
+    """
+    p = pad_index
+    nodal_pressure = np.ascontiguousarray(nodal_pressure, dtype=np.float64)
+    dpdx_n = np.ascontiguousarray(dpdx_n, dtype=np.float64)
+    dpdz_n = np.ascontiguousarray(dpdz_n, dtype=np.float64)
+    nodal_pressure, cavitated = _postprocess(
+        mesh,
+        operating,
+        p,
+        np.zeros(mesh.dim_xz, dtype=np.float64),
+        np.zeros(mesh.dim_xz, dtype=np.bool_),
+        True,
+        np.asarray(h_n, dtype=float),
+        h_min,
+        x_hmin,
+        np.asarray(mesh.x, dtype=float),
+        nodal_pressure,
+        cavitated,
+    )
+    gradient = (
+        press_gradient_node_dam
+        if operating.bearing_type == "pressure_dam"
+        else press_gradient_node
+    )
+    dpdx_n, dpdz_n = gradient(
+        pad_index, mesh, nodal_pressure, pads.axial_length, dpdx_n, dpdz_n
+    )
     return nodal_pressure, dpdx_n, dpdz_n, cavitated
