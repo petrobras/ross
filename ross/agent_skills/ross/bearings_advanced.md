@@ -338,13 +338,23 @@ Columns: `speed`, `frequency`, `converged`, `reason`, `iterations` and
 `"singular_jacobian"`, `"pivot_unloaded"`, `"non_finite"`, `"contact"`
 (the final journal position crosses the bearing surface).
 
+Each pad tilt solves the pivot moment balance to `|M| <= 1e-9` of the pad's
+moment scale or a 1e-10 rad root bracket (Brent's method from the previous
+tilt). The `tilt` loop record holds the worst pad's residual relative to
+these tolerances (tolerance 1), plus `pad`, `moment` (`|M| / M_scale`) and
+`width` (rad). An unloaded pad (no film pressure over a range of tilts)
+settles at the largest tilt of that range.
+
 Useful knobs and post-processing:
 
 - `lubricant`: a key of `rs.lubricants_dict` (`"ISOVG32"`, `"ISOVG46"`, `"ISOVG68"`, ...)
 - `thermal_type`: `None` (isoviscous), `"adiabatic"` or `"full"` (pad conduction)
 - `deform_type`: `None` (rigid pads, default) or one of the `"pad_mechanical*"` options for pad/pivot elasticity (full TEHD)
-- Speed sweeps: the meshes are built once; the speeds are cut into chains of `chunk_size` (default 5) ascending speeds, and each speed after the first of its chain starts from the converged state of the previous one (`warm_start=True`, default; about half the Reynolds solves of cold starts). The coefficients at a speed then depend, within the loop tolerances, on which other speeds are in the sweep (up to about 0.3 % at the default tolerances); `warm_start=False` solves every speed independently, exactly as a single-speed bearing. `results.convergence[i]["warm_start"]["start"]` is `"cold"`, `"warm"` or `"cold_retry"` (a warm start that failed and was solved again cold)
+- Speed sweeps: the meshes are built once; the speeds are cut into chains of `chunk_size` (default 5) ascending speeds, and each speed after the first of its chain starts from the converged state of the previous one (`warm_start=True`, default). A 10-speed isoviscous tilting-pad sweep takes about a tenth of the Reynolds solves of cold starts with the earlier tilt bisection. The coefficients at a speed then depend, within the loop tolerances, on which other speeds are in the sweep (up to about 0.3 % at the default tolerances); `warm_start=False` solves every speed independently, exactly as a single-speed bearing. `results.convergence[i]["warm_start"]["start"]` is `"cold"`, `"warm"` or `"cold_retry"` (a warm start that failed and was solved again cold)
 - `n_jobs`: chains solved at once in `spawn` worker processes (`-1`: one per CPU); results are identical for every `n_jobs`; a script using it needs an `if __name__ == "__main__":` guard (a notebook does not), and a `RuntimeError` is raised when the workers cannot start. `num_processes` is an alias
+||||||| parent of 0008d65b (F05 M6: tilt root finding, factor reuse, compiled glue and full-cavitation shortcut)
+- Speed sweeps: the meshes are built once; the speeds are cut into chains of `chunk_size` (default 5) ascending speeds, and each speed after the first of its chain starts from the converged state of the previous one (`warm_start=True`, default). A 10-speed isoviscous tilting-pad sweep takes about a tenth of the Reynolds solves of cold starts with the earlier tilt bisection. Coefficients then differ from independent single-speed solves only within the loop tolerances (up to about 1 % on direct terms at the default tolerances); `warm_start=False` reproduces them exactly. `results.convergence[i]["warm_start"]["start"]` is `"cold"`, `"warm"` or `"cold_retry"` (a warm start that failed and was solved again cold)
+- `n_jobs`: chains solved at once in `spawn` worker processes (`-1`: one per CPU); results are identical for every `n_jobs`; a script using it needs an `if __name__ == "__main__":` guard. `num_processes` is an alias
 - `bearing.coefficients(speed, frequency=None)` returns `(kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)` interpolated at a rotor speed (and whirl frequency for 2-D tables)
 - Plots: `plot_pressure_2d()`, `plot_pressure_3d()`, `plot_temperature_2d()`, `plot_film_temperature_3d()`, `plot_film_thickness_2d()`; `show_results()` prints a per-case summary table
 - `plot_pad_temperature_3d()` draws the pads as real geometry colored by the solid pad conduction field, resolved through the pad thickness (`thermal_type="full"` only)

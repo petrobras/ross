@@ -1580,6 +1580,7 @@ def _solve_state(
             monitor=state.get("_monitor"),
             tolerance_scale=tolerance_scale,
             held_tilts=held_tilts,
+            tilt_memory=state.get("_tilt_memory"),
         )
 
     def counted_press(*args, **kwargs):

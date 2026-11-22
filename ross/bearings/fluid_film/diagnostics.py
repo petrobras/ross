@@ -18,8 +18,9 @@ Loop                        Residual                                Tolerance
 ==========================  ======================================  ==========
 ``film_onset``              pads whose film onset moved (starved)   0 moves
 ``newton``                  ``|F_net| / |F_ext|``                   ``2e-3``
-``tilt``                    tilt bracket width of the worst pad,    ``1e-8``
-                            rad
+``tilt``                    worst pad: the smaller of               1
+                            ``|M| / (1e-9 M_scale)`` (pivot moment)
+                            and ``width / 1e-10`` (root bracket, rad)
 ``turbulence``              RMS shear-stress change, Pa             ``SHEAR_ERROR``
 ``viscosity``               RMS film/pad temperature change, K      ``TEMP_ERROR``
 ``journal_temperature``     journal temperature change, K           ``JTEMP_ERROR``
@@ -28,6 +29,14 @@ Loop                        Residual                                Tolerance
 ``pivot``                   RMS pivot deflection change / ``C_b``   ``0.01``
 ``sump``                    sump temperature change, K              ``SUMP_TEMP_ERROR``
 ==========================  ======================================  ==========
+
+The ``tilt`` record also gives the worst pad's ``moment`` (``|M| / M_scale``,
+see :func:`~ross.bearings.fluid_film.hydrodynamics.moment_scale`) and
+``width`` (rad) separately; its iterations are the moment evaluations (one
+Reynolds solve each) of that pad's last search
+(:class:`~ross.bearings.fluid_film.hydrodynamics.PadTiltSearch`). Its
+residual is already relative to the two scaled tolerances, so its tolerance
+stays 1.
 
 All tolerances are multiplied by the private ``_tolerance_scale`` input of
 ``run_case`` (default 1.0, which leaves every number unchanged). A loop that
@@ -381,7 +390,7 @@ class LoopMonitor:
             ``max_call_solves``, ``hydrodynamics_calls``, ``wall_time`` and
             ``loops``: per loop name, ``iterations``, ``residual``,
             ``tolerance``, ``converged``, ``reason``, ``total_iterations`` and
-            ``passes`` (plus ``pad`` for ``tilt``).
+            ``passes`` (plus ``pad``, ``moment`` and ``width`` for ``tilt``).
         """
         loops = {}
         for name in LOOP_NAMES:
