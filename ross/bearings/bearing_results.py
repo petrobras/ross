@@ -1379,12 +1379,53 @@ class FluidFilmBearingResults(BearingResults):
         local film Reynolds number ``rho U h / mu``), ``re_cb``
         (``rho U C_b / mu`` at the supply viscosity) and ``re_taylor``
         (``41.2 sqrt(R / C_b)``, Taylor's onset of vortex flow); ``pad_load``
-        (N, film force of each pad) and ``tilt_angle`` (rad, per pad), as
-        lists.
+        (N, film force of each pad) and ``tilt_angle`` (rad, per pad, see
+        Notes), as lists.
 
         Returns
         -------
         pandas.DataFrame
+
+        Notes
+        -----
+        ``xj`` and ``yj`` are the journal-centre displacements along the
+        bearing ``x`` and ``y`` axes. Angles on the bearing circumference
+        (``pivot_angle``, ``leading_edge_angles``) are measured from ``+x``
+        towards ``+y``, which is also the direction of journal rotation: a
+        pad runs from its leading edge at ``pivot_angle - offset * pad_arc``
+        to its trailing edge. ``tilt_angle`` is the rotation ``delta`` of
+        each pad, in rad, about its pivot, which sits on the pivot line at
+        the pad back, at radius ``R + C_b + t`` from the bearing centre
+        (``R`` the journal radius, ``C_b`` the radial clearance, ``t`` the
+        pad thickness). It is zero for the pad of the as-machined geometry
+        and positive in the direction of rotation, so a positive tilt
+        closes the trailing edge and opens the leading edge.
+
+        For rigid pads and pivots the film thickness at the angle ``theta``
+        from the leading edge of pad ``k`` (global angle ``theta_g =
+        leading_edge_angles[k] + theta``) is::
+
+            h = C_p - xj cos(theta_g) - yj sin(theta_g)
+                - (C_p - C_b) cos(theta - theta_p)
+                - (R + C_b + t) delta_k sin(theta - theta_p)
+
+        with the pad clearance ``C_p = C_b / (1 - preload_k)`` and the
+        pivot angle from the leading edge ``theta_p = offset_k *
+        pad_arc_k``. A flexible pivot (``deform_type`` with pivot
+        deformation) adds ``d_k cos(theta - theta_p)``, with ``d_k`` the
+        pivot deflection (m, positive opening the film) in
+        ``results.outputs[i]["deform_pivot"]``. Pad deformation, the
+        leading- and trailing-edge tapers and a pocket depth add to ``h``
+        further terms that are not reported separately; in the
+        ``"axial_flow"`` and ``"high_ambient_pressure"`` operating modes an
+        unloaded pad's film is the uniform ``C_p``.
+
+        The film thickness itself, with every term, is
+        ``results.film_thickness_fields[i]`` (m, one
+        ``(n_theta, n_axial)`` grid per pad, the field drawn by
+        ``plot_film_thickness_2d``), on the grids ``results.theta_grids[i]``
+        (rad, from the leading edge) and ``results.z_grids[i]`` (m), with
+        ``results.leading_edge_angles`` (rad) placing the pads.
         """
         from ross.bearings.fluid_film.driver import ZERO_TEMPERATURE_SENTINEL
 
