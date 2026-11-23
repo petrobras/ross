@@ -428,3 +428,74 @@ def test_pad_order_does_not_change_the_solution(first):
     assert_allclose(f_ordered[2, 1], f_ordered[3, 1], rtol=1e-9)
     for name in ("kxx", "kxy", "kyx", "kyy", "cxx", "cyy"):
         assert_allclose(getattr(rotated, name)[0], getattr(ordered, name)[0], rtol=1e-9)
+
+
+@pytest.mark.parametrize(
+    "equilibrium",
+    [
+        dict(equilibrium_type="match_load", fxs_load=1500.0, fys_load=-2600.0),
+        dict(equilibrium_type="match_eccentricity", xj=0.15, yj=-0.25),
+    ],
+    ids=["match_load", "match_eccentricity"],
+)
+def test_tilt_angle_rebuilds_the_film_thickness(equilibrium):
+    """The documented film-thickness expression rebuilds the film field.
+
+    Pins the convention of ``operating_results["tilt_angle"]`` stated in
+    ``FluidFilmBearingResults.operating_results``: for a rigid pad ``k`` at
+    angle ``theta`` from its leading edge (global angle ``theta_g =
+    leading_edge_angle + theta``, from ``+x`` towards ``+y``),
+
+        h = C_p - xj cos(theta_g) - yj sin(theta_g)
+            - (C_p - C_b) cos(theta - theta_p)
+            - (R + C_b + t) delta_k sin(theta - theta_p)
+
+    with ``C_p = C_b / (1 - preload)`` and ``theta_p = offset * pad_arc``.
+    The pivots are offset, the preloads differ and the load is off a pad,
+    so the pad loads and tilts all differ and a sign error in any term,
+    a pivot measured from the pad centre or a tilt about the journal
+    radius instead of the pivot radius gives an error of several um.
+
+    The field is built from the same doubles by the same expression, so
+    the agreement is to round-off; ``rtol=1e-12`` leaves room only for
+    the order of the floating-point operations.
+    """
+    preload = [0.5, 0.3, 0.5, 0.4, 0.5]
+    offset = 0.6
+    bearing = TiltingPad(
+        **_five_pad(preload=preload, offset=[offset] * 5, **equilibrium)
+    )
+    results = bearing.results
+    op = bearing.operating_results
+    assert op["converged"][0]
+    tilt = np.asarray(op["tilt_angle"][0])
+    xj, yj = op["xj"][0], op["yj"][0]
+    radius = 0.5 * 101.6e-3
+    cb = 74.9e-6
+    thickness = 12.7e-3
+    arc = np.radians(60.0)
+    pad_load = np.asarray(op["pad_load"][0])
+    assert np.ptp(pad_load) > 0.3 * pad_load.max()
+    assert np.ptp(tilt) > 0.3 * np.abs(tilt).max()
+    assert_allclose(
+        results.leading_edge_angles,
+        np.radians([18, 90, 162, 234, 306]) - offset * arc,
+    )
+
+    for k in range(5):
+        cp = cb / (1.0 - preload[k])
+        theta = results.theta_grids[0][k]
+        theta_g = results.leading_edge_angles[k] + theta
+        dtheta = theta - offset * arc
+        h = (
+            cp
+            - xj * np.cos(theta_g)
+            - yj * np.sin(theta_g)
+            - (cp - cb) * np.cos(dtheta)
+            - (radius + cb + thickness) * tilt[k] * np.sin(dtheta)
+        )
+        field = results.film_thickness_fields[0][k]
+        assert_allclose(field, h, rtol=1e-12, atol=0)
+        # A positive tilt closes the trailing edge of the pad.
+        if tilt[k] > 0:
+            assert field[-1].mean() < field[0].mean()
