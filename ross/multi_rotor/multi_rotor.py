@@ -1006,7 +1006,7 @@ class MultiRotor(Rotor):
         value : float or np.ndarray
             Angular position (rad), speed (rad/s) or acceleration (rad/s²) of
             the driving rotor.
-        node : int, optional
+        node : int
             Node index in this MultiRotor numbering.
 
         Returns
@@ -1594,9 +1594,11 @@ class MultiRotor(Rotor):
         modes=None,
     ):
         """Unbalanced response for a multi-rotor.
+
         Each unbalance excites at the speed of its own shaft.
         The response is evaluated at that frequency, with the
         rotor at driving rotor speed.
+
         Parameters
         ----------
         node : list, int
@@ -1611,17 +1613,20 @@ class MultiRotor(Rotor):
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
+
         Returns
         -------
         results : ross.ForcedResponseResults
             For more information on attributes and methods available see:
             :py:class:`ross.ForcedResponseResults`
+
         Raises
         ------
         ValueError
             If there are unbalances on both shafts and ``abs(speed_ratio)``
             is not 1. The response then has two harmonics, which a single
             result cannot hold, so each shaft must be run separately.
+
         Examples
         --------
         >>> multi_rotor = two_shaft_rotor_example()
