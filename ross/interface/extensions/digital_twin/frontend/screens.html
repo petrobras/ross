@@ -111,11 +111,14 @@
                             </div>
                             <p class="panel-hint" data-i18n="dtOptimizeHint">A otimização escolhe o subconjunto de planos que melhor explica os sinais e triplica o tempo de execução.</p>
                             <div class="input-group">
-                                <label for="dt-parameters-file" data-i18n="dtParametersFile">Parâmetros da máquina (input_parameters.json)</label>
-                                <input id="dt-parameters-file" type="file" accept=".json,.JSON">
+                                <label for="dt-parameters-preset" data-i18n="dtParametersPreset">Parâmetros da análise</label>
+                                <select id="dt-parameters-preset" data-action="dt-parameters-preset"></select>
                             </div>
-                            <button type="button" class="btn-secondary" id="dt-parameters-apply" data-action="dt-parameters-apply"><i class="fas fa-file-import"></i> <span data-i18n="dtApply">Aplicar</span></button>
-                            <p class="panel-hint" id="dt-parameters-status"></p>
+                            <details class="dt-parameters" id="dt-parameters-details">
+                                <summary data-i18n="dtParametersAdjust">Ajustar valores</summary>
+                                <p class="panel-hint" data-i18n="dtParametersHint">Um campo vazio usa o padrão do rossml.</p>
+                                <div id="dt-parameters-fields"></div>
+                            </details>
                             <button type="button" id="dt-run" class="btn-primary" data-action="dt-run-balancing" disabled><i class="fas fa-play"></i> <span data-i18n="dtRunAnalysis">Executar análise</span></button>
                         </div>
                     </div>

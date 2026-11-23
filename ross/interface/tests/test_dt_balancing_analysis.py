@@ -20,7 +20,11 @@ import pytest
 from numpy.testing import assert_allclose
 
 import ross as rs
-from ross.interface.extensions.digital_twin.domain import rossml_balancing, session
+from ross.interface.extensions.digital_twin.domain import (
+    analysis_parameters,
+    rossml_balancing,
+    session,
+)
 from ross.interface.extensions.digital_twin.services import (
     balancing_analysis,
     measurement,
@@ -272,83 +276,205 @@ def test_a_chart_is_refused_with_the_reason(measured, fake_rossml):
             balancing_analysis.figure_for(measured.id, **arguments)
 
 
-# A file of the shape the Digital Twin app keeps per machine. The values are
-# not the Petrobras ones: what is checked is that the file replaces the
-# library defaults of rossml and that the run keeps what it owns.
-PARAMETERS = {
+# Files of the shape the Digital Twin app keeps per machine. The values are
+# not the Petrobras ones: what is checked is that a preset fills the fields,
+# that the fields replace the library defaults of rossml, and that the keys
+# rossml no longer reads (`N_multiple`, the top-level `w_f0`, `speed`, the
+# plot settings) never reach it.
+MACHINE = {
     "speed": [20, "Hz"],
-    "indirect": {"P_factor": [[2, 8], [-5, 5]], "R_factor": None},
+    "N_multiple": 4,
+    "w_f0": 0.9,
+    "plot_figs": {"plot_rec": False},
+    "view_plans": "all",
+    "signal_parameters": {
+        "time_end": 7,
+        "noise_rate": 90,
+        "periods_number": 16,
+        "number_points": 2048,
+        "decomposition_threshold": 4,
+        "df": 1,
+        "xvc_list": [1],
+    },
+    "kalman_flow": {
+        "w_f0": 0.35,
+        "df_multiple": 11,
+        "mu_max_iter": 0,
+        "mu_pop_size": 2,
+        "max_iter": 9,
+        "pop_size": 9,
+    },
     "resultant_force_limits": {"mu_d": [100, 1000], "phi": [0, 360]},
-    "signal_parameters": {"number_points": 2048, "decomposition_threshold": 4},
-    "kalman_flow": {"df_multiple": 11, "mu_pop_size": 2, "max_iter": 9, "pop_size": 9},
+    "indirect": {
+        "P_factor": [[2, 8], [-5, 5]],
+        "Q_factor": [[1, 9], [-20, -8]],
+        "S_factor": [[1, 9], [2, 9]],
+        "R_factor": None,
+    },
     "direct": {"P_factor": 0.1, "Q_factor": 1e-18, "S_factor": 3e8, "R_factor": 7e-15},
-    "database_directory": "/elsewhere/",
 }
+OTHER = {"signal_parameters": {"number_points": 4096}, "kalman_flow": {"w_f0": 0.65}}
 
 
-def test_the_machine_parameters_replace_the_rossml_defaults(measured, fake_rossml):
+@pytest.fixture
+def machines(tmp_path, monkeypatch):
+    """A Digital Twin app whose machines a and b share parameters, c differs."""
+    for model, values in (("a", MACHINE), ("b", MACHINE), ("c", OTHER)):
+        folder = tmp_path / "models_files" / model
+        folder.mkdir(parents=True)
+        (folder / "input_parameters.json").write_text(json.dumps(values))
+    broken = tmp_path / "models_files" / "d"
+    broken.mkdir()
+    (broken / "input_parameters.json").write_text("not json")
+    (tmp_path / "models_files" / "e").mkdir()
+    monkeypatch.setattr(analysis_parameters, "APP_DIR", str(tmp_path))
+    return tmp_path
+
+
+def test_the_presets_are_the_defaults_and_each_set_of_machine_values(machines):
+    presets = analysis_parameters.presets()
+    assert [(item["id"], item["models"]) for item in presets] == [
+        ("rossml", []),
+        ("a", ["a", "b"]),
+        ("c", ["c"]),
+    ]
+    assert set(presets[0]["values"].values()) == {None}
+    values = presets[1]["values"]
+    assert values["number_points"] == 2048
+    assert values["w_f0"] == 0.35
+    assert values["mu_d_max"] == 1000
+    assert values["direct_S"] == 3e8
+    assert values["indirect_P_exponent_min"] == -5
+    assert presets[2]["values"]["w_f0"] == 0.65
+    assert presets[2]["values"]["direct_P"] is None
+    assert analysis_parameters.preset_for("b") == "a"
+    assert analysis_parameters.preset_for("unknown") == "rossml"
+    assert analysis_parameters.preset_for(None) == "rossml"
+
+
+def test_without_a_choice_the_run_keeps_the_rossml_defaults(
+    measured, fake_rossml, machines
+):
     answer = balancing_analysis.settings_for(measured.id)
-    assert answer["parameters"] is None
-    assert "will not match" in answer["parameters_warning"]
-
-    answer = balancing_analysis.set_parameters(
-        measured.id, "input_parameters.json", json.dumps(PARAMETERS)
+    assert answer["parameters"]["preset"] == "rossml"
+    assert [item["id"] for item in answer["parameters"]["presets"]] == [
+        "rossml",
+        "a",
+        "c",
+    ]
+    assert {field["key"] for field in answer["parameters"]["fields"]} == set(
+        analysis_parameters.KEYS
     )
-    assert answer["parameters"]["name"] == "input_parameters.json"
-    assert answer["parameters"]["source"] == "file"
-    assert answer["parameters_warning"] == ""
-
-    balancing_analysis.run_balancing(measured.id, iterations=2, population=3)
+    balancing_analysis.run_balancing(measured.id)
     seen = fake_rossml.seen
-    # The file wins where `API.run` takes the key, and `number_points` comes
-    # out of `signal_parameters`, as the Digital Twin app reads it.
-    assert seen["indirect"] == PARAMETERS["indirect"]
-    assert seen["resultant_force_limits"] == PARAMETERS["resultant_force_limits"]
-    assert seen["signal_parameters"] == PARAMETERS["signal_parameters"]
-    assert seen["kalman_flow"] == PARAMETERS["kalman_flow"]
+    for key in ("indirect", "resultant_force_limits", "signal_parameters", "direct"):
+        assert seen[key] is None, key
+    assert seen["number_points"] == 4096
+
+
+def test_a_pre_established_model_starts_from_its_machine(measured, machines):
+    measured.model = "b"
+    answer = balancing_analysis.settings_for(measured.id)
+    assert answer["parameters"]["preset"] == "a"
+    assert answer["parameters"]["values"]["number_points"] == 2048
+
+
+def test_the_chosen_fields_replace_the_rossml_defaults(measured, fake_rossml, machines):
+    balancing_analysis.run_balancing(
+        measured.id,
+        iterations=2,
+        population=3,
+        preset="a",
+        values={
+            "noise_rate": "80",
+            "mu_d_max": 900,
+            **{"direct_%s" % factor: None for factor in "PQSR"},
+        },
+    )
+    seen = fake_rossml.seen
+    assert seen["signal_parameters"] == {
+        "time_end": 7,
+        "noise_rate": 80,
+        "periods_number": 16,
+        "number_points": 2048,
+        "decomposition_threshold": 4,
+        "df": 1,
+    }
     assert seen["number_points"] == 2048
-    assert seen["direct"] == PARAMETERS["direct"]
+    limits = {"mu_d": [100, 900], "phi": [0, 360]}
+    assert seen["resultant_force_limits"] == limits
+    assert seen["kalman_flow"] == {
+        "w_f0": 0.35,
+        "df_multiple": 11,
+        "mu_max_iter": 0,
+        "mu_pop_size": 2,
+        "resultant_force_limits": limits,
+    }
+    assert seen["indirect"] == MACHINE["indirect"]
+    assert seen["direct"] is None
+    for key in ("N_multiple", "w_f0", "plot_figs"):
+        assert key not in seen, key
     # What the run owns is kept: the iterations and population chosen on the
-    # screen (`API.run` writes them over the file's `kalman_flow`), the speed
-    # read from the signal files, and the folders.
+    # screen, the speed read from the signal files, and the folders.
     assert seen["kalman_max_iter"] == 2 and seen["kalman_pop_size"] == 3
     assert seen["speed"] == [840.0, "rpm"]
     assert seen["database_directory"].endswith(os.sep + "database" + "/")
+    # The session keeps the choice for the screen.
+    answer = balancing_analysis.settings_for(measured.id)
+    assert answer["parameters"]["preset"] == "a"
+    assert answer["parameters"]["values"]["noise_rate"] == 80
 
-    answer = balancing_analysis.set_parameters(measured.id, None, None)
-    assert answer["parameters"] is None
+
+def test_the_direct_factors_go_to_rossml_when_all_four_are_given(
+    measured, fake_rossml, machines
+):
+    balancing_analysis.run_balancing(measured.id, preset="a")
+    assert fake_rossml.seen["direct"] == MACHINE["direct"]
 
 
-def test_a_parameters_file_must_be_a_json_object(measured, fake_rossml):
-    for filename, content in (
-        ("p.txt", "{}"),
-        ("p.json", "not json"),
-        ("p.json", "[1, 2]"),
-        ("p.json", "{}"),
+def test_the_parameters_are_refused_when_they_cannot_be_used(measured, machines):
+    for preset, values in (
+        ("nope", None),
+        ("a", {"unknown": 1}),
+        ("a", {"time_end": "abc"}),
+        ("a", {"time_end": True}),
+        ("a", {"time_end": float("inf")}),
+        ("a", {"number_points": 10.5}),
+        ("a", {"indirect_P_exponent_min": 1.5}),
+        ("a", {"mu_d_min": None}),
+        ("a", {"direct_P": None}),
+        ("a", {"phi_min": 400}),
+        ("a", [1, 2]),
     ):
         with pytest.raises(ValueError):
-            balancing_analysis.set_parameters(measured.id, filename, content)
+            balancing_analysis.set_parameters(measured.id, preset, values)
 
 
-def test_the_parameters_routes(measured, fake_rossml):
+def test_the_parameters_routes(measured, fake_rossml, machines):
     client = create_app().test_client()
     answer = client.post(
         "/api/dt/balancing-parameters",
-        json={
-            "session": measured.id,
-            "filename": "input_parameters.json",
-            "content": json.dumps(PARAMETERS),
-        },
+        json={"session": measured.id, "preset": "c", "parameters": {"df": 2}},
         headers=HEADERS,
     )
     assert answer.status_code == 200
-    assert answer.get_json()["parameters"]["keys"] == sorted(PARAMETERS)
+    parameters = answer.get_json()["parameters"]
+    assert parameters["preset"] == "c"
+    assert parameters["values"]["df"] == 2
+    assert parameters["values"]["w_f0"] == 0.65
     refused = client.post(
         "/api/dt/balancing-parameters",
-        json={"session": measured.id, "filename": "p.json", "content": "nope"},
+        json={"session": measured.id, "preset": "c", "parameters": {"df": "x"}},
         headers=HEADERS,
     )
     assert refused.status_code == 400
+    run = client.post(
+        "/api/dt/balancing",
+        json={"session": measured.id, "preset": "a", "parameters": {}},
+        headers=HEADERS,
+    )
+    assert run.status_code == 200
+    assert fake_rossml.seen["number_points"] == 2048
 
 
 def test_the_optimization_offers_every_leading_and_trailing_run(measured, fake_rossml):

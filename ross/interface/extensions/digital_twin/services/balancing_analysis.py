@@ -15,10 +15,8 @@ so its angle is the estimate's plus 180 degrees, and its mass is the estimate
 divided by the radius of that plane.
 """
 
-import json
-
 from ross.interface.extensions.digital_twin.domain import (
-    equipment,
+    analysis_parameters,
     rossml_balancing,
     session,
 )
@@ -28,15 +26,6 @@ from ross.interface.extensions.digital_twin.services.analysis.base import figure
 
 HALF_TURN = 180.0
 
-# What the Digital Twin app always passes to rossml: the hyperparameters of the
-# machine, from `models_files/<model>/input_parameters.json`. They are not in
-# ROSS, and the library defaults of rossml are not the same numbers, so an
-# estimate computed without them does not reproduce the app's.
-NO_PARAMETERS = (
-    "Without the analysis parameters of the machine (input_parameters.json), "
-    "the estimate runs on the library defaults of rossml and will not match "
-    "the Digital Twin app."
-)
 MAX_ITERATIONS = 20
 MAX_POPULATION = 50
 
@@ -44,51 +33,41 @@ MAX_POPULATION = 50
 def settings_for(identifier):
     """Return what the screen needs to offer the analysis."""
     current = session.get(identifier)
-    chosen = _hyperparameters(current)
     return {
         "available": rossml_balancing.available(),
         "message": "" if rossml_balancing.available() else rossml_balancing.MISSING,
         "ready": _refusal(current) is None,
         "refusal": _refusal(current) or "",
         "balancing": _answer(current),
-        "parameters": chosen,
-        "parameters_warning": "" if chosen else NO_PARAMETERS,
+        "parameters": _parameters(current),
     }
 
 
-def set_parameters(identifier, filename, content):
-    """Keep the analysis parameters of the machine for this session.
+def set_parameters(identifier, preset, values=None):
+    """Keep the analysis parameters chosen for this session.
 
     Parameters
     ----------
     identifier : str
         Session id.
-    filename : str
-        Name of the JSON file, as the user chose it.
-    content : str
-        Its text, an `input_parameters.json` of the Digital Twin app. `None`
-        drops the file and goes back to the model's own, when it has one.
+    preset : str
+        Id of a preset of `analysis_parameters.presets()`: the rossml
+        defaults or the parameters of a machine of the Digital Twin app.
+    values : dict, optional
+        `{key: number or None}` for the fields changed after choosing the
+        preset; the others keep the preset's value.
     """
     current = session.get(identifier)
-    if content is None:
-        current.balancing_parameters = None
-        return settings_for(identifier)
-    if not isinstance(filename, str) or not filename.lower().endswith(".json"):
-        raise ValueError("The analysis parameters must be a .json file.")
-    try:
-        values = json.loads(content)
-    except ValueError as error:
-        raise ValueError("Invalid parameters file %s: %s" % (filename, error)) from None
-    if not isinstance(values, dict) or not values:
-        raise ValueError(
-            "The parameters file must hold a JSON object, as "
-            "input_parameters.json does."
-        )
-    current.balancing_parameters = {"name": filename, "values": values}
+    current.balancing_parameters = {
+        "preset": preset,
+        "values": analysis_parameters.chosen(preset, values),
+    }
     return settings_for(identifier)
 
 
-def run_balancing(identifier, iterations=0, population=1, optimize=False):
+def run_balancing(
+    identifier, iterations=0, population=1, optimize=False, preset=None, values=None
+):
     """Estimate the unbalance of the session's rotor and the correction masses.
 
     Parameters
@@ -102,6 +81,9 @@ def run_balancing(identifier, iterations=0, population=1, optimize=False):
     optimize : bool, optional
         Let the analysis choose which balancing planes to use. It triples the
         running time.
+    preset, values : optional
+        The analysis parameters, as `set_parameters` takes them. Without a
+        preset the session keeps the ones it has.
 
     Returns
     -------
@@ -113,6 +95,8 @@ def run_balancing(identifier, iterations=0, population=1, optimize=False):
     refusal = _refusal(current)
     if refusal is not None:
         raise ValueError(refusal)
+    if preset is not None:
+        set_parameters(identifier, preset, values)
 
     planes = [plane["node"] for plane in current.balancing_planes]
     run, estimate = rossml_balancing.run(
@@ -126,7 +110,7 @@ def run_balancing(identifier, iterations=0, population=1, optimize=False):
         population=_whole("population", population, 1, MAX_POPULATION),
         optimize=bool(optimize),
         rotation=current.rotation,
-        hyperparameters=(_hyperparameters(current) or {}).get("values"),
+        hyperparameters=analysis_parameters.arguments(_parameters(current)["values"]),
     )
     current.balancing = _corrections(current, estimate)
     current.balancing_run = run
@@ -287,34 +271,28 @@ def _answer(current):
     return current.balancing
 
 
-def _hyperparameters(current):
-    """Return the parameters to use: the uploaded file, or the model's own."""
-    if current.balancing_parameters is not None:
-        return {
-            "name": current.balancing_parameters["name"],
-            "source": "file",
-            "keys": sorted(current.balancing_parameters["values"]),
-            "values": current.balancing_parameters["values"],
+def _parameters(current):
+    """Return the analysis parameters of the session and the presets to offer.
+
+    Until the user chooses, a pre-established model starts from its own
+    machine's preset and any other rotor from the rossml defaults.
+    """
+    if current.balancing_parameters is None:
+        model = current.model if current.model != USER_MODEL else None
+        preset = analysis_parameters.preset_for(model)
+        current.balancing_parameters = {
+            "preset": preset,
+            "values": analysis_parameters.chosen(preset),
         }
-    values = _model_parameters(current)
-    if not values:
-        return None
     return {
-        "name": "input_parameters.json",
-        "source": "model",
-        "keys": sorted(values),
-        "values": values,
+        "preset": current.balancing_parameters["preset"],
+        "values": current.balancing_parameters["values"],
+        "presets": [
+            {"id": item["id"], "models": item["models"], "values": item["values"]}
+            for item in analysis_parameters.presets()
+        ],
+        "fields": analysis_parameters.describe(),
     }
-
-
-def _model_parameters(current):
-    """The parameters of a pre-established model, which lives outside ROSS."""
-    if not current.model or current.model == USER_MODEL:
-        return None
-    try:
-        return equipment.analysis_parameters(current.model)
-    except (ValueError, OSError):
-        return None
 
 
 def _refusal(current):

@@ -152,16 +152,18 @@ def balancing():
             body.get("iterations", 0),
             body.get("population", 1),
             body.get("optimize", False),
+            preset=body.get("preset"),
+            values=body.get("parameters"),
         )
     )
 
 
 @digital_twin.route("/api/dt/balancing-parameters", methods=["POST"])
 def balancing_parameters():
-    """Keep the machine's input_parameters.json for the analysis."""
+    """Choose the analysis parameters: a preset and the fields changed after it."""
     body = _body()
     return jsonify(
-        set_parameters(body.get("session"), body.get("filename"), body.get("content"))
+        set_parameters(body.get("session"), body.get("preset"), body.get("parameters"))
     )
 
 

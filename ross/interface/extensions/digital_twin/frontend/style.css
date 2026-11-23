@@ -372,3 +372,31 @@
 #screen-dt .dt-sensor-grid .form-box {
     margin-top: 0;
 }
+
+/* The analysis parameters: a group per part of the estimate, the fields of a
+   group side by side where the form is wide enough. */
+#screen-dt .dt-parameters {
+    margin: 8px 0 12px;
+}
+
+#screen-dt .dt-parameters summary {
+    cursor: pointer;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+#screen-dt .dt-parameter-group {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-ui);
+    padding: 8px 10px;
+    margin: 0 0 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+}
+
+#screen-dt .dt-parameter-group legend {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0 4px;
+}

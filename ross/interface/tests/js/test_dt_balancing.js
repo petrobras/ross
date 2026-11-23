@@ -28,7 +28,20 @@ const ROTOR_NODES = 7;
 let planes = { measuring: [], balancing: [] };
 let ran = null;
 let applied = new Set();
-let parameters = null;
+// The analysis parameters as the server answers them: a preset per set of
+// machine values, the rossml defaults first, and the fields they fill.
+const PARAMETER_FIELDS = [
+    { key: 'number_points', group: 'signal', whole: true },
+    { key: 'noise_rate', group: 'signal', whole: false },
+    { key: 'mu_d_min', group: 'limits', whole: false },
+    { key: 'mu_d_max', group: 'limits', whole: false },
+];
+const PRESETS = [
+    { id: 'rossml', models: [], values: { number_points: null, noise_rate: null, mu_d_min: null, mu_d_max: null } },
+    { id: 'a', models: ['a', 'b'], values: { number_points: 2048, noise_rate: 90, mu_d_min: 340, mu_d_max: 3400 } },
+];
+const startingParameters = () => ({ preset: 'rossml', values: PRESETS[0].values, presets: PRESETS, fields: PARAMETER_FIELDS });
+let parameters = startingParameters();
 const asked = [];
 
 globalThis.fetch = async (path, options = {}) => {
@@ -47,10 +60,6 @@ globalThis.fetch = async (path, options = {}) => {
             if (route.includes('/api/dt/sensor')) {
                 applied.add(body.node + ' ' + body.plane);
                 return step();
-            }
-            if (route.includes('/api/dt/balancing-parameters')) {
-                parameters = body.content ? { name: body.filename, source: 'file', keys: ['indirect'] } : null;
-                return analysis(false);
             }
             if (route.includes('/api/dt/balancing-figure')) {
                 asked.figure = body;
@@ -95,7 +104,6 @@ function analysis(done) {
         available: true,
         message: '',
         parameters,
-        parameters_warning: parameters ? '' : 'will not match the Digital Twin app',
         ready: pending().length === 0 && planes.balancing.length > 0,
         refusal: pending().length
             ? 'Apply the signal of every sensor.'
@@ -168,7 +176,7 @@ function prepare() {
     planes = { measuring: [], balancing: [] };
     ran = null;
     applied = new Set();
-    parameters = null;
+    parameters = startingParameters();
     asked.length = 0;
     state.rotorLibrary = [{
         name: 'Teste', savedAnalyses: [],
@@ -264,20 +272,34 @@ check('applying the last sensor enables the analysis, with no reload',
       document.getElementById('dt-run').disabled === false
       && document.getElementById('dt-run-refusal').textContent === '');
 
-// --- The machine's parameters, which the estimate is not the app's without --
+// --- The analysis parameters: a preset fills the fields, without a file ------
 
-check('without the machine parameters, the panel warns that the estimate differs',
-      document.getElementById('dt-parameters-status').textContent.includes('will not match'));
+const presetSelect = document.getElementById('dt-parameters-preset');
+check('the presets are offered, the rossml defaults first and chosen',
+      presetSelect.innerHTML.indexOf('rossml defaults') !== -1
+      && presetSelect.innerHTML.indexOf('rossml defaults') < presetSelect.innerHTML.indexOf('a, b')
+      && presetSelect.value === 'rossml');
+const fieldsBox = () => document.getElementById('dt-parameters-fields').innerHTML;
+check('each field is drawn in its group, empty for the rossml defaults',
+      fieldsBox().includes('Number of points') && fieldsBox().includes('Resultant force limits')
+      && fieldsBox().includes('id="dt-param-noise_rate"') && !fieldsBox().includes('value="90"'));
 
-document.getElementById('dt-parameters-file').files = [{
-    name: 'input_parameters.json',
-    text: async () => '{"indirect": {"P_factor": [[1, 9], [-10, 10]]}}',
-}];
-await MEASUREMENT_ACTIONS['dt-parameters-apply']({ dataset: {} });
-await settle();
-check('once applied, the panel names the file instead of warning',
-      document.getElementById('dt-parameters-status').textContent.includes('input_parameters.json')
-      && !document.getElementById('dt-parameters-status').textContent.includes('will not match'));
+presetSelect.value = 'a';
+await MEASUREMENT_ACTIONS['dt-parameters-preset']({ dataset: {} });
+check("choosing a machine's preset fills the fields with its values",
+      fieldsBox().includes('value="2048"') && fieldsBox().includes('value="3400"'));
+check('a whole-number field steps by one, the others take any value',
+      /id="dt-param-number_points" type="number" step="1"/.test(fieldsBox())
+      && /id="dt-param-noise_rate" type="number" step="any"/.test(fieldsBox()));
+check('no file is asked for any more',
+      !asked.some(route => route.includes('/api/dt/balancing-parameters')));
+
+// The fake DOM keeps an element's value apart from the HTML it was drawn
+// with, so the values the run reads are set on the elements themselves.
+node('dt-param-number_points').value = '2048';
+node('dt-param-noise_rate').value = '80';
+node('dt-param-mu_d_min').value = '';
+node('dt-param-mu_d_max').value = ' ';
 
 document.getElementById('dt-iterations').value = '2';
 document.getElementById('dt-population').value = '3';
@@ -295,6 +317,10 @@ check('when the run ends, the dimming is lifted',
       document.getElementById('dt-balancing-body').style.opacity === '1');
 check('the run carries the chosen iterations, population and optimization',
       ran && ran.iterations === 2 && ran.population === 3 && ran.optimize === true);
+check('the run sends the preset and every field, an empty one as null',
+      ran.preset === 'a' && ran.parameters.number_points === 2048
+      && ran.parameters.noise_rate === 80
+      && ran.parameters.mu_d_min === null && ran.parameters.mu_d_max === null);
 check('the correction mass and its phase are shown per plane',
       document.getElementById('dt-balancing-card').style.display === ''
       && document.getElementById('dt-balancing-result').innerHTML.includes('0.500')

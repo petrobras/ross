@@ -44,6 +44,8 @@ class Session:
         self.balancing = None
         # The rossml run (`rossml.api.API`), kept to draw its charts on request.
         self.balancing_run = None
+        # The preset and fields of the analysis parameters
+        # (`domain/analysis_parameters.py`).
         self.balancing_parameters = None
 
     @property

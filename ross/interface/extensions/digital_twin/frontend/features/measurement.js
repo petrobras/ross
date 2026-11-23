@@ -16,6 +16,9 @@ const state = {
     sessionId: null,
     step: null,
     result: null,
+    // The analysis parameters the server answered: the preset, its fields
+    // and the presets on offer.
+    parameters: null,
 };
 
 export const MEASUREMENT_ACTIONS = {
@@ -23,7 +26,7 @@ export const MEASUREMENT_ACTIONS = {
     'dt-plane-remove': element => changePlanes(element.dataset.kind, false),
     'dt-sensor-apply': element => applySensor(Number(element.dataset.node), element.dataset.plane),
     'dt-run-balancing': () => runBalancing(),
-    'dt-parameters-apply': () => applyParameters(),
+    'dt-parameters-preset': () => fillParameters(chosenPreset()),
     // The interface dispatches a select's `change` through the same actions
     // (core/actions.js), so the pickers of the result card come here.
     'dt-polar-change': () => renderBalancing(state.result),
@@ -54,6 +57,10 @@ export function startMeasurement() {
 // Called when a model is created (with the step's state the server answered)
 // and when the model is cleared (with nulls).
 export function useMeasurement(sessionId, step) {
+    if (state.sessionId !== sessionId) {
+        state.parameters = null;
+        document.getElementById('dt-parameters-fields').innerHTML = '';
+    }
     state.sessionId = sessionId;
     state.step = step;
     document.getElementById('dt-planes-need-model').style.display = step ? 'none' : '';
@@ -136,6 +143,8 @@ async function runBalancing() {
             iterations: Number(document.getElementById('dt-iterations').value),
             population: Number(document.getElementById('dt-population').value),
             optimize: document.getElementById('dt-optimize').value === 'yes',
+            preset: document.getElementById('dt-parameters-preset').value,
+            parameters: parameterValues(),
         });
         stop();
         showAnalysis(answer);
@@ -144,28 +153,6 @@ async function runBalancing() {
         if (!state.result) card.style.display = 'none';
         status.textContent = error.message;
         openCustomAlert(error.message);
-        button.disabled = false;
-    }
-}
-
-// The hyperparameters of the machine, the file the Digital Twin app passes to
-// rossml for every run. Without it the estimate uses the library defaults and
-// does not reproduce that app, which is what `dt-parameters-status` says.
-async function applyParameters() {
-    const input = document.getElementById('dt-parameters-file');
-    const file = input.files && input.files[0];
-    const body = { session: state.sessionId, filename: null, content: null };
-    if (file) {
-        body.filename = file.name;
-        body.content = await file.text();
-    }
-    const button = document.getElementById('dt-parameters-apply');
-    button.disabled = true;
-    try {
-        showAnalysis(await apiJson('/api/dt/balancing-parameters', body));
-    } catch (error) {
-        openCustomAlert(error.message);
-    } finally {
         button.disabled = false;
     }
 }
@@ -185,12 +172,65 @@ async function refreshAnalysis() {
 function showAnalysis(answer) {
     document.getElementById('dt-run').disabled = !answer.ready;
     document.getElementById('dt-run-refusal').textContent = answer.refusal;
-    const status = document.getElementById('dt-parameters-status');
-    status.textContent = answer.parameters
-        ? `${t('dtParametersFrom' + (answer.parameters.source === 'model' ? 'Model' : 'File'))} ${answer.parameters.name}`
-        : (answer.parameters_warning || '');
-    status.classList.toggle('dt-warning', !answer.parameters);
+    showParameters(answer.parameters);
     renderBalancing(answer.balancing);
+}
+
+// The analysis parameters: a preset (the rossml defaults or a machine of the
+// Digital Twin app) fills every field, and any field can be changed after.
+// The server answers them on every refresh; the fields are redrawn only when
+// the preset differs, so what the user typed is kept until the run sends it.
+const PARAMETER_GROUPS = ['signal', 'kalman', 'limits', 'direct', 'indirect'];
+
+function showParameters(parameters) {
+    if (!parameters) return;
+    const changed = !state.parameters || state.parameters.preset !== parameters.preset;
+    state.parameters = parameters;
+    const select = document.getElementById('dt-parameters-preset');
+    select.innerHTML = parameters.presets.map(item => {
+        const label = item.models.length ? item.models.join(', ') : t('dtParametersDefaults');
+        return `<option value="${escapeHtml(item.id)}">${escapeHtml(label)}</option>`;
+    }).join('');
+    select.value = parameters.preset;
+    if (changed || !document.getElementById('dt-parameters-fields').children.length) {
+        drawParameterFields(parameters.fields, parameters.values);
+    }
+}
+
+function drawParameterFields(fields, values) {
+    document.getElementById('dt-parameters-fields').innerHTML = PARAMETER_GROUPS.map(group => {
+        const inputs = fields.filter(field => field.group === group).map(field => {
+            const value = values[field.key];
+            return `<div class="input-group">
+                <label for="dt-param-${field.key}">${escapeHtml(t('dtParam_' + field.key))}</label>
+                <input id="dt-param-${field.key}" type="number" step="${field.whole ? 1 : 'any'}"
+                       value="${value === null || value === undefined ? '' : value}">
+            </div>`;
+        }).join('');
+        return `<fieldset class="dt-parameter-group"><legend>${escapeHtml(t('dtParamGroup_' + group))}</legend>${inputs}</fieldset>`;
+    }).join('');
+}
+
+function chosenPreset() {
+    const id = document.getElementById('dt-parameters-preset').value;
+    return (state.parameters?.presets || []).find(item => item.id === id) || null;
+}
+
+function fillParameters(preset) {
+    if (!preset || !state.parameters) return;
+    state.parameters = { ...state.parameters, preset: preset.id, values: preset.values };
+    drawParameterFields(state.parameters.fields, preset.values);
+}
+
+// The fields as the run sends them: an empty one is null, the rossml default.
+function parameterValues() {
+    const values = {};
+    (state.parameters?.fields || []).forEach(field => {
+        const input = document.getElementById(`dt-param-${field.key}`);
+        const text = input ? String(input.value).trim() : '';
+        values[field.key] = text === '' ? null : Number(text);
+    });
+    return values;
 }
 
 function renderBalancing(result) {
