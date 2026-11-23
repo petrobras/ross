@@ -2923,14 +2923,9 @@ class Rotor(object):
 
         progress_interval = t_max / 25 if verbose >= 1 else None
 
-        bearings_by_tag = {bearing.tag: bearing for bearing in magnetic_bearings}
-
         for amb_tag in sensitivity_compute_dofs.keys():
             for axis in sensitivity_compute_dofs[amb_tag].keys():
                 sensitivity_result_values = {}
-
-                bearing = bearings_by_tag[amb_tag]
-                sensor_angle = bearing.sensors_axis_rotation
 
                 if progress_interval is not None:
                     self.run_time_response(
@@ -2942,7 +2937,6 @@ class Rotor(object):
                         sensitivity_disturbance=chirp_signal,
                         sensitivity_result_values=sensitivity_result_values,
                         sensitivity_compute_dof=sensitivity_compute_dofs[amb_tag][axis],
-                        sensor_angle=sensor_angle,
                     )
                 else:
                     self.run_time_response(
@@ -2953,7 +2947,6 @@ class Rotor(object):
                         sensitivity_disturbance=chirp_signal,
                         sensitivity_result_values=sensitivity_result_values,
                         sensitivity_compute_dof=sensitivity_compute_dofs[amb_tag][axis],
-                        sensor_angle=sensor_angle,
                     )
 
                 sensitivity_data[amb_tag][axis] = dict(sensitivity_result_values)
@@ -3403,16 +3396,17 @@ class Rotor(object):
 
         sens_dof = kwargs.get("sensitivity_compute_dof")
         sens_dist = kwargs.get("sensitivity_disturbance")
-        sensor_angle = kwargs.get("sensor_angle", np.deg2rad(45))
         progress_interval = kwargs.get("progress_interval")
         amb_data = kwargs.get("amb_data")
-
-        cos_angle = np.cos(sensor_angle)
-        sin_angle = np.sin(sensor_angle)
 
         magnetic_force = np.zeros(self.ndof)
 
         for i, elm in enumerate(magnetic_bearings):
+            # Control axes v, w of this bearing, rotated by its own
+            # sensors_axis_rotation (same R as MagneticBearingElement).
+            cos_angle = np.cos(elm.sensors_axis_rotation)
+            sin_angle = np.sin(elm.sensors_axis_rotation)
+
             sensor_x_dof = self.number_dof * elm.sensor_node
             sensor_y_dof = sensor_x_dof + 1
 

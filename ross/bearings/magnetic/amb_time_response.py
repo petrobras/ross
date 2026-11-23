@@ -38,7 +38,9 @@ class AmbTimeResponse:
         t : array_like
             Time vector for the simulation in seconds.
         speed : float
-            Rotor speed in rad/s.
+            Constant rotor speed in rad/s. The gyroscopic matrix enters the
+            model as ``speed * G``, as in ``Rotor.A(speed)``. For a varying
+            speed, use the Newmark path of ``Rotor.run_time_response``.
         F : array_like, optional
             External forces applied to the rotor.
 
@@ -80,6 +82,7 @@ class AmbTimeResponse:
 
         # Magnetic Bearings and Control (AMB)
         self.node = []  # Bearing application nodes
+        self.sensor_angles = []  # Control axes rotation of each AMB (rad)
         self.k_i = []  # Current stiffness constants
         self.k_s = []  # Position stiffness constants (magnetic)
         self.a_c = None  # Controller A matrices
@@ -105,6 +108,14 @@ class AmbTimeResponse:
         stiffness matrices, projects the M, C, and K matrices into the modal
         domain, and prints the first natural frequencies.
 
+        The matrices are evaluated at the rotor speed, and the projected
+        damping includes the gyroscopic coupling, ``C + speed * G``, as in
+        ``Rotor.A(speed)``. The gyroscopic matrix is skew-symmetric and the
+        bearing stiffness may have cross-coupled terms, so the modal basis is
+        taken from the symmetric part of K. Any M-orthonormal basis is exact
+        when all modes are kept (``num_modes=-1``); with a reduced basis,
+        keep enough modes in both planes.
+
         Examples
         --------
         >>> from ross.bearings.magnetic.amb_models import rotor_example_amb_complex_controllers
@@ -117,11 +128,14 @@ class AmbTimeResponse:
         """
         modal_reduction = True
 
-        M = self.rotor.M(self.speed)
-        C = self.rotor.C(self.speed)
-        K = self.rotor.K(self.speed)
+        M = self.rotor.M(frequency=self.speed, speed=self.speed)
+        K = self.rotor.K(frequency=self.speed, speed=self.speed)
+        C = (
+            self.rotor.C(frequency=self.speed, speed=self.speed)
+            + self.speed * self.rotor.G()
+        )
 
-        eigenvalues, eigenvectors = eigh(K, M)
+        eigenvalues, eigenvectors = eigh(0.5 * (K + K.T), M)
 
         if self.num_modes == -1:
             modal_reduction = False
@@ -173,7 +187,7 @@ class AmbTimeResponse:
 
         # Initialize lists
         self.a_c, self.b_c, self.c_c, self.d_c = [], [], [], []
-        self.k_i, self.k_s, self.node = [], [], []
+        self.k_i, self.k_s, self.node, self.sensor_angles = [], [], [], []
 
         for amb in magnetic_bearings:
             # Controller
@@ -195,6 +209,7 @@ class AmbTimeResponse:
             self.k_i.extend([amb.axis_gain(amb.ki, axis) for axis in range(2)])
             self.k_s.extend([amb.axis_gain(amb.ks, axis) for axis in range(2)])
             self.node.extend([amb.n, amb.n])
+            self.sensor_angles.append(float(amb.sensors_axis_rotation))
 
         # Removing AMBs from model
         self.rotor.bearing_elements = [
@@ -264,10 +279,9 @@ class AmbTimeResponse:
         ...
         >>> sim.build_matrices()
         """
-        theta = np.pi / 4  # Bearing orientation angle (45 degrees)
         n_controllers = 2 * self.n_amb
 
-        K = self.rotor.K(self.speed)
+        K = self.rotor.K(frequency=self.speed, speed=self.speed)
 
         M_m = self.M_m
         C_m = self.C_m
@@ -279,10 +293,19 @@ class AmbTimeResponse:
             phi[node * 6 + 0, 2 * i] = 1  # AMB i - X
             phi[node * 6 + 1, 2 * i + 1] = 1  # AMB i - Y
 
-        c_theta = np.cos(theta)
-        s_theta = np.sin(theta)
-        r = np.array([[c_theta, s_theta], [-s_theta, c_theta]])
-        R = block_diag(*[r for _ in range(self.n_amb)])
+        # Rotation from the x, y axes to the control axes v, w of each AMB,
+        # by its sensors_axis_rotation (same R as MagneticBearingElement).
+        R = block_diag(
+            *[
+                np.array(
+                    [
+                        [np.cos(angle), np.sin(angle)],
+                        [-np.sin(angle), np.cos(angle)],
+                    ]
+                )
+                for angle in self.sensor_angles
+            ]
+        )
 
         A_c = block_diag(*self.a_c)
         B_c = block_diag(*self.b_c)
@@ -405,7 +428,7 @@ class AmbTimeResponse:
 
         sys = signal.lti(self.A_cl, self.B_cl, self.C_cl, self.D_cl)
         Phi_T = np.transpose(self.Phi)
-        M = self.rotor.M(self.speed)
+        M = self.rotor.M(frequency=self.speed, speed=self.speed)
 
         F_e = np.zeros((len(self.t), self.n_dof))
         if self.F is not None:

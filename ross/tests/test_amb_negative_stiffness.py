@@ -70,10 +70,10 @@ def _p_only_rotor(kp, **amb_kwargs):
     return Rotor(shaft, [disk], bearings)
 
 
-def _closed_loop(rotor):
+def _closed_loop(rotor, speed=0.0):
     """Build AmbTimeResponse without running the simulation."""
     t = np.linspace(0.0, 1e-3, 3)
-    sim = AmbTimeResponse(rotor, t=t, speed=0, weight=False)
+    sim = AmbTimeResponse(rotor, t=t, speed=speed, weight=False)
     sim.process_rotor()
     sim.setup_modal_domain()
     sim.build_matrices()
@@ -382,6 +382,79 @@ def test_levitation_threshold_is_checked_per_axis(i0_axes, levitates):
 
     for max_real in (frequency_domain, time_domain):
         assert bool(max_real < SMALL_EIGENVALUE) == levitates
+
+
+# Rotation and control axes in the time-domain paths. Rotor.A(speed) adds the
+# gyroscopic coupling speed * G to the damping, and MagneticBearingElement
+# rotates its stiffness by sensors_axis_rotation. AmbTimeResponse and the
+# Newmark controller must do the same.
+
+
+def _assert_contains_eigenvalues(closed_loop, reference):
+    scale = np.max(np.abs(reference))
+    for eigenvalue in reference:
+        distance = np.min(np.abs(closed_loop - eigenvalue))
+        assert distance <= 1e-6 * abs(eigenvalue) + 1e-9 * scale, eigenvalue
+
+
+@pytest.mark.parametrize("speed", [500.0, 2000.0])
+def test_lsim_closed_loop_matches_frequency_domain_in_rotation(speed):
+    """A_cl must contain the eigenvalues of Rotor.A(speed), gyroscopic term included."""
+    rotor = _p_only_rotor(3.0 * KP_THRESHOLD)
+
+    reference = np.linalg.eigvals(rotor.A(speed=speed))
+    reference = reference[np.abs(reference) > SMALL_EIGENVALUE]
+    at_rest = np.linalg.eigvals(rotor.A(speed=0))
+
+    # The rotation must split the modes, otherwise the test cannot tell a
+    # model with the gyroscopic term from one without it.
+    split = max(np.min(np.abs(at_rest - eigenvalue)) for eigenvalue in reference)
+    assert split > 1e-3 * np.max(np.abs(reference))
+
+    closed_loop = np.linalg.eigvals(_closed_loop(rotor, speed=speed).A_cl)
+    _assert_contains_eigenvalues(closed_loop, reference)
+
+
+@pytest.mark.parametrize("kp", [0.9, 3.0])
+def test_lsim_closed_loop_uses_the_sensors_axis_rotation(kp):
+    """With different axes, the angle changes K in x, y; both paths must use it."""
+    rotor = _p_only_rotor(
+        kp * KP_THRESHOLD,
+        i0=[1.0, 0.8],
+        k_amp=[1.0, 2.0],
+        sensors_axis_rotation=0.3,
+    )
+
+    reference = np.linalg.eigvals(rotor.A(speed=0))
+    reference = reference[np.abs(reference) > SMALL_EIGENVALUE]
+    closed_loop = np.linalg.eigvals(_closed_loop(rotor).A_cl)
+    _assert_contains_eigenvalues(closed_loop, reference)
+
+
+def test_newmark_controller_uses_the_sensors_axis_rotation():
+    """The Newmark force is -K(0) x, with K rotated by sensors_axis_rotation."""
+    rotor = _p_only_rotor(
+        3.0 * KP_THRESHOLD,
+        i0=[1.0, 0.8],
+        k_amp=[1.0, 2.0],
+        sensors_axis_rotation=0.3,
+    )
+    magnetic_bearings = [
+        brg for brg in rotor.bearing_elements if isinstance(brg, MagneticBearingElement)
+    ]
+    for amb in magnetic_bearings:
+        amb.build_controller(dt=1e-4)
+
+    disp = np.zeros(rotor.ndof)
+    x_y = np.array([2e-5, -1e-5])
+    for amb in magnetic_bearings:
+        disp[6 * amb.n : 6 * amb.n + 2] = x_y
+
+    force = rotor.magnetic_bearing_controller(0, magnetic_bearings, 1e-4, disp)
+
+    for amb in magnetic_bearings:
+        expected = -amb.K(0)[:2, :2] @ x_y
+        assert_allclose(force[6 * amb.n : 6 * amb.n + 2], expected, rtol=1e-9)
 
 
 # Operating point under a static load. Reference: the nonlinear force of the
