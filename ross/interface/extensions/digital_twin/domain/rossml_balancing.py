@@ -160,10 +160,9 @@ def run(
 def settings(hyperparameters):
     """Turn the analysis parameters into arguments of `API.run`.
 
-    They win over the library defaults wherever `API.run` takes the key, and
-    `number_points` comes out of `signal_parameters`. What `run` decides (the
-    signals, the planes, the speed the signals were measured at and the
-    settings chosen on the screen) is not taken from them.
+    They win over the library defaults wherever `API.run` takes the key. What
+    `run` decides (the signals, the planes, the speed the signals were measured
+    at and the settings chosen on the screen) is not taken from them.
     """
     if not hyperparameters:
         return {}
@@ -172,11 +171,7 @@ def settings(hyperparameters):
     from rossml.api import API
 
     accepted = set(inspect.signature(API.run).parameters) - OWNED
-    chosen = {key: value for key, value in hyperparameters.items() if key in accepted}
-    signal = hyperparameters.get("signal_parameters")
-    if isinstance(signal, dict) and signal.get("number_points"):
-        chosen["number_points"] = signal["number_points"]
-    return chosen
+    return {key: value for key, value in hyperparameters.items() if key in accepted}
 
 
 def chart(api, kind, node=None, sensor=0, positions=None, radii=None):

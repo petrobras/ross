@@ -92,6 +92,7 @@ class FakeAPI:
         balance_plans=None,
         speed=None,
         number_points=4096,
+        w_f0=0.65,
         rotation_sense="clockwise",
         indirect=None,
         view_plans="all",
@@ -275,26 +276,12 @@ def test_a_chart_is_refused_with_the_reason(measured, fake_rossml):
             balancing_analysis.figure_for(measured.id, **arguments)
 
 
-# One value per field, of the shape rossml takes them. The values are not the
-# Petrobras ones: what is checked is that a filled field replaces the library
-# default of rossml, that an empty one leaves it, and that the keys rossml no
-# longer reads (`N_multiple`, the top-level `w_f0`, the plot settings) never
-# reach it.
+# One value per field, each different from the rossml default, so a test that
+# sees it in the arguments knows the field replaced the default. The values are
+# not the Petrobras ones.
 PARAMETERS = {
     "number_points": 2048,
-    "time_end": 7,
-    "noise_rate": 90,
-    "periods_number": 16,
-    "decomposition_threshold": 4,
-    "df": 1,
     "w_f0": 0.35,
-    "df_multiple": 11,
-    "mu_max_iter": 0,
-    "mu_pop_size": 2,
-    "mu_d_min": 100,
-    "mu_d_max": 1000,
-    "phi_min": 0,
-    "phi_max": 360,
     "direct_P": 0.1,
     "direct_Q": 1e-18,
     "direct_S": 3e8,
@@ -304,22 +291,25 @@ PARAMETERS = {
     "indirect_P_exponent_min": -5,
     "indirect_P_exponent_max": 5,
     "indirect_Q_mantissa_min": 1,
-    "indirect_Q_mantissa_max": 9,
-    "indirect_Q_exponent_min": -20,
-    "indirect_Q_exponent_max": -8,
-    "indirect_S_mantissa_min": 1,
-    "indirect_S_mantissa_max": 9,
-    "indirect_S_exponent_min": 2,
-    "indirect_S_exponent_max": 9,
+    "indirect_Q_mantissa_max": 7,
+    "indirect_Q_exponent_min": -18,
+    "indirect_Q_exponent_max": -9,
+    "indirect_S_mantissa_min": 3,
+    "indirect_S_mantissa_max": 8,
+    "indirect_S_exponent_min": 4,
+    "indirect_S_exponent_max": 7,
 }
 # The same values as rossml's `API.run` takes them.
 DIRECT = {"P_factor": 0.1, "Q_factor": 1e-18, "S_factor": 3e8, "R_factor": 7e-15}
 INDIRECT = {
     "P_factor": [[2, 8], [-5, 5]],
-    "Q_factor": [[1, 9], [-20, -8]],
-    "S_factor": [[1, 9], [2, 9]],
+    "Q_factor": [[1, 7], [-18, -9]],
+    "S_factor": [[3, 8], [4, 7]],
     "R_factor": None,
 }
+# The dictionaries `API.run` takes and then drops in `_clearmemory` without
+# reading them, so the interface has no field of theirs to send.
+UNREAD = ("signal_parameters", "kalman_flow", "resultant_force_limits")
 
 
 def test_the_analysis_parameters_read_no_machine_file():
@@ -340,16 +330,43 @@ def test_the_fields_start_empty_at_the_rossml_defaults(measured, fake_rossml):
     assert set(PARAMETERS) == set(analysis_parameters.KEYS)
     assert set(analysis_parameters.defaults().values()) == {None}
     answer = balancing_analysis.settings_for(measured.id)
-    assert {field["key"] for field in answer["parameters"]["fields"]} == set(
-        analysis_parameters.KEYS
+    fields = answer["parameters"]["fields"]
+    assert {field["key"] for field in fields} == set(analysis_parameters.KEYS)
+    # The screen shows the default beside each field, so the user can see what
+    # an empty one falls back to.
+    assert {field["key"]: field["default"] for field in fields} == (
+        analysis_parameters.DEFAULTS
     )
     assert set(answer["parameters"]["values"].values()) == {None}
     balancing_analysis.run_balancing(measured.id)
     seen = fake_rossml.seen
-    for key in ("indirect", "resultant_force_limits", "signal_parameters", "direct"):
+    for key in ("indirect", "direct") + UNREAD:
         assert seen[key] is None, key
-    # rossml's own default, which the interface does not pass.
+    # Nothing is passed for an empty field, so rossml keeps its own defaults.
+    assert analysis_parameters.arguments(answer["parameters"]["values"]) == {}
     assert seen["number_points"] == 4096
+    assert seen["w_f0"] == 0.65
+
+
+@pytest.mark.skipif(not rossml_balancing.available(), reason="rossml is not installed")
+def test_the_defaults_shown_are_the_ones_rossml_uses():
+    # The defaults the screen shows are written down in the interface, so that
+    # they are there without rossml installed. This is the check that they are
+    # the ones rossml falls back to, and that no field of the form goes to an
+    # argument rossml takes and never reads.
+    from rossml.api import API, _default_indirect
+
+    taken = inspect.signature(API.run).parameters
+    indirect = _default_indirect()
+    for key, _group, path, _whole in analysis_parameters.FIELDS:
+        shown = analysis_parameters.DEFAULTS[key]
+        assert path[0] not in UNREAD, key
+        if len(path) == 1:
+            assert shown == taken[path[0]].default, key
+        elif path[0] == "indirect":
+            assert shown == indirect[path[1]][path[2]][path[3]], key
+        else:
+            assert shown is None and taken[path[0]].default is None, key
 
 
 def test_the_chosen_fields_replace_the_rossml_defaults(measured, fake_rossml):
@@ -357,36 +374,17 @@ def test_the_chosen_fields_replace_the_rossml_defaults(measured, fake_rossml):
         measured.id,
         iterations=2,
         population=3,
-        values={
-            **PARAMETERS,
-            "noise_rate": "80",
-            "mu_d_max": 900,
-            **{"direct_%s" % factor: None for factor in "PQSR"},
-        },
+        values={**PARAMETERS, "w_f0": "0.4"},
     )
     seen = fake_rossml.seen
-    assert seen["signal_parameters"] == {
-        "time_end": 7,
-        "noise_rate": 80,
-        "periods_number": 16,
-        "number_points": 2048,
-        "decomposition_threshold": 4,
-        "df": 1,
-    }
     assert seen["number_points"] == 2048
-    limits = {"mu_d": [100, 900], "phi": [0, 360]}
-    assert seen["resultant_force_limits"] == limits
-    assert seen["kalman_flow"] == {
-        "w_f0": 0.35,
-        "df_multiple": 11,
-        "mu_max_iter": 0,
-        "mu_pop_size": 2,
-        "resultant_force_limits": limits,
-    }
+    assert seen["w_f0"] == 0.4
+    assert seen["direct"] == DIRECT
     assert seen["indirect"] == INDIRECT
-    assert seen["direct"] is None
-    for key in ("N_multiple", "w_f0", "plot_figs"):
-        assert key not in seen, key
+    # The dictionaries rossml drops unread are not sent, and neither are the
+    # keys it no longer reads.
+    for key in UNREAD + ("N_multiple", "plot_figs"):
+        assert seen.get(key) is None, key
     # What the run owns is kept: the iterations and population chosen on the
     # screen, the speed read from the signal files, and the folders.
     assert seen["kalman_max_iter"] == 2 and seen["kalman_pop_size"] == 3
@@ -394,26 +392,32 @@ def test_the_chosen_fields_replace_the_rossml_defaults(measured, fake_rossml):
     assert seen["database_directory"].endswith(os.sep + "database" + "/")
     # The session keeps the choice for the screen.
     answer = balancing_analysis.settings_for(measured.id)
-    assert answer["parameters"]["values"]["noise_rate"] == 80
+    assert answer["parameters"]["values"]["w_f0"] == 0.4
     assert answer["parameters"]["values"]["number_points"] == 2048
 
 
-def test_the_direct_factors_go_to_rossml_when_all_four_are_given(measured, fake_rossml):
-    balancing_analysis.run_balancing(measured.id, values=PARAMETERS)
-    assert fake_rossml.seen["direct"] == DIRECT
+def test_the_search_bounds_go_on_without_the_direct_factors(measured, fake_rossml):
+    # Without a direct value the optimizer searches inside the indirect bounds,
+    # which is what rossml does with `direct=None`.
+    values = {key: value for key, value in PARAMETERS.items() if "direct_" != key[:7]}
+    balancing_analysis.run_balancing(measured.id, values=values)
+    assert fake_rossml.seen["direct"] is None
+    assert fake_rossml.seen["indirect"] == INDIRECT
 
 
 def test_the_parameters_are_refused_when_they_cannot_be_used(measured):
     for values in (
         {"unknown": 1},
-        {"time_end": "abc"},
-        {"time_end": True},
-        {"time_end": float("inf")},
+        {"mu_d_min": 100},
+        {"w_f0": "abc"},
+        {"w_f0": True},
+        {"w_f0": float("inf")},
         {"number_points": 10.5},
         {"indirect_P_exponent_min": 1.5},
-        {"mu_d_min": 100},
         {"direct_P": 0.1},
-        {"phi_min": 400, "phi_max": 360},
+        {"indirect_P_mantissa_min": 2},
+        {**PARAMETERS, "indirect_P_mantissa_min": 9, "indirect_P_mantissa_max": 2},
+        {**PARAMETERS, "indirect_S_exponent_min": 9, "indirect_S_exponent_max": 2},
         [1, 2],
     ):
         with pytest.raises(ValueError):
@@ -424,17 +428,16 @@ def test_the_parameters_routes(measured, fake_rossml):
     client = create_app().test_client()
     answer = client.post(
         "/api/dt/balancing-parameters",
-        json={"session": measured.id, "parameters": {"df": 2, "w_f0": 0.65}},
+        json={"session": measured.id, "parameters": {"number_points": 2048}},
         headers=HEADERS,
     )
     assert answer.status_code == 200
     parameters = answer.get_json()["parameters"]
-    assert parameters["values"]["df"] == 2
-    assert parameters["values"]["w_f0"] == 0.65
-    assert parameters["values"]["number_points"] is None
+    assert parameters["values"]["number_points"] == 2048
+    assert parameters["values"]["w_f0"] is None
     refused = client.post(
         "/api/dt/balancing-parameters",
-        json={"session": measured.id, "parameters": {"df": "x"}},
+        json={"session": measured.id, "parameters": {"number_points": "x"}},
         headers=HEADERS,
     )
     assert refused.status_code == 400

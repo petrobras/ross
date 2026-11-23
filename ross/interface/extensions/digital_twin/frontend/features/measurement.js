@@ -175,10 +175,10 @@ function showAnalysis(answer) {
 }
 
 // The analysis parameters: one field per value the estimate uses, empty until
-// the user fills it, and an empty one leaves rossml its own default. The
-// server answers them on every refresh; the fields are drawn once, so what the
-// user typed is kept until the run sends it.
-const PARAMETER_GROUPS = ['signal', 'kalman', 'limits', 'direct', 'indirect'];
+// the user fills it, with the rossml default it falls back to shown in the box
+// as a placeholder. The server answers them on every refresh; the fields are
+// drawn once, so what the user typed is kept until the run sends it.
+const PARAMETER_GROUPS = ['signal', 'kalman', 'direct', 'indirect'];
 
 function showParameters(parameters) {
     if (!parameters) return;
@@ -192,9 +192,15 @@ function drawParameterFields(fields, values) {
     document.getElementById('dt-parameters-fields').innerHTML = PARAMETER_GROUPS.map(group => {
         const inputs = fields.filter(field => field.group === group).map(field => {
             const value = values[field.key];
+            // The placeholder is what rossml uses when the box is left empty.
+            // A field rossml searches for instead of defaulting has none.
+            const fallback = field.default === null || field.default === undefined
+                ? t('dtParamSearched')
+                : String(field.default);
             return `<div class="input-group">
                 <label for="dt-param-${field.key}">${escapeHtml(t('dtParam_' + field.key))}</label>
                 <input id="dt-param-${field.key}" type="number" step="${field.whole ? 1 : 'any'}"
+                       placeholder="${escapeHtml(fallback)}"
                        value="${value === null || value === undefined ? '' : value}">
             </div>`;
         }).join('');

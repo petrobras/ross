@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
 """The parameters of the rossml balancing analysis, as fields of a form.
 
-rossml takes them as nested dictionaries (`signal_parameters`, `kalman_flow`,
-`resultant_force_limits`, `direct`, `indirect`). The screen shows each value
-as a field, empty until the user fills it, and an empty field leaves rossml
-its own default. `FIELDS` lists the values the estimate uses; nothing else
-reaches rossml.
+The screen shows one field per value, with the rossml default beside it, and
+an empty field leaves rossml that default. `FIELDS` lists the values the
+estimate uses and where each one goes in the arguments of `rossml.api.API.run`
+(`number_points` and `w_f0` on their own, the filter factors inside `direct`
+and `indirect`); nothing else reaches rossml.
+
+Only the values rossml reads are here. `signal_parameters`, `kalman_flow` and
+`resultant_force_limits` are taken by `API.run` and then dropped by its
+`_clearmemory` without being read, so a field of theirs would change nothing;
+they belong here again when rossml reads them again.
 
 The parameters of a machine are not read here. They belong to the machine,
 not to the library, so they stay in the Digital Twin app with the rest of its
@@ -17,32 +22,14 @@ for the exponent, are where the optimizer searches when there is no direct
 value.
 """
 
-import copy
 import math
 
 FACTORS = ("P", "Q", "S")
 
-# key, group, path inside rossml's dictionaries, whole number or not.
+# key, group, path inside the arguments of `API.run`, whole number or not.
 FIELDS = [
-    ("number_points", "signal", ("signal_parameters", "number_points"), True),
-    ("time_end", "signal", ("signal_parameters", "time_end"), False),
-    ("noise_rate", "signal", ("signal_parameters", "noise_rate"), False),
-    ("periods_number", "signal", ("signal_parameters", "periods_number"), True),
-    (
-        "decomposition_threshold",
-        "signal",
-        ("signal_parameters", "decomposition_threshold"),
-        False,
-    ),
-    ("df", "signal", ("signal_parameters", "df"), False),
-    ("w_f0", "kalman", ("kalman_flow", "w_f0"), False),
-    ("df_multiple", "kalman", ("kalman_flow", "df_multiple"), True),
-    ("mu_max_iter", "kalman", ("kalman_flow", "mu_max_iter"), True),
-    ("mu_pop_size", "kalman", ("kalman_flow", "mu_pop_size"), True),
-    ("mu_d_min", "limits", ("resultant_force_limits", "mu_d", 0), False),
-    ("mu_d_max", "limits", ("resultant_force_limits", "mu_d", 1), False),
-    ("phi_min", "limits", ("resultant_force_limits", "phi", 0), False),
-    ("phi_max", "limits", ("resultant_force_limits", "phi", 1), False),
+    ("number_points", "signal", ("number_points",), True),
+    ("w_f0", "kalman", ("w_f0",), False),
 ]
 FIELDS += [
     ("direct_%s" % factor, "direct", ("direct", "%s_factor" % factor), False)
@@ -63,12 +50,34 @@ KEYS = [field[0] for field in FIELDS]
 WHOLE = {key: whole for key, _group, _path, whole in FIELDS}
 WHOLE_PATH = {path: whole for _key, _group, path, whole in FIELDS}
 
+# What rossml uses when the field is empty, so the screen can show it. The
+# source is `rossml/api.py`: the defaults of `API.run` for `number_points` and
+# `w_f0`, and `_default_indirect()` for the search bounds. `direct` has no
+# default: without one the optimizer searches inside the indirect bounds.
+# `test_the_defaults_shown_are_the_ones_rossml_uses` compares them.
+DEFAULTS = {
+    "number_points": 4096,
+    "w_f0": 0.65,
+    "direct_P": None,
+    "direct_Q": None,
+    "direct_S": None,
+    "direct_R": None,
+    "indirect_P_mantissa_min": 1,
+    "indirect_P_mantissa_max": 9,
+    "indirect_P_exponent_min": -9,
+    "indirect_P_exponent_max": 9,
+    "indirect_Q_mantissa_min": 1,
+    "indirect_Q_mantissa_max": 9,
+    "indirect_Q_exponent_min": -20,
+    "indirect_Q_exponent_max": -8,
+    "indirect_S_mantissa_min": 1,
+    "indirect_S_mantissa_max": 9,
+    "indirect_S_exponent_min": 2,
+    "indirect_S_exponent_max": 9,
+}
+
 # Values that only make sense together: all of them or none.
-PAIRS = [
-    ("mu_d_min", "mu_d_max"),
-    ("phi_min", "phi_max"),
-    tuple("direct_%s" % factor for factor in FACTORS + ("R",)),
-] + [
+PAIRS = [tuple("direct_%s" % factor for factor in FACTORS + ("R",))] + [
     tuple(key for key in KEYS if key.startswith("indirect_%s_" % factor))
     for factor in FACTORS
 ]
@@ -114,30 +123,33 @@ def chosen(values=None):
             raise ValueError(
                 "Fill all of %s, or leave them all empty." % ", ".join(keys)
             )
-    for low, high in (("mu_d_min", "mu_d_max"), ("phi_min", "phi_max")):
-        if fields[low] is not None and fields[low] > fields[high]:
-            raise ValueError("%s must not be larger than %s." % (low, high))
+    for factor in FACTORS:
+        for part in ("mantissa", "exponent"):
+            low = fields["indirect_%s_%s_min" % (factor, part)]
+            high = fields["indirect_%s_%s_max" % (factor, part)]
+            if low is not None and low > high:
+                raise ValueError(
+                    "The %s range of the %s factor must not start above its end."
+                    % (part, factor)
+                )
     return fields
 
 
 def arguments(fields):
-    """Turn the fields into the dictionaries rossml's `API.run` takes."""
+    """Turn the fields into the arguments rossml's `API.run` takes."""
     nested = {}
     for key, _group, path, _whole in FIELDS:
         if fields.get(key) is not None:
             _put(nested, path, fields[key])
-    if "resultant_force_limits" in nested:
-        limits = copy.deepcopy(nested["resultant_force_limits"])
-        nested.setdefault("kalman_flow", {})["resultant_force_limits"] = limits
     if "indirect" in nested:
         nested["indirect"]["R_factor"] = None
     return nested
 
 
 def describe():
-    """Return the fields as the screen draws them: key, group, whole number."""
+    """Return the fields as the screen draws them: key, group, default, whole."""
     return [
-        {"key": key, "group": group, "whole": whole}
+        {"key": key, "group": group, "default": DEFAULTS[key], "whole": whole}
         for key, group, _path, whole in FIELDS
     ]
 

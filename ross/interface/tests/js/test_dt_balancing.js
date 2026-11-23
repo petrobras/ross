@@ -29,14 +29,14 @@ let planes = { measuring: [], balancing: [] };
 let ran = null;
 let applied = new Set();
 // The analysis parameters as the server answers them: one field per value the
-// estimate uses, every one empty at the rossml default.
+// estimate uses, every one empty, with the rossml default it falls back to.
 const PARAMETER_FIELDS = [
-    { key: 'number_points', group: 'signal', whole: true },
-    { key: 'noise_rate', group: 'signal', whole: false },
-    { key: 'mu_d_min', group: 'limits', whole: false },
-    { key: 'mu_d_max', group: 'limits', whole: false },
+    { key: 'number_points', group: 'signal', default: 4096, whole: true },
+    { key: 'w_f0', group: 'kalman', default: 0.65, whole: false },
+    { key: 'direct_P', group: 'direct', default: null, whole: false },
+    { key: 'indirect_P_mantissa_min', group: 'indirect', default: 1, whole: true },
 ];
-const PARAMETER_VALUES = { number_points: null, noise_rate: null, mu_d_min: null, mu_d_max: null };
+const PARAMETER_VALUES = { number_points: null, w_f0: null, direct_P: null, indirect_P_mantissa_min: null };
 const startingParameters = () => ({ values: { ...PARAMETER_VALUES }, fields: PARAMETER_FIELDS });
 let parameters = startingParameters();
 const asked = [];
@@ -273,23 +273,29 @@ check('applying the last sensor enables the analysis, with no reload',
 
 const fieldsBox = () => document.getElementById('dt-parameters-fields').innerHTML;
 check('each field is drawn in its group, empty at the rossml defaults',
-      fieldsBox().includes('Number of points') && fieldsBox().includes('Resultant force limits')
-      && fieldsBox().includes('id="dt-param-noise_rate"') && !fieldsBox().includes('value="90"')
-      && !fieldsBox().includes('value="2048"'));
+      fieldsBox().includes('Number of points') && fieldsBox().includes('Filter factors (direct)')
+      && fieldsBox().includes('id="dt-param-w_f0"') && !fieldsBox().includes('value="0.65"')
+      && !fieldsBox().includes('value="4096"'));
+check('the rossml default is shown in the empty box, so it can be changed',
+      /id="dt-param-number_points"[^>]*placeholder="4096"/.test(fieldsBox())
+      && /id="dt-param-w_f0"[^>]*placeholder="0.65"/.test(fieldsBox())
+      && /id="dt-param-indirect_P_mantissa_min"[^>]*placeholder="1"/.test(fieldsBox()));
+check('a factor rossml searches for says so instead of showing a default',
+      /id="dt-param-direct_P"[^>]*placeholder="searched"/.test(fieldsBox()));
 check('no machine-parameters picker is wired up any more',
       MEASUREMENT_ACTIONS['dt-parameters-preset'] === undefined);
 check('a whole-number field steps by one, the others take any value',
       /id="dt-param-number_points" type="number" step="1"/.test(fieldsBox())
-      && /id="dt-param-noise_rate" type="number" step="any"/.test(fieldsBox()));
+      && /id="dt-param-w_f0" type="number" step="any"/.test(fieldsBox()));
 check('no file is asked for any more',
       !asked.some(route => route.includes('/api/dt/balancing-parameters')));
 
 // The fake DOM keeps an element's value apart from the HTML it was drawn
 // with, so the values the run reads are set on the elements themselves.
 node('dt-param-number_points').value = '2048';
-node('dt-param-noise_rate').value = '80';
-node('dt-param-mu_d_min').value = '';
-node('dt-param-mu_d_max').value = ' ';
+node('dt-param-w_f0').value = '0.4';
+node('dt-param-direct_P').value = '';
+node('dt-param-indirect_P_mantissa_min').value = ' ';
 
 document.getElementById('dt-iterations').value = '2';
 document.getElementById('dt-population').value = '3';
@@ -309,8 +315,9 @@ check('the run carries the chosen iterations, population and optimization',
       ran && ran.iterations === 2 && ran.population === 3 && ran.optimize === true);
 check('the run sends every field, an empty one as null',
       ran.preset === undefined && ran.parameters.number_points === 2048
-      && ran.parameters.noise_rate === 80
-      && ran.parameters.mu_d_min === null && ran.parameters.mu_d_max === null);
+      && ran.parameters.w_f0 === 0.4
+      && ran.parameters.direct_P === null
+      && ran.parameters.indirect_P_mantissa_min === null);
 check('the correction mass and its phase are shown per plane',
       document.getElementById('dt-balancing-card').style.display === ''
       && document.getElementById('dt-balancing-result').innerHTML.includes('0.500')
