@@ -5070,7 +5070,9 @@ class Rotor(object):
 
         for i, Q in enumerate(stiffness):
             bearings = [copy(b) for b in self.bearing_elements]
-            cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
+            cross_coupling = BearingElement(
+                n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q, tag="Level 1 cross-coupling"
+            )
             bearings.append(cross_coupling)
 
             rotor = self._new_rotor(
