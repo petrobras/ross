@@ -276,14 +276,14 @@ rotor_fem = coupled_load_rotor.add_motor(
 rotor_fem.motor.n_torque  # 5: the joint node (motor side of the coupling), where the torque acts
 # the load rotor nodes are shifted by 5: coupling 5-6, disks at nodes 8 and 10
 
-t = np.arange(0, 3.0 + 1e-4, 1e-4)
+t = np.arange(0, 4.0 + 1e-4, 1e-4)
 response = rotor_lumped.run_with_motor(
     t=t,
     node=[2],  # unbalance nodes (use [8] for rotor_fem)
     unbalance_magnitude=[5e-4],  # kg·m
     unbalance_phase=[0],  # rad
     drive_mode="DOL",  # "DOL", "VFD_VF" or "VFD_FOC"
-    load_torque_entrance_time=1.5,
+    load_torque_entrance_time=2.5,
     load_torque_ratio=1.0,
 )
 ```
@@ -299,6 +299,7 @@ response = rotor_lumped.run_with_motor(
 - `steady_state=True` (default) integrates only the last third of the interval after `load_torque_entrance_time`: `response.t` starts there, not at `t[0]`. The motor start-up and load transient are skipped, but the rotor starts from rest at the start of that window, so the window begins with a new lateral transient. In the run above the amplitudes at the end of the window are still 20-40 % above the steady value. Use `steady_state=False` (or a longer `t`) when amplitudes matter.
 - `F` (shape `(len(t), rotor.ndof)`) adds external forces; extra keyword arguments go to the Newmark integrator (`gamma`, `beta`, `tol`, ...) and `Rotor.integrate_system`.
 - `run_with_motor` raises `ValueError` if the rotor has no motor (`rotor.motor` is None).
+- The start-up time grows with the polar inertia of the whole rotor, which is larger than `Ip` of the motor. Use a `t` long enough for the shaft to reach its speed, and `load_torque_entrance_time` after it.
 - Use a time step suited to the rotor integration (0.1 ms here); finer steps make the Newmark run slow.
 
 ### Results
