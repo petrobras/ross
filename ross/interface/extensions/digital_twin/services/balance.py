@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""BRBalance, without Streamlit.
+"""BRBalance: the influence-coefficient balancing calculator.
 
 The calculation stays in `brbalance_calc.py` of the Digital Twin app. This
 module turns the form into the arrays that function expects, and turns the
@@ -30,7 +30,7 @@ _LIMITS = {
 
 
 def load_calc():
-    """Import the existing calculator. It does not import Streamlit."""
+    """Import the existing calculator."""
     ensure_on_path()
     import brbalance_calc
 
@@ -98,7 +98,7 @@ def report_bytes(state):
 
 
 def save_brb(state):
-    """Pack the form into the same .brb zip the Streamlit page writes."""
+    """Pack the form into the same .brb zip the Digital Twin app writes."""
     if not isinstance(state, dict):
         raise ValueError("The balancing state must be an object.")
     encoded = json.dumps(state, ensure_ascii=False).encode("utf-8")

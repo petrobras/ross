@@ -79,7 +79,7 @@ globalThis.fetch = async (path, options = {}) => {
                     session: { equipment: body.name, model: 'user_rotor', rotation: body.rotation, has_rotor: true },
                     rotor: { nodes: ROTOR_NODES, mass: 88.2, bearings: 2, disks: 2, bearing_nodes: [0, 6] },
                     components: { bearings: 'b', labyrinths: '' },
-                    nan_warning: false, settings: null, messages: [],
+                    nan_warning: false, settings: null,
                     measurement: step(), figure: { data: [], layout: {} },
                 };
             }
@@ -332,7 +332,7 @@ check('the chart is drawn again for the new choice',
       chartsDrawn().length === 1);
 
 // The virtual sensing is offered on the balancing planes and the measuring
-// planes, as the Streamlit app offers it.
+// planes.
 document.getElementById('dt-chart-kind').value = 'vs_2d';
 drawn.length = 0;
 await MEASUREMENT_ACTIONS['dt-chart-change']({ dataset: {} });

@@ -2,7 +2,7 @@
 // this file only keeps the fields and draws the answer.
 //
 // The field keys (`ref_vib_amp`, `test1_vib_amp`, `test_1_vib_phase`, ...) are
-// those of the Streamlit page and of the .brb files it wrote, irregular
+// those of the .brb files the Digital Twin app wrote, irregular
 // spelling included: changing them would stop old files from opening.
 import { apiFetch } from '/core/api.js';
 import { openCustomAlert } from '/components/modals.js';

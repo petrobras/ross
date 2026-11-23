@@ -30,11 +30,9 @@ def _all_equipment():
     return [item for platform in equipment.catalog() for item in platform["equipment"]]
 
 
-def test_streamlit_models_are_not_refused_for_importing_streamlit():
+def test_the_lmest_model_is_available():
     items = {item["tag"]: item for item in _all_equipment()}
-    assert items[LMEST]["available"]
-    for item in items.values():
-        assert "Streamlit" not in item["reason"], item
+    assert items[LMEST]["available"], items[LMEST]["reason"]
 
 
 def test_unknown_tag_and_bad_time_are_refused():

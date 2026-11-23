@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Where the Streamlit Digital Twin app lives, and how its modules are reached.
+"""Where the Digital Twin app lives, and how its modules are reached.
 
 The calculators and rotor models stay in `a17404-digital-twin-app/app` until
 each one is brought across. `DT_APP_DIR` points somewhere else when needed.

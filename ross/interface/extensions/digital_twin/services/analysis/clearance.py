@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """3.3 Clearance analysis: the vibration at the bearings against their clearance.
 
-Same procedure as the Streamlit page: the API residual unbalance at the speed
+Same procedure as the Digital Twin app: the API residual unbalance at the speed
 is placed at the node of largest amplitude of the first forward mode; the
 response at the bearings is scaled so that its largest value equals the API
 amplitude limit A1 = 25.4 sqrt(12000 / N) [µm pk-pk]; and each bearing's

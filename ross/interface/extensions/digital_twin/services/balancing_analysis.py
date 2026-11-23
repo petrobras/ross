@@ -5,10 +5,9 @@ Not `services/balance.py`, which is the BRBalance calculator: that one takes
 the influence coefficients of trial masses, while this one estimates the
 unbalance from the measured signals with `rossml`.
 
-The Streamlit app saves its session and hands it to `RossmlApi.run()`, which
-unpickles it and calls `rossml`. Here the session is already in memory, so
-`domain/rossml_balancing.py` runs `rossml.api.API` with it, and the run is
-kept on the session to draw its charts when the screen asks for them.
+The session is already in memory, so `domain/rossml_balancing.py` runs
+`rossml.api.API` with it, and the run is kept on the session to draw its
+charts when the screen asks for them.
 
 What comes back is an unbalance per balancing plane: a mass times a radius,
 in g·mm, and its angle. The correction goes on the other side of the shaft,
@@ -29,7 +28,7 @@ from ross.interface.extensions.digital_twin.services.analysis.base import figure
 
 HALF_TURN = 180.0
 
-# What the Streamlit app always passes to rossml: the hyperparameters of the
+# What the Digital Twin app always passes to rossml: the hyperparameters of the
 # machine, from `models_files/<model>/input_parameters.json`. They are not in
 # ROSS, and the library defaults of rossml are not the same numbers, so an
 # estimate computed without them does not reproduce the app's.
@@ -252,12 +251,11 @@ def _corrections(current, estimate):
         "speed": measurement.waveform_speed(current),
         "measuring": sorted(current.measuring_nodes),
         # The angle of the unbalance is read against one sensor, so the screen
-        # offers the choice the Streamlit app does. The mass does not depend
-        # on it.
+        # offers that choice. The mass does not depend on it.
         "phases": estimate.get("phases", {}),
         "sensors": _sensors(current, estimate),
-        # The planes the virtual sensing is drawn for, as the Streamlit app
-        # offers them: the balancing planes used, then the measuring planes.
+        # The planes the virtual sensing is drawn for: the balancing planes
+        # used, then the measuring planes.
         "vs_nodes": list(
             dict.fromkeys(
                 [plane["node"] for plane in planes] + sorted(current.measuring_nodes)

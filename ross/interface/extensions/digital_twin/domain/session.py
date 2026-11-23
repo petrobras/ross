@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Digital Twin sessions: a directory on disk and what is still in memory.
 
-The directory follows the Streamlit app's layout (`database/`,
+The directory follows the Digital Twin app's layout (`database/`,
 `results/session_files/`), because that is what `rossml` reads later. The
 process data frame and the ROSS rotor stay in memory for this process; the
 rotor is also saved as `<model>.toml`, the file the `.rossdt` carries.

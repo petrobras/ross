@@ -5,8 +5,8 @@
 machine with an augmented Kalman filter. It is not a dependency of ROSS: the
 Digital Twin asks `available()` first and says what is missing.
 
-The estimate goes through `rossml.api.API`, the entry point rossml offers for
-running without the Streamlit app. `API.run` reads the waveform CSVs of the
+The estimate goes through `rossml.api.API`, the entry point rossml offers to
+other programs. `API.run` reads the waveform CSVs of the
 session, runs the filter and keeps the results, and its `plot_*` methods draw
 them: the virtual sensing of the displacements, the estimated forces, the
 polar chart of each balancing plane and the decomposition of a correction
@@ -115,8 +115,8 @@ def run(
     hyperparameters : dict, optional
         The contents of the machine's `input_parameters.json`, which replace
         the library defaults of rossml. Without them the estimate is not the
-        one the Streamlit app computes, because that app always passes the
-        file of the chosen model.
+        one the Digital Twin app computes, because that app always passes
+        the file of the chosen model.
 
     Returns
     -------
@@ -163,7 +163,7 @@ def settings(hyperparameters):
     """Turn a machine's `input_parameters.json` into arguments of `API.run`.
 
     The file wins over the library defaults wherever `API.run` takes the key,
-    as it does when the Streamlit app spreads it over its own dictionary, and
+    as it does when the Digital Twin app spreads it over its own dictionary, and
     `number_points` comes out of `signal_parameters`. What `run` decides (the
     signals, the planes, the speed the signals were measured at and the
     settings chosen on the screen) is not taken from the file.

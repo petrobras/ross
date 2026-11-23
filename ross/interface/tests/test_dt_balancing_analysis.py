@@ -199,8 +199,8 @@ def test_the_correction_is_the_estimate_over_the_radius_half_a_turn_away(
         {"node": 8, "plane": "X", "key": "Sensor #1", "index": 0},
         {"node": 8, "plane": "Y", "key": "Sensor #2", "index": 1},
     ]
-    # The virtual sensing is offered where the Streamlit app offers it: on the
-    # balancing planes the estimate used, then on the measuring planes.
+    # The virtual sensing is offered on the balancing planes the estimate
+    # used, then on the measuring planes.
     assert answer["balancing"]["vs_nodes"] == [14, 25, 8, 30]
     assert answer["balancing"]["charts"] == list(rossml_balancing.CHARTS)
 
@@ -301,7 +301,7 @@ def test_the_machine_parameters_replace_the_rossml_defaults(measured, fake_rossm
     balancing_analysis.run_balancing(measured.id, iterations=2, population=3)
     seen = fake_rossml.seen
     # The file wins where `API.run` takes the key, and `number_points` comes
-    # out of `signal_parameters`, as the Streamlit app reads it.
+    # out of `signal_parameters`, as the Digital Twin app reads it.
     assert seen["indirect"] == PARAMETERS["indirect"]
     assert seen["resultant_force_limits"] == PARAMETERS["resultant_force_limits"]
     assert seen["signal_parameters"] == PARAMETERS["signal_parameters"]

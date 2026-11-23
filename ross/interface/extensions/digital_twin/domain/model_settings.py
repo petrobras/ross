@@ -4,7 +4,7 @@
 A model declares its adjustable quantities as module-level constants,
 `RADIAL_BEARING_CLEARANCE = Q_(0.16 / 2, "mm")`, and `create_model` reads the
 user's values from `configured_data={"RADIAL_BEARING_CLEARANCE": [value,
-unit]}`. This is step 2.1 of the Streamlit app, its additional settings.
+unit]}`. These are the model's additional settings (step 2.1).
 
 The defaults are read with `ast`, without importing the model: only
 `Q_(<arithmetic on numbers>, "<unit>")` is evaluated, never arbitrary code.

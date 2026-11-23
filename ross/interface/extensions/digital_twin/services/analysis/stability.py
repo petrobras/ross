@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """3.4 Stability: whirl, damped frequency and log decrement at one speed.
 
-Two 4-DoF models, as on the Streamlit page: rotor and bearings only, and rotor
+Two 4-DoF models, as in the Digital Twin app: rotor and bearings only, and rotor
 with bearings and seals. The difference between the two is what the seals do
 to the stability.
 """

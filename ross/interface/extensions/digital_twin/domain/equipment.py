@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 """Equipment tags, their rotor models, and which models can run here.
 
-The tag list is `utils/settings.json` of the Digital Twin app. The models
-import `streamlit`, which `headless_streamlit` stands in for, so Streamlit is
-not needed. A model is unavailable only when a package it imports at the top
-of its module is not installed (`rossml` and `rossxl`, for the models with
-metamodels). The check reads the source with `ast`, without importing it.
+The tag list is `utils/settings.json` of the Digital Twin app. A model is
+unavailable when a package it imports at the top of its module is not
+installed (`rossml` and `rossxl`, for the models with metamodels). The check
+reads the source with `ast`, without importing it.
 """
 
 import ast
@@ -16,13 +15,13 @@ import os
 import re
 import sys
 
-from . import headless_streamlit, model_settings
+from . import model_settings
 from .dt_app import APP_DIR, ensure_on_path
 
 MODEL_NAME = re.compile(r"[A-Za-z0-9_]+")
 
-# Provided by the stand-in, or modules of the Digital Twin app itself.
-PROVIDED = {"streamlit", "safe_pickle", "models_files"}
+# Modules of the Digital Twin app itself.
+PROVIDED = {"safe_pickle", "models_files"}
 
 
 def load_settings():
@@ -126,7 +125,6 @@ def import_model(model):
     """Import `models_files.<model>.<model>` for a model listed in settings.json."""
     _check_name(model)
     ensure_on_path()
-    headless_streamlit.install()
     return importlib.import_module("models_files.%s.%s" % (model, model))
 
 

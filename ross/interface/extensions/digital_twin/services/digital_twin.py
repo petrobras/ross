@@ -11,7 +11,6 @@ from ross.interface.domain.ross_import import project_from_ross_file
 from ross.interface.domain.rotor_builder import assemble_rotor
 from ross.interface.extensions.digital_twin.domain import (
     equipment,
-    headless_streamlit,
     model_settings,
     session,
 )
@@ -57,8 +56,7 @@ def load_process_data(identifier, tag, pi_time, rotation, source="pi"):
     module = equipment.import_model(model)
     if source == "pi" and _reads_pi(module):
         _check_pi_access()
-    with headless_streamlit.model_run(current.directory) as messages:
-        frame = module.get_pi_data(tag, pi_time, source == "sample")
+    frame = module.get_pi_data(tag, pi_time, source == "sample")
     if frame is None or len(frame) == 0:
         raise ValueError("The model returned no process data.")
 
@@ -74,7 +72,6 @@ def load_process_data(identifier, tag, pi_time, rotation, source="pi"):
     return {
         "session": _summary(current),
         "table": _table(frame),
-        "messages": messages,
     }
 
 
@@ -103,10 +100,9 @@ def create_model(identifier, settings=None):
         equipment.settings(current.model), settings or {}
     )
     module = equipment.import_model(current.model)
-    with headless_streamlit.model_run(current.directory) as messages:
-        rotor, bearings, labyrinths = module.create_model(
-            df=current.process_data, fluid=None, configured_data=configured
-        )
+    rotor, bearings, labyrinths = module.create_model(
+        df=current.process_data, fluid=None, configured_data=configured
+    )
     accept_any_signature(rotor)
     rotor.save(os.path.join(current.session_files, current.model + ".toml"))
 
@@ -118,7 +114,7 @@ def create_model(identifier, settings=None):
         "bearings": _describe(bearings),
         "labyrinths": _describe(labyrinths),
     }
-    return _model_answer(current, messages)
+    return _model_answer(current)
 
 
 def create_user_model(identifier, project, name, rotation):
@@ -160,10 +156,10 @@ def create_user_model(identifier, project, name, rotation):
     }
     measurement.prune(current)
     rotor.save(os.path.join(current.session_files, USER_MODEL + ".toml"))
-    return _model_answer(current, [])
+    return _model_answer(current)
 
 
-def _model_answer(current, messages):
+def _model_answer(current):
     """What the screen draws after a model is built."""
     rotor = current.rotor
     nan_warning = (
@@ -183,7 +179,6 @@ def _model_answer(current, messages):
         "nan_warning": nan_warning,
         "settings": current.settings,
         "measurement": measurement.describe(current),
-        "messages": messages,
         "figure": _rotor_figure(rotor),
     }
 

@@ -361,8 +361,8 @@
     flex: 0 0 auto;
 }
 
-/* The sensor cards live in the wide panel, so they sit side by side as the
-   expanders of the Streamlit page do, rather than stacked in the sidebar. */
+/* The sensor cards live in the wide panel, so they sit side by side rather
+   than stacked in the sidebar. */
 #screen-dt .dt-sensor-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));

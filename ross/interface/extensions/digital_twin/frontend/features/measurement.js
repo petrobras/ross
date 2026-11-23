@@ -1,5 +1,5 @@
 // Digital Twin, step 4: measuring planes, balancing planes and sensors, as in
-// section 4 of the Streamlit app. The server keeps the planes and writes each
+// section 4 of the Digital Twin app. The server keeps the planes and writes each
 // sensor's waveform to the session (`services/measurement.py`); this file
 // draws what the server answers.
 import { openCustomAlert } from '/components/modals.js';
@@ -148,7 +148,7 @@ async function runBalancing() {
     }
 }
 
-// The hyperparameters of the machine, the file the Streamlit app passes to
+// The hyperparameters of the machine, the file the Digital Twin app passes to
 // rossml for every run. Without it the estimate uses the library defaults and
 // does not reproduce that app, which is what `dt-parameters-status` says.
 async function applyParameters() {

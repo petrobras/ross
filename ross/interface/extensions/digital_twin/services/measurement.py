@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Step 4 of the Digital Twin: measuring planes, balancing planes and sensors.
 
-The same inputs as section 4 of the Streamlit app, the balancing analysis,
+The same inputs as section 4 of the Digital Twin app, the balancing analysis,
 kept in the files `rossml` reads:
 
 * the measuring planes are rotor nodes, kept in ascending order, because
@@ -11,15 +11,14 @@ kept in the files `rossml` reads:
   correction mass can be placed there: the estimate is a mass times a radius,
   and the radius turns it into a mass;
 * each measuring node has two sensors, planes X and Y. The Y sensor sits 90
-  degrees after the X sensor, as in the Streamlit app, so only the X angle is
+  degrees after the X sensor, so only the X angle is
   chosen;
 * each sensor's waveform is a CSV file separated by `;`, written to
   `database/data_<node>_<x|y>.csv` in the session. It keeps the header the
   measuring system writes, which is where `rossml` reads the speed and the
   units of the signal from.
 
-The analysis needs at least two measuring planes, which is when the Streamlit
-app shows the sensor cards.
+The analysis needs at least two measuring planes.
 """
 
 import io

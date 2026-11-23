@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Pre-established rotor models without Streamlit, behind the network check.
+"""Pre-established rotor models, behind the network check.
 
 These tests build a small Digital Twin app in a temporary folder, with a
-model written the way the `models_files` models are (it imports Streamlit,
-draws a text input, reports with `st.warning`, reads `st.session_state` and
-`configured_data`), so they run without the private repository or the
-Petrobras network.
+model written the way the `models_files` models are (`get_pi_data` and
+`create_model`, which reads `configured_data`), so they run without the
+private repository or the Petrobras network.
 """
 
 import os
@@ -21,7 +20,6 @@ from numpy.testing import assert_allclose
 from ross.interface.extensions.digital_twin.domain import (
     dt_app,
     equipment,
-    headless_streamlit,
     model_settings,
     network,
     session,
@@ -36,7 +34,6 @@ PI_TIME = "2026/11/11 00:00:00"
 MODEL = """
 import pandas as pd
 import ross as rs
-import streamlit as st
 from ross.units import Q_
 
 try:
@@ -48,18 +45,7 @@ RADIAL_BEARING_CLEARANCE = Q_(0.16 / 2, "mm")
 OIL_SUPPLY_TEMPERATURE = Q_(40, "degC")
 
 
-@st.fragment
-def tags_define(compressor):
-    with st.expander(compressor):
-        cols = st.columns(2)
-        with cols[0]:
-            speed = st.text_input("Tag Key", value="speed", key="k")
-    return {"TAG-1": speed}
-
-
 def get_pi_data(compressor, initial_time, test=False):
-    tags = tags_define(compressor)
-    st.table(tags)
     if not test:
         raise RuntimeError("the PI server is not reachable from the tests")
     return pd.DataFrame({"speed": [3000.0, 3010.0]}, index=["t0", "t1"])
@@ -70,11 +56,6 @@ def create_model(df, fluid=None, **kwargs):
         float(kwargs["configured_data"]["RADIAL_BEARING_CLEARANCE"][0]),
         kwargs["configured_data"]["RADIAL_BEARING_CLEARANCE"][1],
     )
-    assert st.session_state["local"]
-    st.session_state["df"] = df
-    st.warning("clearance %.6f m" % clearance.to("m").m)
-    message = st.info("Creating the model...")
-    message.empty()
     steel = rs.Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
     shaft = [rs.ShaftElement(L=0.25, idl=0, odl=0.05, material=steel) for _ in range(4)]
     disk = rs.DiskElement.from_geometry(
@@ -88,22 +69,6 @@ def create_model(df, fluid=None, **kwargs):
     return rs.Rotor(shaft, [disk], bearings), bearings, ["There is no seals"]
 """
 
-LOOPING_MODEL = """
-import streamlit as st
-
-RADIAL_BEARING_CLEARANCE = 1
-
-
-def get_pi_data(compressor, initial_time, test=False):
-    import pandas as pd
-    return pd.DataFrame({"speed": [1.0]})
-
-
-def create_model(df, fluid=None, **kwargs):
-    while True:
-        st.warning("Output file not found. Restarting...")
-"""
-
 
 def _write(path, text):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -113,23 +78,21 @@ def _write(path, text):
 
 @pytest.fixture
 def fake_app(tmp_path, monkeypatch):
-    """A Digital Twin app with three models, and the network check passing."""
+    """A Digital Twin app with two models, and the network check passing."""
     _write(str(tmp_path / "models_files" / "__init__.py"), "")
     _write(str(tmp_path / "models_files" / "fake_rotor" / "fake_rotor.py"), MODEL)
     _write(
         str(tmp_path / "models_files" / "needs_pkg" / "needs_pkg.py"),
-        "import streamlit as st\n",
+        "import pandas as pd\n",
     )
     _write(
         str(tmp_path / "models_files" / "needs_pkg" / "create_labyrinth_seals.py"),
         "import package_that_is_not_installed_anywhere\n",
     )
-    _write(str(tmp_path / "models_files" / "looping" / "looping.py"), LOOPING_MODEL)
     _write(
         str(tmp_path / "utils" / "settings.json"),
         '{"%s": {"rotor_model": "fake_rotor"},'
-        ' "%s": {"rotor_model": "needs_pkg"},'
-        ' "P99-LOOP": {"rotor_model": "looping"}}' % (TAG, MISSING_TAG),
+        ' "%s": {"rotor_model": "needs_pkg"}}' % (TAG, MISSING_TAG),
     )
     for module in (dt_app, equipment):
         monkeypatch.setattr(module, "APP_DIR", str(tmp_path))
@@ -156,7 +119,7 @@ def _status(tag):
     raise KeyError(tag)
 
 
-def test_a_model_importing_streamlit_is_available(fake_app):
+def test_a_model_with_its_packages_installed_is_available(fake_app):
     assert _status(TAG)["available"]
 
 
@@ -213,7 +176,7 @@ def test_chosen_settings_are_checked_against_the_declared_ones():
             model_settings.configured_data(declared, chosen)
 
 
-def test_the_model_runs_headless_and_receives_the_settings(fake_app):
+def test_the_model_runs_and_receives_the_settings(fake_app):
     current = session.create()
     loaded = digital_twin.load_process_data(
         current.id, TAG, PI_TIME, "clockwise", "sample"
@@ -231,10 +194,6 @@ def test_the_model_runs_headless_and_receives_the_settings(fake_app):
         )
         assert answer["settings"]["RADIAL_BEARING_CLEARANCE"] == [clearance, "mm"]
         assert answer["settings"]["OIL_SUPPLY_TEMPERATURE"] == [40.0, "degC"]
-        assert {
-            "level": "warning",
-            "text": "clearance %.6f m" % (clearance * 1e-3),
-        } in (answer["messages"])
         built[clearance] = current.rotor.bearing_elements[0].kxx_interpolated(0)
     assert_allclose(built[0.08], 1e6)
     assert_allclose(built[0.16], 0.5e6)
@@ -280,21 +239,6 @@ def test_pi_data_needs_pandaspi_and_credentials(fake_app, monkeypatch):
 
     with pytest.raises(ValueError, match="source"):
         digital_twin.load_process_data(current.id, TAG, PI_TIME, "clockwise", "csv")
-
-
-def test_a_model_retrying_forever_is_stopped(fake_app):
-    current = session.create()
-    digital_twin.load_process_data(
-        current.id, "P99-LOOP", PI_TIME, "clockwise", "sample"
-    )
-    with pytest.raises(headless_streamlit.ModelLoop, match="Restarting"):
-        digital_twin.create_model(current.id)
-
-
-def test_the_stand_in_refuses_calls_the_models_do_not_make():
-    stand_in = headless_streamlit.module()
-    with pytest.raises(AttributeError):
-        stand_in.button("Run")
 
 
 def test_the_routes_walk_to_the_hub(fake_app):

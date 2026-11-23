@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """3.1 Campbell diagram, with the 3D mode of the clicked point.
 
-The Streamlit page used `_plot_with_mode_shape` and kept its callback in
-`st.session_state`. Here the diagram is `CampbellResults.plot`, and the click
-calls `_update_plot_mode_3d` on the result kept in the session: `run_campbell`
+The diagram is `CampbellResults.plot`, and the click calls
+`_update_plot_mode_3d` on the result kept in the session: `run_campbell`
 already holds one modal result per speed, so the click computes nothing new.
 This is how the ROSS interface does it (services/analysis/campbell.py).
 """

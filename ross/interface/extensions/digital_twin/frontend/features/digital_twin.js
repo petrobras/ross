@@ -350,7 +350,6 @@ async function loadData() {
         renderTable();
         document.getElementById('dt-create').disabled = false;
         setStatus('dt-status', t('dtLoaded'), 'ok');
-        showMessages(body.messages);
         openPanel('dt', 'model');
     } catch (error) {
         setStatus('dt-status', '');
@@ -376,7 +375,6 @@ async function createModel() {
     try {
         const body = await apiJson('/api/dt/model', { session: state.sessionId, settings: chosenSettings() });
         showModel(body);
-        showMessages(body.messages);
         if (body.nan_warning) {
             setStatus('dt-status', '');
             openCustomAlert(t('dtNanWarning'));
@@ -413,14 +411,6 @@ function showModel(body) {
     state.hasModel = true;
     document.getElementById('dt-to-hub').disabled = false;
     document.getElementById('dt-components-card').style.display = body.components.bearings ? '' : 'none';
-}
-
-// What the model reported through st.warning / st.info, which the Streamlit
-// app showed on the page.
-function showMessages(messages) {
-    const warnings = (messages || []).filter(item => item.level === 'warning' || item.level === 'error');
-    if (!warnings.length) return;
-    openCustomAlert(t('dtModelMessages') + '\n' + warnings.map(item => '• ' + item.text).join('\n'));
 }
 
 // The rotor goes to the Rotor Hub as an ordinary project: from there it is
