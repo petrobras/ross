@@ -1588,7 +1588,7 @@ class ElectricMotor:
             stator_reactance=self.stator_reactance,
             rotor_reactance=self.rotor_reactance,
             mutual_reactance=self.mutual_reactance,
-            Ip_motor=self.Ip,
+            Ip_motor=self.Ip + Ip_load,
             time_ramp=time_ramp,
             frequency_ref=float(frequency_ref or self.frequency_rated / 2),
         )

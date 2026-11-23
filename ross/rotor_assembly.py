@@ -5433,10 +5433,7 @@ class Rotor(object):
         The motor is simulated independently and its electromagnetic torque
         (electric torque minus load torque) is applied to the torsional DOF
         at the motor node. Shaft speed is taken from the motor simulation, so
-        the unbalance force is time-varying. The motor mass ``m`` and inertia
-        ``Ip`` enter the rotor matrices as a disk. The motor simulation uses the
-        inertia of the motor plus the polar inertia of the rest of the rotor, that is,
-        ``rotor.Ip - motor.Ip``.
+        the unbalance force is time-varying.
 
         Available plotting methods:
             .plot_1d()
@@ -5564,6 +5561,7 @@ class Rotor(object):
             raise ValueError("No motor elements found in the rotor.")
 
         motor = self.motor
+
         Ip_load = self.Ip - motor.Ip
 
         if load_torque_entrance_time is None:

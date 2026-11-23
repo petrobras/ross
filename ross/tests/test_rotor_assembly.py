@@ -4093,6 +4093,42 @@ def test_run_with_motor_uses_the_inertia_of_the_load_rotor(structure, operation)
     )
 
 
+def test_run_with_motor_foc_is_tuned_with_the_inertia_of_the_rotor():
+    # Reference: the motor alone under the same drive, with the polar inertia
+    # of the load rotor as Ip_load, which tunes the speed controller.
+    load = rotor_example()
+    rotor = load.add_motor(motor_example())
+    t = np.arange(0, 0.3 + 1e-3, 1e-3)
+    drive = dict(time_step=1e-5, time_ramp=0.1, frequency_ref=Q_(60.0, "Hz"))
+
+    results = rotor.run_with_motor(
+        t=t,
+        node=[2],
+        unbalance_magnitude=[5e-4],
+        unbalance_phase=[0.0],
+        drive_mode="VFD_FOC",
+        load_torque_entrance_time=0.1,
+        steady_state=False,
+        **drive,
+    )
+    reference = rotor.motor.run_with_inverter_foc(
+        t,
+        load_torque_entrance_time=0.1,
+        Ip_load=load.Ip,
+        frequency_s=Q_(5000, "Hz"),
+        **drive,
+    )
+
+    # The PWM comparators amplify the round-off of Ip_load (about 1e-15) to a
+    # relative speed difference of about 5e-4. rtol is ten times that and still
+    # fails for a 10 % error in the inertia, which gives 1e-1.
+    assert_allclose(
+        results.motor_results.sample_at("speed", t),
+        reference.sample_at("speed", t),
+        rtol=5e-3,
+    )
+
+
 def _rotor_with_motor(structure):
     load = rotor_example()
     if structure == "lumped":
