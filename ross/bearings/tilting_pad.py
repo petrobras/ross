@@ -79,8 +79,8 @@ class TiltingPad(FluidFilmBearing):
         ``eccentricity`` / ``attitude_angle`` when given.
     equilibrium_type : str, optional
         ``"match_eccentricity"`` (default: the journal is held at the
-        given position) or ``"match_load"`` (the position is solved for
-        the applied load).
+        given position and the load is not used) or ``"match_load"`` (the
+        position is solved for the applied load).
     eccentricity : float, optional
         Eccentricity ratio of the (initial or held) journal position.
         Default is 0.3.
@@ -110,11 +110,26 @@ class TiltingPad(FluidFilmBearing):
         :class:`ross.bearings.fluid_film_bearing.FluidFilmBearing`
         (``bearing_type``, ``pivot_type``, ``deform_type``,
         ``pivot_stiffness``, ``house_diameter``, ``pivot_diameter``,
-        ``hot_oil_lambda``, ...).
+        ``hot_oil_lambda``, ``cavitation_model`` (``"reynolds"`` or
+        ``"mass_conserving"``), ...).
 
     Returns
     -------
     A TiltingPad object.
+
+    Notes
+    -----
+    Defaults. This class keeps its own defaults, which differ from those of
+    :class:`ross.bearings.fluid_film_bearing.FluidFilmBearing`:
+    ``equilibrium_type="match_eccentricity"`` (there ``"match_load"``),
+    ``pad_conductivity=116`` (there 50), ``edges_convection=1500`` (there
+    73.59), ``relax_temperature=0.5`` (there 1) and the mesh
+    ``total_ex_film=30``, ``total_ez_film=30``, ``total_ey_pad=16`` (there
+    40, 20, 20). With the default ``"match_eccentricity"`` the journal is
+    held at ``eccentricity`` / ``attitude_angle`` and ``fxs_load``,
+    ``fys_load`` are not used; a warning is issued when a load is given.
+    Pass ``equilibrium_type="match_load"`` to solve the journal position
+    for the load.
 
     Examples
     --------

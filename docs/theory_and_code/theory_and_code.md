@@ -23,4 +23,5 @@ These pages are aimed at:
 :caption: Theory & Implementation
 labyrinth_seal
 holepattern_seal
+fluid_film_bearings
 ```

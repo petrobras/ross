@@ -36,6 +36,7 @@ import numpy as np
 
 from ross.bearings.fluid_film import banded
 from ross.bearings.fluid_film._numba_kernels import deform_assemble_all_jit
+from ross.bearings.fluid_film.constants import INTERFACE_TOL
 
 
 def deform_bc_fixed_geometry(
@@ -928,7 +929,7 @@ def pad_temp_and_load(
         node = int(energy_mesh.n_index[i])
         in_pad = (
             y_energy[p, node] < pads.pad_thickness
-            or abs(y_energy[p, node] - pads.pad_thickness) < 1.0e-6
+            or abs(y_energy[p, node] - pads.pad_thickness) < INTERFACE_TOL
         )
         if in_pad:
             if (

@@ -42,27 +42,32 @@ References
 
 import numpy as np
 
+from ross.bearings.film.turbulence import TURBULENT_PRANDTL
 from ross.bearings.fluid_film import banded
 from ross.bearings.fluid_film._numba_kernels import (
-    assemble_press_jit,
+    adiab_assemble_all_jit,
     effective_conduct_jit,
     element_temp_interior_jit,
     energy_coeffs_flooded_jit,
     expand_film_temp_flooded_jit,
     include_press_jit,
+    pde_coeff_adiab_jit,
     temp_xy_assemble_all_jit,
     temp_xy_boundary_all_jit,
     trapezoid_jit,
     update_vis_jit,
+    vis_average_adiab_jit,
 )
+from ross.bearings.fluid_film.constants import INTERFACE_TOL
 
 # Viscous-dissipation unit-conversion factor. SI units are coherent (watts,
 # joule/(m^3 K), ...) so no conversion is needed; the factor is kept as a
 # named constant because it appears throughout the energy routines.
 DISSIP_FACTOR = 1.0
 
-# Turbulent Prandtl number used for the effective conductivity.
-PR_TURB = 0.769
+# Turbulent Prandtl number used for the effective conductivity (the constant
+# of the film core).
+PR_TURB = TURBULENT_PRANDTL
 
 
 # ---------------------------------------------------------------------------
@@ -96,21 +101,6 @@ def _trapezoid(t, f, start, stop):
     t = np.ascontiguousarray(t, dtype=np.float64)
     f = np.ascontiguousarray(f, dtype=np.float64)
     return trapezoid_jit(t, f, start, stop)
-
-
-def _assemble(
-    e_matrix, e_column, local_coordinates, bandwidth, global_matrix, global_column
-):
-    """Assemble a 4-node element matrix/column into the condensed system.
-
-    Mutates ``global_matrix`` and ``global_column`` in place.
-    ``local_coordinates`` is a length-4 sequence of 0-based global node
-    numbers, indexed directly by the shared ``assemble_press_jit`` kernel.
-    """
-    lc = np.ascontiguousarray(local_coordinates, dtype=np.int64)
-    em = np.ascontiguousarray(e_matrix, dtype=np.float64)
-    ec = np.ascontiguousarray(e_column, dtype=np.float64)
-    assemble_press_jit(em, ec, lc, bandwidth, global_matrix, global_column)
 
 
 def _include_prescribed(
@@ -196,6 +186,17 @@ def adiabatic_bc(
     return temp_bc_index, prescribed_temp, j
 
 
+def _pocket_geometry(pads, pad):
+    """Pad length, axial length and pocket extents of one pad, as floats."""
+    return (
+        float(pads.pad_length[pad]),
+        float(pads.axial_length[pad]),
+        float(pads.axial_length_dam[pad]),
+        float(pads.axial_length_track[pad]),
+        float(pads.length_track[pad]),
+    )
+
+
 def pde_coeff_adiab(
     pad_index,
     mesh,
@@ -228,75 +229,45 @@ def pde_coeff_adiab(
     mx_n = np.zeros(mesh.dim_xz)
     mz_n = np.zeros(mesh.dim_xz)
     q_n = np.zeros(mesh.dim_xz)
-
-    t = np.zeros(mesh.dim_yf)
-    f1 = np.zeros(mesh.dim_yf)
-    f2 = np.zeros(mesh.dim_yf)
-    f3 = np.zeros(mesh.dim_yf)
-
-    limit1 = mesh.total_e_y_trackbl[pad] + mesh.total_e_y_trackcore[pad] + 1
-    limit2 = mesh.total_e_y_film + 1
-
-    def _fill(node, jlo, depth_offset):
-        """Fill the T/F1/F2/F3 integrands for j in [jlo, limit2]."""
-        for j in range(jlo, limit2 + 1):
-            m = mesh.match_nodes_xz[node, j - 1]
-            t[j - 1] = mesh.y_3d[pad, m] - pads.pad_thickness - depth_offset
-            f1[j - 1] = velocity_x_n[pad, m]
-            f2[j - 1] = velocity_z_n[pad, m]
-            f3[j - 1] = (
-                vis_effect_3d[pad, m]
-                * (dudy_n[pad, m] ** 2 + dwdy_n[pad, m] ** 2)
-                / DISSIP_FACTOR
-            )
-
-    def _coeffs(node, jlo):
-        inte_u = _trapezoid(t, f1, jlo - 1, limit2)
-        inte_w = _trapezoid(t, f2, jlo - 1, limit2)
-        inte_dissip = _trapezoid(t, f3, jlo - 1, limit2)
-        h = h_n[pad, node]
-        mx_n[node] = lube.density * lube.cp * inte_u / h
-        mz_n[node] = lube.density * lube.cp * inte_w / h
-        q_n[node] = -inte_dissip / h
-
-    for i in range(mesh.total_nodes):
-        node = mesh.n_index[i]
-        kx_n[node] = -lube.conduct
-        kz_n[node] = -lube.conduct
-
-        x = mesh.x[pad, node]
-        z = mesh.z[pad, node]
-        in_pocket = (
-            z > pads.axial_length_dam[pad]
-            and z < pads.axial_length_dam[pad] + pads.axial_length_track[pad]
-            and x < pads.length_track[pad]
-        )
-        in_dam = (
-            x > pads.length_track[pad]
-            or z < pads.axial_length_dam[pad]
-            or z > pads.axial_length_dam[pad] + pads.axial_length_track[pad]
-        )
-        if in_pocket:
-            _fill(node, 1, 0.0)
-            _coeffs(node, 1)
-        elif in_dam:
-            _fill(node, limit1, pads.depth_track[pad])
-            _coeffs(node, limit1)
-        else:
-            # Pocket edge: treat as pocket if the edge is the pad edge
-            # (unshrouded pocket), otherwise treat as dam.
-            if pads.pocket_edge_is_pad(x, z, pad):
-                _fill(node, 1, 0.0)
-                _coeffs(node, 1)
-            else:
-                _fill(node, limit1, pads.depth_track[pad])
-                _coeffs(node, limit1)
-
+    pde_coeff_adiab_jit(
+        int(pad),
+        int(mesh.total_nodes),
+        np.ascontiguousarray(mesh.n_index, dtype=np.int64),
+        np.ascontiguousarray(mesh.match_nodes_xz, dtype=np.int64),
+        int(mesh.total_e_y_film),
+        int(mesh.total_e_y_trackbl[pad] + mesh.total_e_y_trackcore[pad] + 1),
+        np.ascontiguousarray(mesh.x, dtype=np.float64),
+        np.ascontiguousarray(mesh.z, dtype=np.float64),
+        np.ascontiguousarray(mesh.y_3d, dtype=np.float64),
+        float(pads.pad_thickness),
+        float(pads.depth_track[pad]),
+        *_pocket_geometry(pads, pad),
+        np.ascontiguousarray(velocity_x_n, dtype=np.float64),
+        np.ascontiguousarray(velocity_z_n, dtype=np.float64),
+        np.ascontiguousarray(dudy_n, dtype=np.float64),
+        np.ascontiguousarray(dwdy_n, dtype=np.float64),
+        np.ascontiguousarray(vis_effect_3d, dtype=np.float64),
+        np.ascontiguousarray(h_n, dtype=np.float64),
+        float(lube.density),
+        float(lube.cp),
+        float(lube.conduct),
+        float(DISSIP_FACTOR),
+        2.0,
+        kx_n,
+        kz_n,
+        mx_n,
+        mz_n,
+        q_n,
+    )
     return kx_n, kz_n, mx_n, mz_n, q_n
 
 
 def element_adiab(kx_e, kz_e, mx_e, mz_e, q_e, l_e, w_e):
     """4-node element matrix and column for the adiabatic energy equation.
+
+    :func:`temp_adiabatic` assembles with the compiled
+    ``adiab_assemble_all_jit``, which evaluates these expressions in the same
+    order; this function is the readable form of the element.
 
     ``kx_e``/``kz_e`` are the (negative) conduction coefficients,
     ``mx_e``/``mz_e`` the convection coefficients, ``q_e`` the source,
@@ -429,26 +400,28 @@ def temp_adiabatic(
     global_matrix = np.zeros((dim_xz, total_column_adiab))
     global_column = np.zeros(dim_xz)
 
-    for i in range(mesh.total_elements):
-        current = mesh.e_index[i]
-        ni = mesh.node_i[current]
-        nj = mesh.node_j[current]
-        nk = mesh.node_k[current]
-        nl = mesh.node_l[current]
-        local = (ni, nj, nk, nl)
-        kx_e = (kx_n[ni] + kx_n[nj] + kx_n[nk] + kx_n[nl]) / 4.0
-        kz_e = (kz_n[ni] + kz_n[nj] + kz_n[nk] + kz_n[nl]) / 4.0
-        mx_e = (mx_n[ni] + mx_n[nj] + mx_n[nk] + mx_n[nl]) / 4.0
-        mz_e = (mz_n[ni] + mz_n[nj] + mz_n[nk] + mz_n[nl]) / 4.0
-        q_e = (q_n[ni] + q_n[nj] + q_n[nk] + q_n[nl]) / 4.0
-        l_e = mesh.e_length[pad, current]
-        w_e = mesh.e_width[pad, current]
-        if operating.bearing_type == "pressure_dam":
-            mz_e = 0.0
-        e_matrix, e_column = element_adiab(kx_e, kz_e, mx_e, mz_e, q_e, l_e, w_e)
-        _assemble(
-            e_matrix, e_column, local, mesh.bandwidth, global_matrix, global_column
-        )
+    # Element averages, element matrix (:func:`element_adiab`) and banded
+    # assembly of every element in one compiled loop.
+    adiab_assemble_all_jit(
+        int(pad),
+        int(mesh.total_elements),
+        np.ascontiguousarray(mesh.e_index, dtype=np.int64),
+        np.ascontiguousarray(mesh.node_i, dtype=np.int64),
+        np.ascontiguousarray(mesh.node_j, dtype=np.int64),
+        np.ascontiguousarray(mesh.node_k, dtype=np.int64),
+        np.ascontiguousarray(mesh.node_l, dtype=np.int64),
+        np.ascontiguousarray(kx_n, dtype=np.float64),
+        np.ascontiguousarray(kz_n, dtype=np.float64),
+        np.ascontiguousarray(mx_n, dtype=np.float64),
+        np.ascontiguousarray(mz_n, dtype=np.float64),
+        np.ascontiguousarray(q_n, dtype=np.float64),
+        np.ascontiguousarray(mesh.e_length, dtype=np.float64),
+        np.ascontiguousarray(mesh.e_width, dtype=np.float64),
+        operating.bearing_type == "pressure_dam",
+        int(mesh.bandwidth),
+        global_matrix,
+        global_column,
+    )
 
     _include_prescribed(
         global_matrix,
@@ -562,12 +535,9 @@ def temp_3d_adiab(
 
     Returns the updated ``temp_3d``.
     """
-    pad = pad_index
-    for i in range(mesh.total_nodes):
-        node = mesh.n_index[i]
-        for j in range(1, mesh.total_e_y_film + 1 + 1):
-            m = mesh.match_nodes_xz[node, j - 1]
-            temp_3d[pad, m] = temp_adiab[pad, node]
+    nodes = np.asarray(mesh.n_index, dtype=np.int64)[: mesh.total_nodes]
+    columns = np.asarray(mesh.match_nodes_xz)[nodes, : mesh.total_e_y_film + 1]
+    temp_3d[pad_index, columns] = np.asarray(temp_adiab)[pad_index, nodes][:, None]
     return temp_3d
 
 
@@ -606,69 +576,33 @@ def update_vis_adiab(
         Updated turbulence scaling factors.
     """
     pad = pad_index
-    dim_yf = mesh.match_nodes_xz.shape[1]
-    dim_xz = mesh.x.shape[1]
-    re_n = np.zeros(dim_xz)
-    t = np.zeros(dim_yf)
-    f = np.zeros(dim_yf)
+    # Viscosity at every 3-D node of the pad's film, from its temperature
+    # (one array evaluation: numpy gives the same values as node by node).
+    nodes = np.asarray(mesh.n_index, dtype=np.int64)[: mesh.total_nodes]
+    columns = np.asarray(mesh.match_nodes_xz)[nodes, : mesh.total_e_y_film + 1]
+    vis_n_3d[pad, columns] = lube.viscosity_at(temp_3d[pad, columns])
 
-    limit1 = mesh.total_e_y_trackbl[pad] + mesh.total_e_y_trackcore[pad] + 1
-    limit2 = mesh.total_e_y_film + 1
-
-    re_max_track = 0.0
-    re_max_dam = 0.0
-
-    def _fill(node, jlo, depth_offset):
-        for j in range(jlo, limit2 + 1):
-            m = mesh.match_nodes_xz[node, j - 1]
-            t[j - 1] = mesh.y_3d[pad, m] - pads.pad_thickness - depth_offset
-            f[j - 1] = vis_n_3d[pad, m]
-
-    for i in range(mesh.total_nodes):
-        node = mesh.n_index[i]
-        # Update viscosity at each 3-D node above this 2-D node.
-        for j in range(1, mesh.total_e_y_film + 1 + 1):
-            m = mesh.match_nodes_xz[node, j - 1]
-            vis_n_3d[pad, m] = lube.viscosity_at(temp_3d[pad, m])
-
-        x = mesh.x[pad, node]
-        z = mesh.z[pad, node]
-        in_pocket = (
-            z > pads.axial_length_dam[pad]
-            and z < pads.axial_length_dam[pad] + pads.axial_length_track[pad]
-            and x < pads.length_track[pad]
-        )
-        in_dam = (
-            x > pads.length_track[pad]
-            or z < pads.axial_length_dam[pad]
-            or z > pads.axial_length_dam[pad] + pads.axial_length_track[pad]
-        )
-
-        if in_pocket:
-            track_region = True
-            _fill(node, 1, 0.0)
-            inte = _trapezoid(t, f, 0, limit2)
-        elif in_dam:
-            track_region = False
-            _fill(node, limit1, pads.depth_track[pad])
-            inte = _trapezoid(t, f, limit1 - 1, limit2)
-        else:
-            if pads.pocket_edge_is_pad(x, z, pad):
-                track_region = True
-                _fill(node, 1, 0.0)
-                inte = _trapezoid(t, f, 0, limit2)
-            else:
-                track_region = False
-                _fill(node, limit1, pads.depth_track[pad])
-                inte = _trapezoid(t, f, limit1 - 1, limit2)
-
-        h = h_n[pad, node]
-        vis_n_average[pad, node] = inte / h
-        re_n[node] = lube.density * speed_surface * h / vis_n_average[pad, node]
-        if track_region:
-            re_max_track = max(re_max_track, re_n[node])
-        else:
-            re_max_dam = max(re_max_dam, re_n[node])
+    # Cross-film average viscosity and local Reynolds numbers.
+    vis_n_average = np.ascontiguousarray(vis_n_average, dtype=np.float64)
+    re_max_track, re_max_dam = vis_average_adiab_jit(
+        int(pad),
+        int(mesh.total_nodes),
+        np.ascontiguousarray(mesh.n_index, dtype=np.int64),
+        np.ascontiguousarray(mesh.match_nodes_xz, dtype=np.int64),
+        int(mesh.total_e_y_film),
+        int(mesh.total_e_y_trackbl[pad] + mesh.total_e_y_trackcore[pad] + 1),
+        np.ascontiguousarray(mesh.x, dtype=np.float64),
+        np.ascontiguousarray(mesh.z, dtype=np.float64),
+        np.ascontiguousarray(mesh.y_3d, dtype=np.float64),
+        float(pads.pad_thickness),
+        float(pads.depth_track[pad]),
+        *_pocket_geometry(pads, pad),
+        np.ascontiguousarray(vis_n_3d, dtype=np.float64),
+        np.ascontiguousarray(h_n, dtype=np.float64),
+        float(lube.density),
+        float(speed_surface),
+        vis_n_average,
+    )
 
     _update_flow_regime(
         flow_regime_track,
@@ -709,7 +643,7 @@ def _update_flow_regime(
     if re_max < turbulence.re_lower:
         flow_regime[pad] = 0
         scale_turb[pad] = 0.0
-    elif turbulence.re_lower < re_max < turbulence.re_upper:
+    elif turbulence.re_lower <= re_max < turbulence.re_upper:
         flow_regime[pad] = 1
         scale_turb[pad] = (
             1.0
@@ -1188,7 +1122,7 @@ def energy_coeffs_axial_flow(
             q1 = 2.0 * lube.density * lube.cp * temp_supply * abs(inte4) / al**2
             q_n[node] = -q1 - _trapezoid(t, f5, 0, limit) / al
 
-        if abs(y - pad_thickness) < 1.0e-6:
+        if abs(y - pad_thickness) < INTERFACE_TOL:
             kx_n[node] = -(pad_conduct * lube.conduct) / (pad_conduct + lube.conduct)
             for j in range(1, limit + 1):
                 m = energy_mesh.match_nodes_xy[node, j - 1]
@@ -1344,7 +1278,7 @@ def energy_coeffs_high_ambient(
             else:
                 _parab(node, interface=False)
 
-        if abs(y - pad_thickness) < 1.0e-6:
+        if abs(y - pad_thickness) < INTERFACE_TOL:
             kx_n[node] = -(pad_conduct * lube.conduct) / (pad_conduct + lube.conduct)
             if tz_type[pad, node] == 0:
                 _const(node, interface=True)
@@ -1597,14 +1531,14 @@ def element_temp(
     # Leading edge of the pad (x = 0) in the solid.
     if abs(energy_mesh.x[pad, n1]) < 1.0e-6 and (
         energy_mesh.y[pad, n3] < pad_thickness
-        or abs(energy_mesh.y[pad, n3] - pad_thickness) < 1.0e-6
+        or abs(energy_mesh.y[pad, n3] - pad_thickness) < INTERFACE_TOL
     ):
         _add_line(-convec_edges, r_fixed=-1.0)
 
     # Trailing edge of the pad (x = pad_length) in the solid.
     if abs(energy_mesh.x[pad, n3] - pad_length[pad]) < 1.0e-6 and (
         energy_mesh.y[pad, n3] < pad_thickness
-        or abs(energy_mesh.y[pad, n3] - pad_thickness) < 1.0e-6
+        or abs(energy_mesh.y[pad, n3] - pad_thickness) < INTERFACE_TOL
     ):
         _add_line(-convec_edges, r_fixed=1.0)
 
@@ -2029,7 +1963,7 @@ def expand_film_temp_axial_flow(
     for i in range(energy_mesh.total_nodes):
         node = energy_mesh.n_index[i]
         y = energy_mesh.y[pad, node]
-        if y > pad_thickness or abs(y - pad_thickness) < 1.0e-6:
+        if y > pad_thickness or abs(y - pad_thickness) < INTERFACE_TOL:
             for j in range(1, total_e_z_film + 1 + 1):
                 m = energy_mesh.match_nodes_xy[node, j - 1]
                 if p_first > p_last:
@@ -2079,7 +2013,7 @@ def expand_film_temp_high_ambient(
     for i in range(energy_mesh.total_nodes):
         node = energy_mesh.n_index[i]
         y = energy_mesh.y[pad, node]
-        if y > pad_thickness or abs(y - pad_thickness) < 1.0e-6:
+        if y > pad_thickness or abs(y - pad_thickness) < INTERFACE_TOL:
             if tz_type[pad, node] == 0:
                 for j in range(1, total_e_z_film + 1 + 1):
                     m = energy_mesh.match_nodes_xy[node, j - 1]
@@ -2162,6 +2096,11 @@ def update_vis(
         float(lube.temp2),
         dim_yf,
         dim_xz,
+        int(lube.model),
+        float(lube.walther_a),
+        float(lube.walther_b),
+        float(lube.walther_density),
+        float(lube.walther_expansion),
     )
 
     _update_flow_regime(

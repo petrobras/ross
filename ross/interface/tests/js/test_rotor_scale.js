@@ -6,6 +6,7 @@
 // the property the picture is there to convey. So the check that matters is not
 // "does it stretch" -- it is that **stretching and labelling cannot be
 // separated**, and that asking for no stretch changes nothing at all.
+import fs from 'node:fs';
 import { check, shutDown } from './fake_dom.js';
 
 const { VERTICAL_SCALES, withVerticalScale } =
@@ -199,5 +200,17 @@ setVerticalScale(1);
 check('going back to one times is ROSS\'s figure again',
     onScreen().yaxis.scaleratio === 1 && onScreen().height === 332);
 check('with nothing added to the axis', titleOf(onScreen()) === 'Shaft radius (m)');
+
+// --- the box grows with the figure ----------------------------------------------
+//
+// Stretched 5x, ROSS's figure is over a thousand pixels tall. The box it is
+// drawn in had `height: 100%` -- the panel's -- and the figure hung out of its
+// own border, the buttons with it (Leonardo). The box may only set a least
+// height; its height is the figure's.
+const css = fs.readFileSync(new URL('../../frontend/style.css', import.meta.url), 'utf8');
+const box = (css.match(/\n\.live-plot-area \{([^}]*)\}/) || [])[1] || '';
+check('the figure\'s box has a rule', box.length > 0);
+check('which does not fix its height, only a least one',
+    !/(^|[;\s])height\s*:/.test(box) && /min-height\s*:/.test(box));
 
 shutDown();
