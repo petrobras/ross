@@ -4129,6 +4129,107 @@ def test_run_with_motor_foc_is_tuned_with_the_inertia_of_the_rotor():
     )
 
 
+def test_run_with_motor_does_not_modify_the_force_of_the_user():
+    # Reference: the force array before the call.
+    rotor = rotor_example().add_motor(motor_example())
+    t = np.arange(0, 0.3 + 1e-3, 1e-3)
+    F = np.full((len(t), rotor.ndof), 3.0)
+
+    rotor.run_with_motor(
+        t=t,
+        node=[2],
+        unbalance_magnitude=[5e-4],
+        unbalance_phase=[0.0],
+        drive_mode="DOL",
+        load_torque_entrance_time=0.1,
+        F=F,
+    )
+
+    assert_equal(F, np.full((len(t), rotor.ndof), 3.0))
+
+
+def test_run_with_motor_with_a_disconnected_torsional_train_raises():
+    # Reference: a coupling without torsional stiffness leaves the motor node
+    # and the load in two torsional trains, so the load has no torque.
+    coupling = CouplingElement(
+        m_l=0.5,
+        m_r=0.5,
+        Ip_l=2e-4,
+        Ip_r=2e-4,
+        kt_x=1e7,
+        kt_y=1e7,
+        kr_x=1e4,
+        kr_y=1e4,
+        kr_z=0,
+        o_d=0.06,
+        L=0.05,
+    )
+    shaft = [ShaftElement(L=0.25, idl=0, odl=0.05, material=steel) for _ in range(6)]
+    load = Rotor(
+        [coupling, *shaft],
+        [
+            DiskElement.from_geometry(
+                n=3, material=steel, width=0.07, i_d=0.05, o_d=0.28
+            )
+        ],
+        [BearingElement(n=1, kxx=1e6, cxx=0), BearingElement(n=7, kxx=1e6, cxx=0)],
+    )
+    rotor = load.add_motor(motor_example())
+
+    with pytest.raises(ValueError, match="single train"):
+        rotor.run_with_motor(
+            t=np.arange(0, 0.1, 1e-3),
+            node=[3],
+            unbalance_magnitude=[5e-4],
+            unbalance_phase=[0.0],
+            drive_mode="DOL",
+            load_torque_entrance_time=0.05,
+        )
+
+
+def test_run_with_motor_on_the_driven_rotor_uses_the_speed_of_the_driving_rotor():
+    # Reference: the same response integrated by hand with the driving-rotor
+    # speed, which is the motor speed divided by the signed speed ratio of the
+    # shaft that holds the motor (negative: meshed gears turn in opposite
+    # directions). Without the division, the driving rotor would turn at the
+    # speed of the motor, 14 times faster than the gear ratio allows.
+    motor = motor_example()
+    motor.n = 8
+    rotor = two_shaft_rotor_example().add_motor(motor)
+    t = np.arange(0, 0.2, 1e-3)
+
+    results = rotor.run_with_motor(
+        t=t,
+        node=[2],
+        unbalance_magnitude=[1e-3],
+        unbalance_phase=[0.0],
+        drive_mode="DOL",
+        load_torque_entrance_time=0.1,
+        steady_state=False,
+    )
+
+    motor_results = results.motor_results
+    ratio = rotor.to_shaft_rotation(1.0, rotor.motor.n_torque)
+    speed = motor_results.sample_at("speed", t) / ratio
+    torque = motor_results.sample_at("electric_torque", t) - motor_results.sample_at(
+        "load_torque", t
+    )
+
+    F = rotor.unbalance_force_over_time([2], [1e-3], [0.0], speed, t).T
+    F[:, rotor.motor.dof_global_index[f"theta_{rotor.motor.n_torque}"]] += torque
+    Ktq = np.zeros((rotor.ndof, rotor.ndof))
+    for sh in rotor.shaft_elements:
+        if rotor.motor.n_torque in (sh.n_l, sh.n_r):
+            dofs = list(sh.dof_global_index.values())
+            Ktq[np.ix_(dofs, dofs)] += sh.Ktq()
+    expected = rotor.run_time_response(
+        speed, F, t, method="newmark", Ktq=Ktq, torque=torque
+    )
+
+    assert ratio < 0
+    assert_allclose(results.yout, expected.yout, rtol=1e-6, atol=1e-12)
+
+
 def _rotor_with_motor(structure):
     load = rotor_example()
     if structure == "lumped":

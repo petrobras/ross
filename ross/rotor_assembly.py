@@ -5562,6 +5562,15 @@ class Rotor(object):
 
         motor = self.motor
 
+        dofs_theta = [self.number_dof * n + 5 for n in self.nodes]
+        singular_values = la.svdvals(self.K(0)[:, dofs_theta])
+        if np.sum(singular_values <= 1e-9 * singular_values[0]) != 1:
+            raise ValueError(
+                "The torsional DOFs of the rotor must form a single train, with "
+                "one torsional rigid-body mode. Check for a coupling without "
+                "torsional stiffness, a disconnected shaft or a restrained torsion."
+            )
+
         Ip_load = self.Ip - motor.Ip
 
         if load_torque_entrance_time is None:
@@ -5569,6 +5578,8 @@ class Rotor(object):
 
         if F is None:
             F = np.zeros((len(t), self.ndof))
+        else:
+            F = np.array(F, dtype=float)
 
         frequency_s = Q_(5000, "Hz")
 
@@ -5620,6 +5631,7 @@ class Rotor(object):
         torque = Te - Tl
 
         speed = motor_results.sample_at("speed", t)
+        speed = speed / self.to_shaft_rotation(1.0, motor.n_torque)
 
         F += self.unbalance_force_over_time(
             node, unbalance_magnitude, unbalance_phase, speed, t

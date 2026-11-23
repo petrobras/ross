@@ -232,7 +232,13 @@ bearings = [
     rs.BearingElement(n=bearing.n, kxx=1e6, cxx=2e3)
     for bearing in base_rotor.bearing_elements
 ]
-load_rotor = rs.Rotor(base_rotor.shaft_elements, base_rotor.disk_elements, bearings)
+disks = [
+    rs.DiskElement.from_geometry(
+        n=disk.n, material=rs.steel, width=0.04, i_d=0.05, o_d=0.18
+    )
+    for disk in base_rotor.disk_elements
+]
+load_rotor = rs.Rotor(base_rotor.shaft_elements, disks, bearings)
 
 # lumped model: a disk with m, Id and Ip at node n; the torque acts at n
 rotor_lumped = load_rotor.add_motor(motor)  # returns a new rotor
@@ -294,11 +300,12 @@ response = rotor_lumped.run_with_motor(
 - The finite element model adds the flexibility of the motor shaft and the motor bearings, so the natural frequencies differ from the lumped model (in the tutorial, with the coupling, the second pair moves from 40.4 Hz to 52.2 Hz).
 - A rotor with a motor round-trips `save`/`load` with either model. A motor with `shaft_elements` cannot be saved on its own before it is connected to a rotor.
 - The rotor model is the only source of inertia: the motor is already in it, as a disk (lumped) or as part of the rotor (finite element). The motor is simulated first with the chosen drive, with the polar inertia of the whole rotor, `rotor.Ip`: the `Ip` of the motor plus `rotor.Ip - motor.Ip` passed as `Ip_load`, which is the inertia of the rest of the rotor. The speed controller of `"VFD_FOC"` is tuned with this inertia. Then the rotor is integrated with Newmark, with the net torque (electric minus load) on the `theta` DOF of `motor.n_torque` and unbalance forces computed from the motor speed, which varies in time.
+- With a `MultiRotor`, the motor speed is the speed of the shaft that holds the motor. `run_with_motor` divides it by the signed speed ratio of that shaft (negative on a driven shaft) to get the speed of the driving rotor that the analysis uses.
 - `ac_source_harmonics` / `ac_source_unbalances` are the `harmonics` / `unbalances` dicts of `run_direct_on_line`, used only with `"DOL"`.
 - `time_step`, `time_ramp` and `frequency_ref` are the inverter arguments, used only with `"VFD_VF"` and `"VFD_FOC"`. The switching frequency is fixed at 5 kHz.
-- `steady_state=True` (default) integrates only the last third of the interval after `load_torque_entrance_time`: `response.t` starts there, not at `t[0]`. The motor start-up and load transient are skipped, but the rotor starts from rest at the start of that window, so the window begins with a new lateral transient. In the run above the amplitudes at the end of the window are still 20-40 % above the steady value. Use `steady_state=False` (or a longer `t`) when amplitudes matter.
-- `F` (shape `(len(t), rotor.ndof)`) adds external forces; extra keyword arguments go to the Newmark integrator (`gamma`, `beta`, `tol`, ...) and `Rotor.integrate_system`.
-- `run_with_motor` raises `ValueError` if the rotor has no motor (`rotor.motor` is None).
+- `steady_state=True` (default) integrates only the last third of the interval after `load_torque_entrance_time`: `response.t` starts there, not at `t[0]`. The motor start-up and load transient are skipped, but the rotor starts from rest at the start of that window, so the window begins with a new lateral transient. In the run above the amplitude at the start of the window is about 25 % above the steady value and has settled by its end. Use `steady_state=False` (or a longer `t`) when amplitudes matter.
+- `F` (shape `(len(t), rotor.ndof)`) adds external forces and is not modified; extra keyword arguments go to the Newmark integrator (`gamma`, `beta`, `tol`, ...) and `Rotor.integrate_system`.
+- `run_with_motor` raises `ValueError` if the rotor has no motor (`rotor.motor` is None), or if its torsional DOFs do not form a single train (for example a coupling with `kr_z=0`, which leaves the load without torque).
 - The start-up time grows with the polar inertia of the whole rotor, which is larger than `Ip` of the motor. Use a `t` long enough for the shaft to reach its speed, and `load_torque_entrance_time` after it.
 - Use a time step suited to the rotor integration (0.1 ms here); finer steps make the Newmark run slow.
 
