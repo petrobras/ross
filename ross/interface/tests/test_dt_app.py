@@ -28,16 +28,16 @@ def test_page_carries_the_screens_and_the_buttons():
     assert "<!-- extensions:" not in page
 
 
-def test_the_sensor_cards_sit_above_the_rotor_figure():
-    # The figure fills at least 500px of the panel (`.live-plot-area`), so a
-    # card placed after it begins below the fold: the file inputs of step 4
-    # were on the page and out of sight.
+def test_the_rotor_figure_leads_then_the_sensors_then_the_balancing_result():
+    # The rotor figure is the top of the panel, the sensor inputs of step 4
+    # follow it, and the balancing result they lead to comes last.
     page = create_app().test_client().get("/").get_data(as_text=True)
     screen = page.index('id="screen-dt"')
     assert (
         screen
-        < page.index('id="dt-sensors-card"', screen)
         < page.index('id="dt-plot"', screen)
+        < page.index('id="dt-sensors-card"', screen)
+        < page.index('id="dt-balancing-card"', screen)
     )
 
 

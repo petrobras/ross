@@ -283,27 +283,37 @@
     flex: 1 1 220px;
 }
 
-/* One polar chart per balancing plane, side by side where the panel is wide
-   enough. A polar chart is read as a circle, so it keeps a square-ish box. */
+/* Every chart takes the whole width of the card, one below the other: one
+   polar chart per balancing plane, and the time signals, orbits and the view
+   along the rotor, which are read across. */
 #screen-dt .dt-polar-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
     margin-top: 12px;
 }
 
-#screen-dt .dt-polar-chart {
-    min-height: 420px;
+/* The side padding keeps the result's choices, table and charts off the
+   edges of the card. */
+#screen-dt #dt-balancing-body {
+    padding-left: 40px;
+    padding-right: 40px;
 }
 
-/* The time signals, orbits and the view along the rotor are read across, so
-   they take the whole width of the card. */
-#screen-dt .dt-polar-grid.dt-chart-wide {
-    grid-template-columns: 1fr;
+@media (max-width: 700px) {
+    #screen-dt #dt-balancing-body {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+}
+
+#screen-dt .dt-polar-chart {
+    width: 100%;
+    height: 640px;
 }
 
 #screen-dt .dt-chart-wide .dt-polar-chart {
-    min-height: 560px;
+    height: 600px;
 }
 
 #screen-dt .dt-polar-title {
