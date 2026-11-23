@@ -21,7 +21,6 @@ from ross.interface.extensions.digital_twin.domain import (
     session,
 )
 from ross.interface.extensions.digital_twin.services import measurement
-from ross.interface.extensions.digital_twin.services.digital_twin import USER_MODEL
 from ross.interface.extensions.digital_twin.services.analysis.base import figure
 
 HALF_TURN = 180.0
@@ -43,31 +42,23 @@ def settings_for(identifier):
     }
 
 
-def set_parameters(identifier, preset, values=None):
+def set_parameters(identifier, values=None):
     """Keep the analysis parameters chosen for this session.
 
     Parameters
     ----------
     identifier : str
         Session id.
-    preset : str
-        Id of a preset of `analysis_parameters.presets()`: the rossml
-        defaults or the parameters of a machine of the Digital Twin app.
     values : dict, optional
-        `{key: number or None}` for the fields changed after choosing the
-        preset; the others keep the preset's value.
+        `{key: number or None}` for the fields filled on the screen. An empty
+        field leaves rossml its own default.
     """
     current = session.get(identifier)
-    current.balancing_parameters = {
-        "preset": preset,
-        "values": analysis_parameters.chosen(preset, values),
-    }
+    current.balancing_parameters = analysis_parameters.chosen(values)
     return settings_for(identifier)
 
 
-def run_balancing(
-    identifier, iterations=0, population=1, optimize=False, preset=None, values=None
-):
+def run_balancing(identifier, iterations=0, population=1, optimize=False, values=None):
     """Estimate the unbalance of the session's rotor and the correction masses.
 
     Parameters
@@ -81,9 +72,9 @@ def run_balancing(
     optimize : bool, optional
         Let the analysis choose which balancing planes to use. It triples the
         running time.
-    preset, values : optional
-        The analysis parameters, as `set_parameters` takes them. Without a
-        preset the session keeps the ones it has.
+    values : dict, optional
+        The analysis parameters, as `set_parameters` takes them. Without them
+        the session keeps the ones it has.
 
     Returns
     -------
@@ -95,8 +86,8 @@ def run_balancing(
     refusal = _refusal(current)
     if refusal is not None:
         raise ValueError(refusal)
-    if preset is not None:
-        set_parameters(identifier, preset, values)
+    if values is not None:
+        set_parameters(identifier, values)
 
     planes = [plane["node"] for plane in current.balancing_planes]
     run, estimate = rossml_balancing.run(
@@ -272,25 +263,14 @@ def _answer(current):
 
 
 def _parameters(current):
-    """Return the analysis parameters of the session and the presets to offer.
+    """Return the analysis parameters of the session, and the fields to draw.
 
-    Until the user chooses, a pre-established model starts from its own
-    machine's preset and any other rotor from the rossml defaults.
+    Until the user fills a field, every rotor starts from the rossml defaults.
     """
     if current.balancing_parameters is None:
-        model = current.model if current.model != USER_MODEL else None
-        preset = analysis_parameters.preset_for(model)
-        current.balancing_parameters = {
-            "preset": preset,
-            "values": analysis_parameters.chosen(preset),
-        }
+        current.balancing_parameters = analysis_parameters.defaults()
     return {
-        "preset": current.balancing_parameters["preset"],
-        "values": current.balancing_parameters["values"],
-        "presets": [
-            {"id": item["id"], "models": item["models"], "values": item["values"]}
-            for item in analysis_parameters.presets()
-        ],
+        "values": current.balancing_parameters,
         "fields": analysis_parameters.describe(),
     }
 

@@ -16,8 +16,8 @@ const state = {
     sessionId: null,
     step: null,
     result: null,
-    // The analysis parameters the server answered: the preset, its fields
-    // and the presets on offer.
+    // The analysis parameters the server answered: the fields and their
+    // values, every one empty until the user fills it.
     parameters: null,
 };
 
@@ -26,7 +26,6 @@ export const MEASUREMENT_ACTIONS = {
     'dt-plane-remove': element => changePlanes(element.dataset.kind, false),
     'dt-sensor-apply': element => applySensor(Number(element.dataset.node), element.dataset.plane),
     'dt-run-balancing': () => runBalancing(),
-    'dt-parameters-preset': () => fillParameters(chosenPreset()),
     // The interface dispatches a select's `change` through the same actions
     // (core/actions.js), so the pickers of the result card come here.
     'dt-polar-change': () => renderBalancing(state.result),
@@ -143,7 +142,6 @@ async function runBalancing() {
             iterations: Number(document.getElementById('dt-iterations').value),
             population: Number(document.getElementById('dt-population').value),
             optimize: document.getElementById('dt-optimize').value === 'yes',
-            preset: document.getElementById('dt-parameters-preset').value,
             parameters: parameterValues(),
         });
         stop();
@@ -176,23 +174,16 @@ function showAnalysis(answer) {
     renderBalancing(answer.balancing);
 }
 
-// The analysis parameters: a preset (the rossml defaults or a machine of the
-// Digital Twin app) fills every field, and any field can be changed after.
-// The server answers them on every refresh; the fields are redrawn only when
-// the preset differs, so what the user typed is kept until the run sends it.
+// The analysis parameters: one field per value the estimate uses, empty until
+// the user fills it, and an empty one leaves rossml its own default. The
+// server answers them on every refresh; the fields are drawn once, so what the
+// user typed is kept until the run sends it.
 const PARAMETER_GROUPS = ['signal', 'kalman', 'limits', 'direct', 'indirect'];
 
 function showParameters(parameters) {
     if (!parameters) return;
-    const changed = !state.parameters || state.parameters.preset !== parameters.preset;
     state.parameters = parameters;
-    const select = document.getElementById('dt-parameters-preset');
-    select.innerHTML = parameters.presets.map(item => {
-        const label = item.models.length ? item.models.join(', ') : t('dtParametersDefaults');
-        return `<option value="${escapeHtml(item.id)}">${escapeHtml(label)}</option>`;
-    }).join('');
-    select.value = parameters.preset;
-    if (changed || !document.getElementById('dt-parameters-fields').children.length) {
+    if (!document.getElementById('dt-parameters-fields').children.length) {
         drawParameterFields(parameters.fields, parameters.values);
     }
 }
@@ -209,17 +200,6 @@ function drawParameterFields(fields, values) {
         }).join('');
         return `<fieldset class="dt-parameter-group"><legend>${escapeHtml(t('dtParamGroup_' + group))}</legend>${inputs}</fieldset>`;
     }).join('');
-}
-
-function chosenPreset() {
-    const id = document.getElementById('dt-parameters-preset').value;
-    return (state.parameters?.presets || []).find(item => item.id === id) || null;
-}
-
-function fillParameters(preset) {
-    if (!preset || !state.parameters) return;
-    state.parameters = { ...state.parameters, preset: preset.id, values: preset.values };
-    drawParameterFields(state.parameters.fields, preset.values);
 }
 
 // The fields as the run sends them: an empty one is null, the rossml default.

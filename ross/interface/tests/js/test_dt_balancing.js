@@ -28,19 +28,16 @@ const ROTOR_NODES = 7;
 let planes = { measuring: [], balancing: [] };
 let ran = null;
 let applied = new Set();
-// The analysis parameters as the server answers them: a preset per set of
-// machine values, the rossml defaults first, and the fields they fill.
+// The analysis parameters as the server answers them: one field per value the
+// estimate uses, every one empty at the rossml default.
 const PARAMETER_FIELDS = [
     { key: 'number_points', group: 'signal', whole: true },
     { key: 'noise_rate', group: 'signal', whole: false },
     { key: 'mu_d_min', group: 'limits', whole: false },
     { key: 'mu_d_max', group: 'limits', whole: false },
 ];
-const PRESETS = [
-    { id: 'rossml', models: [], values: { number_points: null, noise_rate: null, mu_d_min: null, mu_d_max: null } },
-    { id: 'a', models: ['a', 'b'], values: { number_points: 2048, noise_rate: 90, mu_d_min: 340, mu_d_max: 3400 } },
-];
-const startingParameters = () => ({ preset: 'rossml', values: PRESETS[0].values, presets: PRESETS, fields: PARAMETER_FIELDS });
+const PARAMETER_VALUES = { number_points: null, noise_rate: null, mu_d_min: null, mu_d_max: null };
+const startingParameters = () => ({ values: { ...PARAMETER_VALUES }, fields: PARAMETER_FIELDS });
 let parameters = startingParameters();
 const asked = [];
 
@@ -272,22 +269,15 @@ check('applying the last sensor enables the analysis, with no reload',
       document.getElementById('dt-run').disabled === false
       && document.getElementById('dt-run-refusal').textContent === '');
 
-// --- The analysis parameters: a preset fills the fields, without a file ------
+// --- The analysis parameters: empty fields, without a file or a machine -----
 
-const presetSelect = document.getElementById('dt-parameters-preset');
-check('the presets are offered, the rossml defaults first and chosen',
-      presetSelect.innerHTML.indexOf('rossml defaults') !== -1
-      && presetSelect.innerHTML.indexOf('rossml defaults') < presetSelect.innerHTML.indexOf('a, b')
-      && presetSelect.value === 'rossml');
 const fieldsBox = () => document.getElementById('dt-parameters-fields').innerHTML;
-check('each field is drawn in its group, empty for the rossml defaults',
+check('each field is drawn in its group, empty at the rossml defaults',
       fieldsBox().includes('Number of points') && fieldsBox().includes('Resultant force limits')
-      && fieldsBox().includes('id="dt-param-noise_rate"') && !fieldsBox().includes('value="90"'));
-
-presetSelect.value = 'a';
-await MEASUREMENT_ACTIONS['dt-parameters-preset']({ dataset: {} });
-check("choosing a machine's preset fills the fields with its values",
-      fieldsBox().includes('value="2048"') && fieldsBox().includes('value="3400"'));
+      && fieldsBox().includes('id="dt-param-noise_rate"') && !fieldsBox().includes('value="90"')
+      && !fieldsBox().includes('value="2048"'));
+check('no machine-parameters picker is wired up any more',
+      MEASUREMENT_ACTIONS['dt-parameters-preset'] === undefined);
 check('a whole-number field steps by one, the others take any value',
       /id="dt-param-number_points" type="number" step="1"/.test(fieldsBox())
       && /id="dt-param-noise_rate" type="number" step="any"/.test(fieldsBox()));
@@ -317,8 +307,8 @@ check('when the run ends, the dimming is lifted',
       document.getElementById('dt-balancing-body').style.opacity === '1');
 check('the run carries the chosen iterations, population and optimization',
       ran && ran.iterations === 2 && ran.population === 3 && ran.optimize === true);
-check('the run sends the preset and every field, an empty one as null',
-      ran.preset === 'a' && ran.parameters.number_points === 2048
+check('the run sends every field, an empty one as null',
+      ran.preset === undefined && ran.parameters.number_points === 2048
       && ran.parameters.noise_rate === 80
       && ran.parameters.mu_d_min === null && ran.parameters.mu_d_max === null);
 check('the correction mass and its phase are shown per plane',

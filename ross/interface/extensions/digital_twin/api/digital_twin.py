@@ -152,7 +152,6 @@ def balancing():
             body.get("iterations", 0),
             body.get("population", 1),
             body.get("optimize", False),
-            preset=body.get("preset"),
             values=body.get("parameters"),
         )
     )
@@ -160,11 +159,9 @@ def balancing():
 
 @digital_twin.route("/api/dt/balancing-parameters", methods=["POST"])
 def balancing_parameters():
-    """Choose the analysis parameters: a preset and the fields changed after it."""
+    """Choose the analysis parameters: the fields filled on the screen."""
     body = _body()
-    return jsonify(
-        set_parameters(body.get("session"), body.get("preset"), body.get("parameters"))
-    )
+    return jsonify(set_parameters(body.get("session"), body.get("parameters")))
 
 
 @digital_twin.route("/api/dt/balancing-figure", methods=["POST"])

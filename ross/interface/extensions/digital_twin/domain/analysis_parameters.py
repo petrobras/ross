@@ -3,13 +3,13 @@
 
 rossml takes them as nested dictionaries (`signal_parameters`, `kalman_flow`,
 `resultant_force_limits`, `direct`, `indirect`). The screen shows each value
-as a field, and a preset fills every field at once. `FIELDS` lists the values
-the estimate uses; nothing else of a machine's parameters reaches rossml.
+as a field, empty until the user fills it, and an empty field leaves rossml
+its own default. `FIELDS` lists the values the estimate uses; nothing else
+reaches rossml.
 
-The presets are the rossml defaults, which leave every field empty, and the
-parameters of the Digital Twin app's machines, read from
-`models_files/<model>/input_parameters.json` when the app is on this computer.
-Machines whose fields hold the same values share one preset.
+The parameters of a machine are not read here. They belong to the machine,
+not to the library, so they stay in the Digital Twin app with the rest of its
+data; this screen starts from the rossml defaults for every rotor.
 
 A factor of the filter is a mantissa times a power of ten. Its `direct` value
 is used as given; its `indirect` bounds, a range for the mantissa and a range
@@ -18,13 +18,7 @@ value.
 """
 
 import copy
-import json
 import math
-import os
-
-from .dt_app import APP_DIR
-
-DEFAULTS = "rossml"
 
 FACTORS = ("P", "Q", "S")
 
@@ -80,53 +74,32 @@ PAIRS = [
 ]
 
 
-def presets():
-    """Return the presets, the rossml defaults first.
+def defaults():
+    """Return every field empty, which is the rossml default for each one.
 
     Returns
     -------
-    list of dict
-        `{"id", "models", "values"}`, with `values` as `{key: number or None}`
-        and `models` the machines of the Digital Twin app that use them.
+    dict
+        `{key: None}` for every key of `KEYS`.
     """
-    found = [{"id": DEFAULTS, "models": [], "values": dict.fromkeys(KEYS)}]
-    folder = os.path.join(APP_DIR, "models_files")
-    names = sorted(os.listdir(folder)) if os.path.isdir(folder) else []
-    for model in names:
-        values = _read(os.path.join(folder, model, "input_parameters.json"))
-        if values is None:
-            continue
-        same = next((item for item in found if item["values"] == values), None)
-        if same is None:
-            found.append({"id": model, "models": [model], "values": values})
-        else:
-            same["models"].append(model)
-    return found
+    return dict.fromkeys(KEYS)
 
 
-def preset_for(model):
-    """Return the id of the preset a model uses, the rossml defaults otherwise."""
-    for item in presets():
-        if model in item["models"]:
-            return item["id"]
-    return DEFAULTS
-
-
-def chosen(preset, values=None):
-    """Return the preset's fields with the values the user changed.
+def chosen(values=None):
+    """Return the fields with the values the user filled in.
 
     Parameters
     ----------
-    preset : str
-        Id of one of `presets()`.
     values : dict, optional
-        `{key: number, numeric text or None}` for the fields changed on the
+        `{key: number, numeric text or None}` for the fields filled on the
         screen. An empty field is `None` and leaves rossml its default.
+
+    Returns
+    -------
+    dict
+        `{key: number or None}` for every key of `KEYS`.
     """
-    found = {item["id"]: item for item in presets()}
-    if preset not in found:
-        raise ValueError("Unknown analysis parameters preset: %s." % preset)
-    fields = dict(found[preset]["values"])
+    fields = defaults()
     if values is None:
         values = {}
     if not isinstance(values, dict):
@@ -169,30 +142,6 @@ def describe():
     ]
 
 
-def _read(path):
-    """The fields of an `input_parameters.json`, or `None` when it cannot be read."""
-    try:
-        with open(path, encoding="utf-8") as handle:
-            raw = json.load(handle)
-    except (OSError, ValueError):
-        return None
-    if not isinstance(raw, dict):
-        return None
-    values = {}
-    for key, _group, path, _whole in FIELDS:
-        value = _get(raw, path)
-        values[key] = (
-            float(value)
-            if isinstance(value, (int, float)) and not isinstance(value, bool)
-            else None
-        )
-    for keys in PAIRS:
-        if any(values[key] is None for key in keys):
-            for key in keys:
-                values[key] = None
-    return values
-
-
 def _number(key, value):
     if value is None or (isinstance(value, str) and not value.strip()):
         return None
@@ -209,17 +158,6 @@ def _number(key, value):
     if whole and not number.is_integer():
         raise ValueError("%s must be a whole number." % key)
     return number
-
-
-def _get(data, path):
-    for step in path:
-        if isinstance(step, int):
-            if not isinstance(data, list) or len(data) <= step:
-                return None
-        elif not isinstance(data, dict) or step not in data:
-            return None
-        data = data[step]
-    return data
 
 
 def _put(data, path, value):
