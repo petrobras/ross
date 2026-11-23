@@ -291,6 +291,24 @@ def test_inherited_analyses_preserve_multi_rotor(multi_rotor):
     assert multi_rotor.mesh is not None
 
 
+@pytest.mark.parametrize("shaft", ["driving", "driven"])
+def test_level1_cross_coupling_on_either_shaft(multi_rotor, shaft):
+    if shaft == "driving":
+        node = max(multi_rotor.rotors["driving"].nodes)
+    else:
+        node = max(multi_rotor.driven_nodes)
+    level1 = multi_rotor.run_level1(n=node, stiffness_range=(1e6, 1e7), num=2)
+
+    speed = multi_rotor.rated_w if multi_rotor.rated_w is not None else 0
+    expected = []
+    for Q in (1e6, 1e7):
+        cross_coupling = rs.BearingElement(n=node, kxx=0, cxx=0, kxy=Q, kyx=-Q)
+        modal = multi_rotor.add_elements([cross_coupling]).run_modal(speed=speed)
+        expected.append(modal.log_dec[modal.whirl_direction() != "Backward"][0])
+
+    assert_allclose(level1.log_dec, expected, rtol=1e-6)
+
+
 @pytest.mark.parametrize("log_k", [6, 8, 10])
 def test_ucs_keeps_every_multi_rotor_mode(multi_rotor, log_k):
     num_modes = 12
