@@ -27,9 +27,14 @@ class HybridSeal(SealElement):
        - Convergence criterion based on relative leakage difference
 
     2. **Combined Rotordynamic Coefficients**:
-       - Direct and cross-coupled stiffness (K), damping (C), and mass (M) coefficients
+       - Direct and cross-coupled stiffness (K) and damping (C) coefficients
        - Series combination: forces from both seals are added
-       - Frequency-dependent coefficients for each operating speed
+       - Both stages store K and C at the whirl frequency, with zero mass
+         terms. With ``frequency``, both are taken at each of its entries and
+         the sum is the hybrid K and C there. For a 1-D table the labyrinth
+         stage is at synchronous whirl and the hole-pattern stage at
+         ``excitation_ratio * speed`` (1.0 by default, so the sum is the
+         hybrid K and C at synchronous whirl)
 
     Parameters
     ----------
@@ -74,14 +79,24 @@ class HybridSeal(SealElement):
         - axial_length : float, pint.Quantity
             Axial length of the seal (m).
         - relative_roughness : float
-            Relative roughness E / D (roughness / diameter) of the shaft,
-            dimensionless.
+            Roughness of the rotor surface divided by the radial clearance,
+            dimensionless. The stator is treated as smooth.
         - cell_length : float, pint.Quantity
-            Typical length of a cell in the axial direction (m).
+            Typical length of a cell in the axial direction (m). Not used by
+            the model: the cells act only through their depth.
         - cell_width : float, pint.Quantity
-            Typical length of a cell in the azimuthal direction (m).
+            Typical length of a cell in the azimuthal direction (m). Not used
+            by the model: the cells act only through their depth.
         - cell_depth : float, pint.Quantity
-            Depth of a cell (m).
+            Depth of the cells (m). For a hole pattern, use the
+            volume-equivalent depth: hole depth times hole-area ratio.
+        - gas_model : str, optional
+            "ideal" (perfect gas with the Sutherland viscosity) or "real"
+            (properties tabulated from the equation of state of ccp; requires
+            gas_composition). Default is "ideal". With "real", the property
+            table of the hole-pattern stage is rebuilt at every step of the
+            interface-pressure search, which takes minutes for a
+            multi-component natural gas under HEOS.
         - sutherland_b : float, optional
             b coefficient for the Sutherland viscosity model.
             Required if gas_composition is None. Default is None.
@@ -105,16 +120,20 @@ class HybridSeal(SealElement):
             Number of discretization points in the axial direction.
             Default is 80.
         - max_iterations : int, optional
-            Maximum number of iterations for basic state calculation.
-            Default is 180.
+            Maximum number of trial integrations of the outlet-pressure
+            search. Default is 180.
         - tolerance : float, optional
-            Tolerance of the solution expressed as a percentage of the pressure differential
-            across the seal. Default is 0.0001.
+            Largest outlet-pressure residual accepted at the end of the
+            search, as a fraction of the pressure drop across the stage.
+            Default is 0.0001.
         - first_step_size : float, optional
-            Initial step for the solution method. It should not be more than 0.01.
+            The first trial entrance pressure is (1 - first_step_size) times
+            the stage inlet pressure; the step is divided by 10 while that
+            trial already passes the outlet pressure or chokes.
             Default is 0.01.
         - relaxation_factor : float, optional
-            Relaxation factor. Should be smaller than 0.1.
+            Not used: the outlet-pressure search has no relaxed secant step.
+            Kept so that existing scripts and saved files build.
             Default is 0.1.
 
     **Labyrinth Seal Parameters (upstream throttling stage):**
