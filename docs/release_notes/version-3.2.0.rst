@@ -462,6 +462,9 @@ Murillo Alvaro Borges de Sousa (`#1426 <https://github.com/petrobras/ross/pull/1
 - ``MultiRotor`` takes ``min_w``, ``max_w`` and ``rated_w``.
 - ``run_level1`` with ``rated_w=None`` runs at speed 0 instead of raising, also on a plain
   ``Rotor``.
+- ``run_level1`` also runs with the cross-coupling on the driven shaft, including the default
+  ``n=5`` of ``two_shaft_rotor_example()``. Before, it raised ``ValueError: Tags should be
+  unique.`` (`#1506 <https://github.com/petrobras/ross/pull/1506>`_).
 
 Graphical Interface
 ~~~~~~~~~~~~~~~~~~~
@@ -637,6 +640,18 @@ loaded either. The fix is in `#1426 <https://github.com/petrobras/ross/pull/1426
   of that class. ``Results.load`` therefore returns results with a ``MultiRotor``.
 - The backlash, square-wave stiffness, mesh stiffness, mesh damping and orientation are kept.
 
+Fix ``MultiRotor`` with Housing Bearings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A ``MultiRotor`` whose rotors had housing bearings (a ``PointMass`` linked by ``n_link``) could not
+be built: ``_build_base_matrices`` raised ``IndexError``. The driven rotor was numbered past the
+driving rotor's housing nodes, which left a gap in the shaft node numbers and put the degrees of
+freedom of the last driven nodes outside the matrices. The driven shaft nodes now follow the
+driving ones directly, and the housing nodes of both rotors come after all shaft nodes, driving
+first, as in ``Rotor``. Without housings, node numbers, degrees of freedom and results are
+unchanged. Contributed by Jessica Guarato
+(`#1485 <https://github.com/petrobras/ross/pull/1485>`_).
+
 Fix ``PointMass`` on a Shaft Node
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -692,6 +707,16 @@ Documentation
 
 - ``ross/interface/README_INTERFACE.md`` describes the views button of the 3-D view
   (`#1472 <https://github.com/petrobras/ross/pull/1472>`_).
+- A new theory page, ``fluid_film_bearings``, explains how the fluid-film journal bearing solver
+  works: one case per speed, the convergence diagnostics, the operating results, the pad matrices
+  and their exact condensation, the lubricant laws and the cavitation models. The journal bearing
+  tutorial, ``tutorial_bearings_part_2``, uses the new options
+  (`#1502 <https://github.com/petrobras/ross/pull/1502>`_).
+- The tilt angle of ``TiltingPad`` (``operating_results["tilt_angle"]``) is documented with its
+  sign, its rotation centre (the pivot at the pad back) and the film-thickness expression that
+  uses it, in the docstring and in the tilting-pad section of ``tutorial_bearings_part_2``. A test
+  rebuilds the film thickness of every pad from it
+  (`#1504 <https://github.com/petrobras/ross/pull/1504>`_).
 
 Agent Tooling
 ^^^^^^^^^^^^^
@@ -711,6 +736,9 @@ Agent Tooling
 - The ``seals`` recipe of the agent skill covers the new hole-pattern model
   (`#1481 <https://github.com/petrobras/ross/pull/1481>`_), and the ``motor`` recipe covers
   circuit estimation (`#1470 <https://github.com/petrobras/ross/pull/1470>`_).
+- The agent skill has a new ``multi_rotor`` recipe, and ``AGENTS.md``, the recipes and the API
+  reference were brought in line with the 3.2.0 API, including the fluid-film solver classes and
+  circuit estimation (`#1507 <https://github.com/petrobras/ross/pull/1507>`_).
 
 Contributing and Release Process
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -727,6 +755,14 @@ Contributing and Release Process
 - ``tools/data/c123701``, a rotor model used only by ``tools/generate_comparison_plots.py``, was
   removed, and the comparison data of the compressor is in ``tools/data/compressor``
   (`#1465 <https://github.com/petrobras/ross/pull/1465>`_).
+- The HEOS labyrinth seal test checks ``kxx`` and ``cxx`` to ``rtol=5e-3``. CoolProp 8.1.0 moves
+  ``cxx`` by 1.0e-3 from 8.0.0, past the previous ``1e-3``; the leakage, ``R`` and ``gamma`` keep
+  ``1e-3`` (`#1503 <https://github.com/petrobras/ross/pull/1503>`_).
+- The documentation notebooks load plotly.js from its CDN (``notebook_connected`` renderer) instead
+  of storing a copy of it, which reduces them from 308 MB to 95 MB. Their figures need internet
+  access (`#1507 <https://github.com/petrobras/ross/pull/1507>`_).
+- 3.2.0rc1 was the release candidate
+  (`#1507 <https://github.com/petrobras/ross/pull/1507>`_).
 
 API Changes
 ~~~~~~~~~~~
