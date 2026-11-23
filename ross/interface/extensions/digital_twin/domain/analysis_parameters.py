@@ -7,10 +7,10 @@ estimate uses and where each one goes in the arguments of `rossml.api.API.run`
 (`number_points` and `w_f0` on their own, the filter factors inside `direct`
 and `indirect`); nothing else reaches rossml.
 
-Only the values rossml reads are here. `signal_parameters`, `kalman_flow` and
-`resultant_force_limits` are taken by `API.run` and then dropped by its
-`_clearmemory` without being read, so a field of theirs would change nothing;
-they belong here again when rossml reads them again.
+Only the values rossml reads are here. `signal_parameters` and `kalman_flow`
+are taken by `API.run` and then dropped by its `_clearmemory` without being
+read, so a field of theirs would change nothing; they belong here again when
+rossml reads them again.
 
 The parameters of a machine are not read here. They belong to the machine,
 not to the library, so they stay in the Digital Twin app with the rest of its

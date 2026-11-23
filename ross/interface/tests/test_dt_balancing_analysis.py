@@ -96,7 +96,6 @@ class FakeAPI:
         rotation_sense="clockwise",
         indirect=None,
         view_plans="all",
-        resultant_force_limits=None,
         signal_parameters=None,
         kalman_flow=None,
         verbose=True,
@@ -309,7 +308,7 @@ INDIRECT = {
 }
 # The dictionaries `API.run` takes and then drops in `_clearmemory` without
 # reading them, so the interface has no field of theirs to send.
-UNREAD = ("signal_parameters", "kalman_flow", "resultant_force_limits")
+UNREAD = ("signal_parameters", "kalman_flow")
 
 
 def test_the_analysis_parameters_read_no_machine_file():
