@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -217,3 +219,283 @@ def test_tilting_pad_coefficients_depend_on_whirl():
     assert_allclose(
         float(bearing.kxx_interpolated(0.3 * speed[0], speed[0])), reference.kxx[0]
     )
+
+
+def _five_pad(**overrides):
+    """Coarse isoviscous 5-pad bearing for the input checks (load on a pad)."""
+    kwargs = dict(
+        n=1,
+        speed=Q_([3000], "RPM"),
+        thermal_type=None,
+        journal_diameter=101.6e-3,
+        radial_clearance=74.9e-6,
+        pad_thickness=12.7e-3,
+        pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
+        pad_arc=Q_([60] * 5, "deg"),
+        pad_axial_length=[50.8e-3] * 5,
+        preload=[0.5] * 5,
+        offset=[0.5] * 5,
+        lubricant="ISOVG32",
+        oil_supply_temperature=Q_(40, "degC"),
+        oil_flow_v=Q_(10, "l/min"),
+        total_ex_film=20,
+        total_ez_film=10,
+        total_ey_pad=10,
+        total_ey_film=10,
+    )
+    kwargs.update(overrides)
+    return kwargs
+
+
+def test_default_equilibrium_with_load_warns():
+    """The default match_eccentricity holds the journal and ignores the load."""
+    with pytest.warns(UserWarning, match="match_load"):
+        held = TiltingPad(**_five_pad(fys_load=-500.0))
+    # the journal stays at the default eccentricity 0.3 whatever the load
+    assert_allclose(held._results.outputs[0]["eccentricity"][0], 0.3, rtol=1e-6)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        TiltingPad(**_five_pad(fys_load=-500.0, equilibrium_type="match_load"))
+        TiltingPad(**_five_pad())
+
+
+@pytest.mark.parametrize(
+    "overrides, argument",
+    [
+        # the pivot defaults (pivot_stiffness 0, Hertz diameters 0)
+        (dict(deform_type="pad_pivot_mechanical"), "pivot_stiffness"),
+        (
+            dict(deform_type="pad_pivot_mechanical", pivot_type="ball_in_socket"),
+            "pivot_diameter",
+        ),
+        (
+            dict(
+                deform_type="pad_pivot_mechanical",
+                pivot_type="button",
+                pivot_diameter=0.02,
+            ),
+            "house_diameter",
+        ),
+    ],
+)
+def test_pivot_defaults_raise(overrides, argument):
+    with pytest.raises(ValueError, match=argument):
+        TiltingPad(**_five_pad(equilibrium_type="match_load", **overrides))
+
+
+def test_stiff_pivot_builds():
+    """k_piv = 1e8 N/m: a valid neighbour of the soft pivot below."""
+    bearing = TiltingPad(
+        **_five_pad(
+            equilibrium_type="match_load",
+            fys_load=-2.8e3,
+            deform_type="pad_pivot_mechanical",
+            pivot_stiffness=1e8,
+        )
+    )
+    out = bearing._results.outputs[0]
+    assert_allclose(out["k_pivot"][0], [1e8] * 5)
+    # the film carries the load: |F_film - W| / W within the Newton tolerance
+    assert abs(out["fy_hydro"][0] - 2.8e3) / 2.8e3 < 2e-3
+    # pad deflection = pad force / pivot stiffness (user-specified model)
+    assert max(out["deform_pivot"][0]) > 0.0
+    # so the pivot spring forces k * deflection, acting along the pivot radii
+    # (18, 90, ..., 306 deg), must carry the 2.8 kN load on the housing
+    pivot = np.radians([18, 90, 162, 234, 306])
+    spring = 1e8 * np.asarray(out["deform_pivot"][0])
+    resultant = [np.sum(spring * np.cos(pivot)), np.sum(spring * np.sin(pivot))]
+    assert np.hypot(resultant[0], resultant[1] + 2.8e3) / 2.8e3 < 2e-3
+
+
+def test_soft_pivot_does_not_crash(monkeypatch):
+    """k_piv = 1e7 N/m used to raise ZeroDivisionError in the Newton step.
+
+    The pivot deflection under the pad load (about 230 um on the loaded pads)
+    is larger than the pad clearance (150 um), so the pivot iteration pushes
+    every pad out of the film and the film stiffness becomes exactly zero. The
+    Newton step now treats that as a singular system. The outer loops are
+    capped at three iterations here so that the test only runs through the
+    first collapse; reporting such a case as not converged is left to
+    the convergence report.
+    """
+    # ``thd`` binds MAX_ITERATION at import time and ``driver.run_case``
+    # imports it lazily: import it here and patch its copy too, so that the
+    # cap does not stay in ``thd`` after the test (monkeypatch restores both).
+    from ross.bearings.fluid_film import constants, hydrodynamics, thd
+
+    singular = []
+    newton_step = hydrodynamics._newton_step
+
+    def spy(*args):
+        step = newton_step(*args)
+        if step[0] is None:
+            singular.append(args[:4])
+        return step
+
+    monkeypatch.setattr(hydrodynamics, "_newton_step", spy)
+    monkeypatch.setattr(constants, "MAX_ITERATION", 3)
+    monkeypatch.setattr(thd, "MAX_ITERATION", 3)
+    TiltingPad(
+        **_five_pad(
+            equilibrium_type="match_load",
+            fys_load=-2.8e3,
+            deform_type="pad_pivot_mechanical",
+            pivot_stiffness=1e7,
+        )
+    )
+    assert any(k[0] == 0.0 or k[3] == 0.0 for k in singular)
+
+
+def _zero_preload_four_pad(pivots, **overrides):
+    """Isoviscous 4-pad, 80 deg, zero-preload bearing (Someya calculation 24)."""
+    kwargs = dict(
+        n=1,
+        speed=Q_([3000], "RPM"),
+        thermal_type=None,
+        journal_diameter=0.1,
+        radial_clearance=100e-6,
+        pad_thickness=0.01,
+        pivot_angle=Q_(pivots, "deg"),
+        pad_arc=Q_([80] * 4, "deg"),
+        pad_axial_length=[0.05] * 4,
+        preload=[0.0] * 4,
+        offset=[0.5] * 4,
+        lubricant="ISOVG32",
+        oil_supply_temperature=Q_(40, "degC"),
+        oil_flow_v=Q_(20, "l/min"),
+        total_ex_film=30,
+        total_ez_film=12,
+    )
+    kwargs.update(overrides)
+    return kwargs
+
+
+def test_zero_preload_pads_solve():
+    """Zero-preload pads used to stop the solve with ZeroDivisionError.
+
+    At zero preload the end of the admissible tilt range is the tilt at
+    which a pad edge touches the journal, so the tilt search of an unloaded
+    pad could end on a film of round-off thickness (1e-20 m) and the
+    flow-regime kernel divided by its zero mean viscosity. Such a film now
+    counts as closed (``CLOSED_FILM``). Physics checks: the two pads facing
+    the load at +-45 deg carry it and the two others carry nothing, so the
+    stiffness is isotropic (each loaded pad acts along its pivot line).
+    """
+    bearing = TiltingPad(
+        **_zero_preload_four_pad(
+            [45, 135, 225, 315], equilibrium_type="match_load", fys_load=-1600.0
+        )
+    )
+    assert bool(bearing.results.converged[0])
+    out = bearing._results.outputs[0]
+    assert np.all(np.asarray(out["h_min"][0]) > 1e-6)
+    forces = np.hypot(*bearing.results.pad_forces[0].T)
+    assert_allclose(forces[[0, 1]], 0.0, atol=0.0)
+    assert_allclose(forces[2], forces[3], rtol=1e-6)
+    assert_allclose(bearing.kxx[0], bearing.kyy[0], rtol=1e-6)
+    assert_allclose(bearing.cxx[0], bearing.cyy[0], rtol=1e-6)
+
+
+@pytest.mark.parametrize("first", [225, 315])
+def test_pad_order_does_not_change_the_solution(first):
+    """The listed order of the pads must not change a thin-film solution.
+
+    Regression test. The 3-D film mesh is matched to the energy mesh on the
+    first pad's film at the initial journal position. With that pad loaded
+    (here 34 um of film over 30 radial elements, about 1.1 um apart) a
+    matching tolerance coarser than the radial node spacing matches an
+    energy node to the 3-D nodes of several layers: with 1e-6 m the pads
+    listed from 315 deg gave 6534 and 3875 N on the two symmetric loaded
+    pads instead of 4976 N on each, and listed from 225 deg the matching
+    wrote past its array and aborted the process. The interface tolerance
+    ``INTERFACE_TOL`` (1e-8 m) is far below that spacing, and both matching
+    loops now raise ``ValueError`` instead of writing past a row.
+    """
+    held = dict(equilibrium_type="match_eccentricity", xj=0.0, yj=-0.807)
+    pivots = [45, 135, 225, 315]
+    shift = pivots.index(first)
+    ordered = TiltingPad(**_zero_preload_four_pad(pivots, **held))
+    rotated = TiltingPad(
+        **_zero_preload_four_pad(pivots[shift:] + pivots[:shift], **held)
+    )
+    f_ordered = ordered.results.pad_forces[0]
+    f_rotated = np.roll(rotated.results.pad_forces[0], shift, axis=0)
+    scale = np.abs(f_ordered).max()
+    assert_allclose(f_rotated, f_ordered, rtol=0, atol=1e-9 * scale)
+    # The loaded pads (225 and 315 deg) mirror each other about -y.
+    assert_allclose(f_ordered[2, 0], -f_ordered[3, 0], rtol=1e-9)
+    assert_allclose(f_ordered[2, 1], f_ordered[3, 1], rtol=1e-9)
+    for name in ("kxx", "kxy", "kyx", "kyy", "cxx", "cyy"):
+        assert_allclose(getattr(rotated, name)[0], getattr(ordered, name)[0], rtol=1e-9)
+
+
+@pytest.mark.parametrize(
+    "equilibrium",
+    [
+        dict(equilibrium_type="match_load", fxs_load=1500.0, fys_load=-2600.0),
+        dict(equilibrium_type="match_eccentricity", xj=0.15, yj=-0.25),
+    ],
+    ids=["match_load", "match_eccentricity"],
+)
+def test_tilt_angle_rebuilds_the_film_thickness(equilibrium):
+    """The documented film-thickness expression rebuilds the film field.
+
+    Pins the convention of ``operating_results["tilt_angle"]`` stated in
+    ``FluidFilmBearingResults.operating_results``: for a rigid pad ``k`` at
+    angle ``theta`` from its leading edge (global angle ``theta_g =
+    leading_edge_angle + theta``, from ``+x`` towards ``+y``),
+
+        h = C_p - xj cos(theta_g) - yj sin(theta_g)
+            - (C_p - C_b) cos(theta - theta_p)
+            - (R + C_b + t) delta_k sin(theta - theta_p)
+
+    with ``C_p = C_b / (1 - preload)`` and ``theta_p = offset * pad_arc``.
+    The pivots are offset, the preloads differ and the load is off a pad,
+    so the pad loads and tilts all differ and a sign error in any term,
+    a pivot measured from the pad centre or a tilt about the journal
+    radius instead of the pivot radius gives an error of several um.
+
+    The field is built from the same doubles by the same expression, so
+    the agreement is to round-off; ``rtol=1e-12`` leaves room only for
+    the order of the floating-point operations.
+    """
+    preload = [0.5, 0.3, 0.5, 0.4, 0.5]
+    offset = 0.6
+    bearing = TiltingPad(
+        **_five_pad(preload=preload, offset=[offset] * 5, **equilibrium)
+    )
+    results = bearing.results
+    op = bearing.operating_results
+    assert op["converged"][0]
+    tilt = np.asarray(op["tilt_angle"][0])
+    xj, yj = op["xj"][0], op["yj"][0]
+    radius = 0.5 * 101.6e-3
+    cb = 74.9e-6
+    thickness = 12.7e-3
+    arc = np.radians(60.0)
+    pad_load = np.asarray(op["pad_load"][0])
+    assert np.ptp(pad_load) > 0.3 * pad_load.max()
+    assert np.ptp(tilt) > 0.3 * np.abs(tilt).max()
+    assert_allclose(
+        results.leading_edge_angles,
+        np.radians([18, 90, 162, 234, 306]) - offset * arc,
+    )
+
+    for k in range(5):
+        cp = cb / (1.0 - preload[k])
+        theta = results.theta_grids[0][k]
+        theta_g = results.leading_edge_angles[k] + theta
+        dtheta = theta - offset * arc
+        h = (
+            cp
+            - xj * np.cos(theta_g)
+            - yj * np.sin(theta_g)
+            - (cp - cb) * np.cos(dtheta)
+            - (radius + cb + thickness) * tilt[k] * np.sin(dtheta)
+        )
+        field = results.film_thickness_fields[0][k]
+        assert_allclose(field, h, rtol=1e-12, atol=0)
+        # A positive tilt closes the trailing edge of the pad.
+        if tilt[k] > 0:
+            assert field[-1].mean() < field[0].mean()

@@ -20,7 +20,7 @@ globalThis.fetch = async path => {
 };
 globalThis.dispatchEvent = () => true;
 
-const { elementsUsing, materialKey, renameMaterial, rossMaterialName } =
+const { adoptMaterials, elementsUsing, materialKey, materialsOffered, renameMaterial, rossMaterialName } =
     await import('../../frontend/core/material_names.js');
 const { state, openProjectHistory } = await import('../../frontend/core/state.js');
 const { schemaReady } = await import('../../frontend/core/schema.js');
@@ -172,6 +172,56 @@ selectSubType('BASIC');
 check('a material name is escaped in the shaft form',
     materialSelect.innerHTML.includes('x&quot;&gt;&lt;b&gt;bold&lt;/b&gt;')
     && !materialSelect.innerHTML.includes('<b>'));
+
+// --- a MultiRotor: the materials of both halves -----------------------------------------------
+//
+// Each half keeps its own list, and the server checks each half against its
+// own. A material made while editing one half was offered nowhere else: the
+// other half's form, and the sketch, had only the default steel (Leonardo).
+
+const steel = { element_type: 'BASIC', name: 'Steel', rho: '7810' };
+const alloy = { element_type: 'BASIC', name: 'Aco_4340', rho: '7850' };
+const names = list => list.map(m => m.name).join('|');
+check('a half is offered its own materials, then the other half\'s',
+    names(materialsOffered({ materials: [steel] }, { materials: [steel, alloy] })) === 'Steel|Aco_4340');
+check('a name both have is offered once, as the half has it',
+    materialsOffered({ materials: [{ name: 'steel', rho: '1' }] }, { materials: [steel] })[0].rho === '1'
+    && materialsOffered({ materials: [{ name: 'steel' }] }, { materials: [steel] }).length === 1);
+check('a single rotor is offered its own', names(materialsOffered({ materials: [steel] }, null)) === 'Steel');
+
+const taking = { materials: [steel], shafts: [{ material: 'Aco_4340' }, { material: 'Aco 4340' }, { material: 'Steel' }],
+    disks: [], gears: [{ material: 'Default (Steel)' }] };
+const copied = adoptMaterials(taking, { materials: [steel, alloy] });
+check('a material named from the other half is copied into this one, once',
+    copied.join() === 'Aco_4340' && names(taking.materials) === 'Steel|Aco_4340');
+check('a copy, not the other half\'s object', taking.materials[1] !== alloy && taking.materials[1].rho === '7850');
+check('nothing to copy: the default steel, and what the half has', adoptMaterials(taking, { materials: [steel, alloy] }).length === 0);
+
+// Through the screen: a MultiRotor whose driving half has the new material.
+const driving = { name: 'Motor', uid: 'u1', materials: [steel, alloy], shafts: [{ L: '1', material: 'Aco_4340' }],
+    disks: [], gears: [], couplings: [], seals: [], bearings: [], pointmasses: [] };
+const driven = { name: 'Bomba', uid: 'u2', materials: [steel], shafts: [{ L: '1', material: 'Steel' }],
+    disks: [], gears: [], couplings: [], seals: [], bearings: [], pointmasses: [] };
+const multi = { name: 'MR', uid: 'mr', isMultiRotor: true, driving_uid: 'u1', driven_uid: 'u2', savedAnalyses: [],
+    driving_rotor: JSON.parse(JSON.stringify(driving)), driven_rotor: JSON.parse(JSON.stringify(driven)), multi_params: {},
+    materials: [], shafts: [], disks: [], gears: [], couplings: [], seals: [], bearings: [], pointmasses: [] };
+state.rotorLibrary = [driving, driven, multi];
+state.projectData = multi;
+state.multiRotorEditTarget = 'driven';
+state.currentTab = 'shafts';
+state.editingIndex = 0;
+openProjectHistory(multi);
+const drivenSelect = { innerHTML: '' };
+node('form-fields').querySelectorAll = selector => (selector === 'select#inp-material' ? [drivenSelect] : []);
+selectSubType('BASIC');
+check('the form of a driven element offers the material made on the driving half',
+    drivenSelect.innerHTML.includes('value="Aco_4340"'));
+typeIntoForm({ L: '1', material: 'Aco_4340' });
+saveItem();
+check('chosen, the driven half gets it in its own list, and so does its library rotor',
+    multi.driven_rotor.shafts[0].material === 'Aco_4340'
+    && names(multi.driven_rotor.materials) === 'Steel|Aco_4340' && names(driven.materials) === 'Steel|Aco_4340');
+check('the driving half is left as it was', names(multi.driving_rotor.materials) === 'Steel|Aco_4340');
 
 // --- the hub counts in the singular too ----------------------------------------------------
 
