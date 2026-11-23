@@ -457,6 +457,36 @@ def test_newmark_controller_uses_the_sensors_axis_rotation():
         assert_allclose(force[6 * amb.n : 6 * amb.n + 2], expected, rtol=1e-9)
 
 
+def test_newmark_and_lsim_agree_in_rotation():
+    """Both time-domain paths give the same response at a constant speed.
+
+    A synchronous rotating force near AMB 1 excites the conical motion, where
+    the gyroscopic coupling changes the response by about 80 %. The Newmark
+    controller is discrete and uses the displacement of the previous step, so
+    the paths differ by about 0.5 % with dt = 1e-5 s, halving with dt.
+    """
+    rotor = _p_only_rotor(3.0 * KP_THRESHOLD)
+    speed, node = 1000.0, 5
+    t = np.arange(0.0, 0.05, 1e-5)
+    F = np.zeros((len(t), rotor.ndof))
+    F[:, 6 * node + 0] = np.cos(speed * t)
+    F[:, 6 * node + 1] = np.sin(speed * t)
+
+    lateral = [6 * n + k for n in range(rotor.ndof // 6) for k in (0, 1)]
+    newmark = rotor.run_time_response(speed, F.copy(), t, method="newmark").yout
+    lsim = rotor.run_time_response(speed, F.copy(), t).yout
+    without_gyroscopic = rotor.run_time_response(0.0, F.copy(), t).yout
+
+    scale = np.max(np.abs(lsim[:, lateral]))
+    difference = np.max(np.abs(newmark[:, lateral] - lsim[:, lateral]))
+    gyroscopic_effect = np.max(
+        np.abs(lsim[:, lateral] - without_gyroscopic[:, lateral])
+    )
+
+    assert difference <= 1e-2 * scale
+    assert gyroscopic_effect >= 0.5 * scale
+
+
 # Operating point under a static load. Reference: the nonlinear force of the
 # differential pair with unipolar amplifiers (Schweitzer and Maslen, 2009),
 #     F(x, ic) = k [(i0 + ic)+^2 / (g0 - x)^2 - (i0 - ic)+^2 / (g0 + x)^2],
