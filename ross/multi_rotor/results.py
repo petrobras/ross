@@ -24,17 +24,18 @@ class BacklashResults(TimeResponseResults):
     a single DoF, an orbit response for a single node or display orbit response for all
     nodes.
     The plot type options are:
-        - 1d: plot time response for given probes.
-        - 2d: plot orbit of a selected node of a rotor system.
-        - 3d: plot orbits for each node on the rotor system in a 3D view.
-        - dfft: plot response in frequency domain for given probes.
-        - transmission_error: plot time and frequency response of the transmission error.
-        - backlash: plot time and frequency response of the backlash.
-        - mesh_force: plot time and frequency response of the dynamic mesh force.
-        - mesh_stiffness: plot time and frequency response of the mesh stiffness.
-        - center_distance: plot time and frequency response of the center distance.
-        - pressure_angle: plot time and frequency response of the pressure angle.
-        - contact_ratio: plot time and frequency response of the contact ratio.
+
+    - 1d: plot time response for given probes.
+    - 2d: plot orbit of a selected node of a rotor system.
+    - 3d: plot orbits for each node on the rotor system in a 3D view.
+    - dfft: plot response in frequency domain for given probes.
+    - transmission_error: plot time and frequency response of the transmission error.
+    - backlash: plot time and frequency response of the backlash.
+    - mesh_force: plot time and frequency response of the dynamic mesh force.
+    - mesh_stiffness: plot time and frequency response of the mesh stiffness.
+    - center_distance: plot time and frequency response of the center distance.
+    - pressure_angle: plot time and frequency response of the pressure angle.
+    - contact_ratio: plot time and frequency response of the contact ratio.
 
     Parameters
     ----------

@@ -803,6 +803,7 @@ class LabyrinthSeal(SealElement):
     The model solves the **1D compressible flow problem** through a series of teeth using:
 
     1. **Mass Flow Calculation**:
+
        - Iterative solution for mass flow rate through multiple throttling stages
        - Accounts for choked flow conditions at each tooth
        - Uses discharge coefficients based on tooth geometry
@@ -810,12 +811,14 @@ class LabyrinthSeal(SealElement):
        - Carry-over factor (ν) for flow momentum between cavities
 
     2. **Pressure Distribution**:
+
        - Solves for static pressure at each cavity using bracketed root-finding
        - Handles both choked and unchoked flow conditions
        - Critical pressure ratio check at each throttle
        - Pressure balance ensures outlet pressure match
 
     3. **Velocity Field (Swirl)**:
+
        - Tangential velocity calculated at each cavity
        - Accounts for inlet pre-swirl conditions
        - Rotor and stator shear stress effects (friction factors)
@@ -823,6 +826,7 @@ class LabyrinthSeal(SealElement):
        - Jenny and Kanki parameters for improved tangential momentum (optional)
 
     4. **Dynamic Coefficients** (stiffness and damping):
+
        - Perturbation method applied to continuity and momentum equations
        - Small perturbations in radial displacement and clearance
        - Linearized system of equations solved using LU decomposition

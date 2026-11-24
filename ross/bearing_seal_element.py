@@ -2941,15 +2941,16 @@ class MagneticBearingElement(BearingElement):
         state vectors are available.
 
         The calculation follows:
-        1) Compute the control output for the sensed error
-           u = C_c @ x_c[dof_index] + D_c * error, where
-           error = k_sense * (setpoint - disp).
-        2) Update the controller state
-           x_c[dof_index] = A_c @ x_c[dof_index] + B_c * error.
-        3) Form the coil current through the power amplifier
-           signal_pid = current_offset + k_amp * u.
-        4) Map current to force
-           F = ki * signal_pid - ks * disp_actuator.
+
+        1) Compute the control output for the sensed error,
+           ``u = C_c @ x_c[dof_index] + D_c * error``, where
+           ``error = k_sense * (setpoint - disp)``.
+        2) Update the controller state,
+           ``x_c[dof_index] = A_c @ x_c[dof_index] + B_c * error``.
+        3) Form the coil current through the power amplifier,
+           ``signal_pid = current_offset + k_amp * u``.
+        4) Map current to force,
+           ``F = ki * signal_pid - ks * disp_actuator``.
 
         Steps 1 and 3 apply the same sensor and amplifier gains as the
         frequency-domain model, so for a static error the force equals
