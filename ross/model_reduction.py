@@ -5,6 +5,22 @@ from scipy.linalg import eigh
 
 
 class ModelReduction:
+    """Model reduction method selected by name.
+
+    ``ModelReduction(method, **kwargs)`` returns an instance of the subclass
+    registered under ``method``: :py:class:`ross.Guyan` (``"guyan"``, the
+    default) or :py:class:`ross.PseudoModal` (``"pseudomodal"``). The keyword
+    arguments are those of the subclass.
+
+    Parameters
+    ----------
+    method : str, optional
+        Reduction method, ``"guyan"`` or ``"pseudomodal"``. Default is
+        ``"guyan"``.
+    **kwargs : dict
+        Arguments of the subclass constructor.
+    """
+
     subclasses = {}
 
     def __init_subclass__(cls, **kwargs):

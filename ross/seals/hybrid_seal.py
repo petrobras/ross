@@ -22,11 +22,13 @@ class HybridSeal(SealElement):
     **Theoretical Approach:**
 
     1. **Iterative Pressure Matching**:
+
        - Uses bisection method to find intermediate pressure between seal stages
        - Ensures mass conservation: leakage into hole-pattern = leakage from labyrinth
        - Convergence criterion based on relative leakage difference
 
     2. **Combined Rotordynamic Coefficients**:
+
        - Direct and cross-coupled stiffness (K) and damping (C) coefficients
        - Series combination: forces from both seals are added
        - Both stages store K and C at the whirl frequency, with zero mass
@@ -74,6 +76,7 @@ class HybridSeal(SealElement):
 
     hole_pattern_parameters : dict
         Other parameters for hole-pattern seal with the following keys:
+
         - radial_clearance : float, pint.Quantity
             Seal clearance (m).
         - axial_length : float, pint.Quantity
@@ -140,6 +143,7 @@ class HybridSeal(SealElement):
 
     labyrinth_parameters : dict
         Other parameters for labyrinth seal with the following keys:
+
         - radial_clearance : float, pint.Quantity
             Nominal radial clearance (m).
         - n_teeth : int
@@ -523,7 +527,7 @@ class HybridSeal(SealElement):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
+            See Plotly Python Figure Reference for more information.
 
         Returns
         -------

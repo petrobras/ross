@@ -458,6 +458,23 @@ def rotor_example_amb_general_controllers(controller_transfer_function=None):
 
 
 def rotor_example_amb_simple():
+    """Create a rotor supported by two active magnetic bearings.
+
+    The rotor has ten shaft elements of 0.1 m length and 0.05 m diameter, a
+    10 kg disk at node 5 and two magnetic bearings with PID controllers at
+    nodes 1 and 9.
+
+    Returns
+    -------
+    rotor : ross.Rotor
+        The constructed rotor model.
+
+    Examples
+    --------
+    >>> rotor = rotor_example_amb_simple()
+    >>> rotor.ndof
+    66
+    """
     steel = Material(name="steel", rho=7850, E=1.9e11, Poisson=0.30)
 
     L = 0.1
