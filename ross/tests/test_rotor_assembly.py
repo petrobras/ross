@@ -4039,7 +4039,7 @@ def test_run_with_motor_with_shaft_elements_applies_the_torque_at_the_joint(side
     t = np.arange(0, 0.3 + 1e-3, 1e-3)
     results = rotor.run_with_motor(
         t=t,
-        node=[2],
+        unbalance_node=[2],
         unbalance_magnitude=[5e-4],
         unbalance_phase=[0.0],
         drive_mode="DOL",
@@ -4071,7 +4071,7 @@ def test_run_with_motor_uses_the_inertia_of_the_load_rotor(structure, operation)
     t = np.arange(0, 0.3 + 1e-3, 1e-3)
     results = rotor.run_with_motor(
         t=t,
-        node=[2],
+        unbalance_node=[2],
         unbalance_magnitude=[5e-4],
         unbalance_phase=[0.0],
         drive_mode="DOL",
@@ -4093,6 +4093,45 @@ def test_run_with_motor_uses_the_inertia_of_the_load_rotor(structure, operation)
     )
 
 
+def test_run_with_motor_torque_nodes_default_to_the_node_of_the_motor():
+    # Reference: the same run with the nodes given explicitly.
+    rotor = rotor_example().add_motor(motor_example())
+    t = np.arange(0, 0.2 + 1e-3, 1e-3)
+    arguments = dict(
+        t=t,
+        unbalance_node=[2],
+        unbalance_magnitude=[5e-4],
+        unbalance_phase=[0.0],
+        drive_mode="DOL",
+        load_torque_entrance_time=0.1,
+        steady_state=False,
+    )
+
+    default = rotor.run_with_motor(**arguments)
+    explicit = rotor.run_with_motor(
+        electric_torque_node=rotor.motor.n_torque,
+        load_torque_node=rotor.motor.n_torque,
+        **arguments,
+    )
+
+    assert_allclose(default.yout, explicit.yout)
+
+
+@pytest.mark.parametrize("name", ["electric_torque_node", "load_torque_node"])
+def test_run_with_motor_checks_the_torque_nodes(name):
+    rotor = rotor_example().add_motor(motor_example())
+
+    with pytest.raises(ValueError, match=f"'{name}' \\(99\\)"):
+        rotor.run_with_motor(
+            t=np.arange(0, 0.1, 1e-3),
+            unbalance_node=[2],
+            unbalance_magnitude=[5e-4],
+            unbalance_phase=[0.0],
+            drive_mode="DOL",
+            **{name: 99},
+        )
+
+
 def test_run_with_motor_foc_is_tuned_with_the_inertia_of_the_rotor():
     # Reference: the motor alone under the same drive, with the polar inertia
     # of the load rotor as Ip_load, which tunes the speed controller.
@@ -4103,7 +4142,7 @@ def test_run_with_motor_foc_is_tuned_with_the_inertia_of_the_rotor():
 
     results = rotor.run_with_motor(
         t=t,
-        node=[2],
+        unbalance_node=[2],
         unbalance_magnitude=[5e-4],
         unbalance_phase=[0.0],
         drive_mode="VFD_FOC",
@@ -4137,7 +4176,7 @@ def test_run_with_motor_does_not_modify_the_force_of_the_user():
 
     rotor.run_with_motor(
         t=t,
-        node=[2],
+        unbalance_node=[2],
         unbalance_magnitude=[5e-4],
         unbalance_phase=[0.0],
         drive_mode="DOL",
@@ -4179,7 +4218,7 @@ def test_run_with_motor_with_a_disconnected_torsional_train_raises():
     with pytest.raises(ValueError, match="single train"):
         rotor.run_with_motor(
             t=np.arange(0, 0.1, 1e-3),
-            node=[3],
+            unbalance_node=[3],
             unbalance_magnitude=[5e-4],
             unbalance_phase=[0.0],
             drive_mode="DOL",
@@ -4200,7 +4239,7 @@ def test_run_with_motor_on_the_driven_rotor_uses_the_speed_of_the_driving_rotor(
 
     results = rotor.run_with_motor(
         t=t,
-        node=[2],
+        unbalance_node=[2],
         unbalance_magnitude=[1e-3],
         unbalance_phase=[0.0],
         drive_mode="DOL",
@@ -4270,7 +4309,7 @@ def test_run_with_motor_after_load_matches_the_saved_rotor(structure, tmp_path):
 
     arguments = dict(
         t=np.arange(0, 0.3 + 1e-3, 1e-3),
-        node=[2],
+        unbalance_node=[2],
         unbalance_magnitude=[5e-4],
         unbalance_phase=[0.0],
         drive_mode="DOL",

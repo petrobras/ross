@@ -7,9 +7,9 @@ Source: `docs/user_guide/tutorial_motor.ipynb`
 | Model | Arguments | What `Rotor.add_motor` adds to the rotor | `motor.n_torque` |
 |-------|-----------|------------------------------------------|------------------|
 | Lumped | `m`, `Ip` and, optionally, `Id` | A disk with the mass and the inertias of the motor, at node `n` | `n` |
-| Finite element | `shaft_elements` and, optionally, `disk_elements`, `bearing_elements` and `point_mass_elements` | The rotor of the motor, concatenated to the rotor of the load | Node shared by the two rotors |
+| Finite element | `shaft_elements` and, optionally, `disk_elements`, `bearing_elements`, `point_mass_elements` | The rotor of the motor, concatenated to the rotor of the load | Node shared by the two rotors |
 
-`Rotor.run_with_motor` applies the motor torque to the torsional DOF (`theta`) of node `motor.n_torque`. Use the lumped model when the motor is stiff compared to the rest of the machine; the finite element model adds the flexibility of the motor shaft and bearings and allows a coupling between the motor and the load.
+`Rotor.run_with_motor` applies the motor torque to the torsional DOF (`theta`) of node `motor.n_torque`, or of `electric_torque_node` if given. Use the lumped model when the motor is stiff compared to the rest of the machine; the finite element model adds the flexibility of the motor shaft and bearings and allows a coupling between the motor and the load.
 
 ## Motor model
 
@@ -285,7 +285,7 @@ rotor_fem.motor.n_torque  # 5: the joint node (motor side of the coupling), wher
 t = np.arange(0, 4.0 + 1e-4, 1e-4)
 response = rotor_lumped.run_with_motor(
     t=t,
-    node=[2],  # unbalance nodes (use [8] for rotor_fem)
+    unbalance_node=[2],  # unbalance nodes (use [8] for rotor_fem)
     unbalance_magnitude=[5e-4],  # kg·m
     unbalance_phase=[0],  # rad
     drive_mode="DOL",  # "DOL", "VFD_VF" or "VFD_FOC"
@@ -296,10 +296,11 @@ response = rotor_lumped.run_with_motor(
 
 - `add_motor` with the finite element model accepts only `n` equal to the first or the last node of the rotor; otherwise it raises `ValueError`. With `n` = first node, the last node of the motor rotor is joined to it and the load nodes are shifted; with `n` = last node, the first node of the motor rotor is joined to it.
 - A coupling between the motor and the load goes at the start (motor on the left) or the end (motor on the right) of the load rotor, not in `shaft_elements` of the motor: otherwise the torque is applied on the load side of the coupling and bypasses its torsional stiffness. Build the load shaft with new `ShaftElement` objects: the elements of an assembled rotor keep their node numbers, so `[coupling, *rotor_example().shaft_elements]` fails.
+- `electric_torque_node` and `load_torque_node` (arguments of `run_with_motor`) are the nodes where the electromagnetic torque and the load torque are applied. By default both are `motor.n_torque`: the node of the lumped motor, or the node shared by the motor and the load rotors. Give `electric_torque_node` the node of the rotor core of a finite element motor, and `load_torque_node` the node of the driven machine, so that the torque twists the shafts between them. The motor speed is the shaft speed at `electric_torque_node`. `ValueError` if a node is not in the rotor.
 - A rotor holds one motor; `add_motor` on a rotor that already has one raises `ValueError`. `rotor.add_elements` does not add motors.
 - The finite element model adds the flexibility of the motor shaft and the motor bearings, so the natural frequencies differ from the lumped model (in the tutorial, with the coupling, the second pair moves from 40.4 Hz to 52.2 Hz).
 - A rotor with a motor round-trips `save`/`load` with either model. A motor with `shaft_elements` cannot be saved on its own before it is connected to a rotor.
-- The rotor model is the only source of inertia: the motor is already in it, as a disk (lumped) or as part of the rotor (finite element). The motor is simulated first with the chosen drive, with the polar inertia of the whole rotor, `rotor.Ip`: the `Ip` of the motor plus `rotor.Ip - motor.Ip` passed as `Ip_load`, which is the inertia of the rest of the rotor. The speed controller of `"VFD_FOC"` is tuned with this inertia. Then the rotor is integrated with Newmark, with the net torque (electric minus load) on the `theta` DOF of `motor.n_torque` and unbalance forces computed from the motor speed, which varies in time.
+- The rotor model is the only source of inertia: the motor is already in it, as a disk (lumped) or as part of the rotor (finite element). The motor is simulated first with the chosen drive, with the polar inertia of the whole rotor, `rotor.Ip`: the `Ip` of the motor plus `rotor.Ip - motor.Ip` passed as `Ip_load`, which is the inertia of the rest of the rotor. The speed controller of `"VFD_FOC"` is tuned with this inertia. Then the rotor is integrated with Newmark, with the net torque (electric minus load) on the `theta` DOF of `electric_torque_node` (electric) and `load_torque_node` (load) and unbalance forces computed from the motor speed, which varies in time.
 - With a `MultiRotor`, the motor speed is the speed of the shaft that holds the motor. `run_with_motor` divides it by the signed speed ratio of that shaft (negative on a driven shaft) to get the speed of the driving rotor that the analysis uses.
 - `ac_source_harmonics` / `ac_source_unbalances` are the `harmonics` / `unbalances` dicts of `run_direct_on_line`, used only with `"DOL"`.
 - `time_step`, `time_ramp` and `frequency_ref` are the inverter arguments, used only with `"VFD_VF"` and `"VFD_FOC"`. The switching frequency is fixed at 5 kHz.

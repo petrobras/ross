@@ -508,7 +508,7 @@ def results_run_with_motor(rotor_with_motor, request):
 
     return rotor_with_motor.run_with_motor(
         t=t,
-        node=[_ROTOR_UNBALANCE_NODE],
+        unbalance_node=[_ROTOR_UNBALANCE_NODE],
         unbalance_magnitude=[5e-4],
         unbalance_phase=[0.0],
         drive_mode=drive_mode,
@@ -555,7 +555,7 @@ def test_run_with_motor_invalid_drive_mode(rotor_with_motor):
     with pytest.raises(ValueError, match="drive_mode"):
         rotor_with_motor.run_with_motor(
             t=t,
-            node=[_ROTOR_UNBALANCE_NODE],
+            unbalance_node=[_ROTOR_UNBALANCE_NODE],
             unbalance_magnitude=[5e-4],
             unbalance_phase=[0.0],
             drive_mode="invalid",
@@ -569,7 +569,7 @@ def test_run_with_motor_without_motor_element():
     with pytest.raises(ValueError, match="No motor elements"):
         rotor_example().run_with_motor(
             t=t,
-            node=[_ROTOR_UNBALANCE_NODE],
+            unbalance_node=[_ROTOR_UNBALANCE_NODE],
             unbalance_magnitude=[5e-4],
             unbalance_phase=[0.0],
             drive_mode="DOL",

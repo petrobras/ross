@@ -576,6 +576,7 @@ class Rotor(object):
             )
 
         df = df.copy()
+        self.global_dof_mapping = global_dof_mapping
 
         # define positions for disks
         for elm in self.disk_elements:
@@ -5412,7 +5413,7 @@ class Rotor(object):
     def run_with_motor(
         self,
         t,
-        node,
+        unbalance_node,
         unbalance_magnitude,
         unbalance_phase,
         drive_mode,
@@ -5425,6 +5426,8 @@ class Rotor(object):
         frequency_ref=None,
         steady_state=True,
         F=None,
+        electric_torque_node=None,
+        load_torque_node=None,
         verbose=False,
         **kwargs,
     ):
@@ -5445,7 +5448,7 @@ class Rotor(object):
         ----------
         t : array
             Time array.
-        node : list, int
+        unbalance_node : list, int
             Nodes where the unbalance is applied.
         unbalance_magnitude : list, float, pint.Quantity
             Unbalance magnitude (kg.m) for each node.
@@ -5514,6 +5517,14 @@ class Rotor(object):
         F : array, optional
             Force array (needs to have the same number of rows as time array).
             Each column corresponds to a dof and each row to a time.
+        electric_torque_node : int, optional
+            Node where the electromagnetic torque is applied, for example the
+            node of the rotor core of a motor with ``shaft_elements``. The motor
+            speed is the shaft speed at this node. Default is None, which uses
+            the node of the motor (``motor.n_torque``).
+        load_torque_node : int, optional
+            Node where the load torque is applied, for example the node of the
+            driven machine. Default is None, which uses `electric_torque_node`.
         verbose : bool, optional
             If True, print the main stages of the simulation. Default is False.
         **kwargs : optional
@@ -5547,7 +5558,7 @@ class Rotor(object):
         >>> n2 = base_rotor.disk_elements[1].n
         >>> results = rotor.run_with_motor(
         ...     t=np.linspace(0, 1, 1000),
-        ...     node=[n1, n2],
+        ...     unbalance_node=[n1, n2],
         ...     unbalance_magnitude=[5e-4, 0],
         ...     unbalance_phase=[-np.pi / 2, 0],
         ...     drive_mode="DOL",
@@ -5562,7 +5573,7 @@ class Rotor(object):
 
         motor = self.motor
 
-        dofs_theta = [self.number_dof * n + 5 for n in self.nodes]
+        dofs_theta = [self.global_dof_mapping[f"theta_{n}"] for n in self.nodes]
         singular_values = la.svdvals(self.K(0)[:, dofs_theta])
         if np.sum(singular_values <= 1e-9 * singular_values[0]) != 1:
             raise ValueError(
@@ -5570,6 +5581,17 @@ class Rotor(object):
                 "one torsional rigid-body mode. Check for a coupling without "
                 "torsional stiffness, a disconnected shaft or a restrained torsion."
             )
+
+        if electric_torque_node is None:
+            electric_torque_node = motor.n_torque
+        if load_torque_node is None:
+            load_torque_node = electric_torque_node
+        for name, node in (
+            ("electric_torque_node", electric_torque_node),
+            ("load_torque_node", load_torque_node),
+        ):
+            if node not in self.nodes:
+                raise ValueError(f"'{name}' ({node}) is not a node of the rotor.")
 
         Ip_load = self.Ip - motor.Ip
 
@@ -5631,19 +5653,18 @@ class Rotor(object):
         torque = Te - Tl
 
         speed = motor_results.sample_at("speed", t)
-        speed = speed / self.to_shaft_rotation(1.0, motor.n_torque)
 
         F += self.unbalance_force_over_time(
-            node, unbalance_magnitude, unbalance_phase, speed, t
+            unbalance_node, unbalance_magnitude, unbalance_phase, speed, t
         ).T
 
         # Add torque to the rotor
-        dof_theta = motor.dof_global_index[f"theta_{motor.n_torque}"]
-        F[:, dof_theta] += torque
+        F[:, self.global_dof_mapping[f"theta_{electric_torque_node}"]] += Te
+        F[:, self.global_dof_mapping[f"theta_{load_torque_node}"]] -= Tl
 
         Ktq = np.zeros((self.ndof, self.ndof))
         for sh in self.shaft_elements:
-            if motor.n_torque in (sh.n_l, sh.n_r):
+            if electric_torque_node in (sh.n_l, sh.n_r):
                 dofs = list(sh.dof_global_index.values())
                 Ktq[np.ix_(dofs, dofs)] += sh.Ktq()
 

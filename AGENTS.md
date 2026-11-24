@@ -47,7 +47,7 @@ modal.plot_mode_2d(0)
 | `run_amb_non_collocation(magnetic_bearing, ...)` | AMB sensor-actuator non-collocation | `AmbNonCollocationResults` | `plot()`, `plot_mode_shape()`, `plot_sensor_position_map()` | — |
 | `run_clearance_analysis(speed_range, Nma, Nmc, probes, ...)` | API 617 close-clearance check | `ClearanceResults` | `plot()`, `plot_response()`, `plot_probe_response()` | [clearance_analysis](ross/agent_skills/ross/clearance_analysis.md) |
 | `run_mesh_convergence(rtol, frequencies, strategy)` | Shaft discretization with converged natural frequencies | `MeshConvergenceResults` | `plot()` | [mesh_convergence](ross/agent_skills/ross/mesh_convergence.md) |
-| `run_with_motor(t, node, unbalance_magnitude, unbalance_phase, drive_mode, ...)` | Time response driven by the induction-motor torque | `TimeResponseResults` (motor simulation in `.motor_results`: `MotorResponseResults`) | `plot_1d(probe)`, `plot_2d(node)`, `plot_3d()`, `plot_dfft(probe)`; `motor_results.plot_torque()`, `plot_speed()` | [motor](ross/agent_skills/ross/motor.md) |
+| `run_with_motor(t, unbalance_node, unbalance_magnitude, unbalance_phase, drive_mode, ...)` | Time response driven by the induction-motor torque | `TimeResponseResults` (motor simulation in `.motor_results`: `MotorResponseResults`) | `plot_1d(probe)`, `plot_2d(node)`, `plot_3d()`, `plot_dfft(probe)`; `motor_results.plot_torque()`, `plot_speed()` | [motor](ross/agent_skills/ross/motor.md) |
 
 ### Units
 
