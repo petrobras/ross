@@ -196,8 +196,11 @@ def test_labyrinth_heos_backend():
 
         # HEOS expected values (from testing)
         # Note: HEOS values differ slightly from REFPROP (<0.05%)
-        assert_allclose(labyrinth.kxx[0], -50449.96, rtol=1e-3)
-        assert_allclose(labyrinth.cxx[0], 23.797, rtol=1e-3)
+        # The coefficients move with the CoolProp version (cxx is 1.4e-3
+        # lower with CoolProp 8.1.0 than with 8.0.0), so they are checked
+        # to 5e-3.
+        assert_allclose(labyrinth.kxx[0], -50449.96, rtol=5e-3)
+        assert_allclose(labyrinth.cxx[0], 23.797, rtol=5e-3)
         assert_allclose(labyrinth.seal_leakage[0], 0.023714, rtol=1e-3)
 
         # Check derived properties

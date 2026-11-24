@@ -49,6 +49,8 @@ modal.plot_mode_2d(0)
 | `run_mesh_convergence(rtol, frequencies, strategy)` | Shaft discretization with converged natural frequencies | `MeshConvergenceResults` | `plot()` | [mesh_convergence](ross/agent_skills/ross/mesh_convergence.md) |
 | `run_with_motor(t, unbalance_node, unbalance_magnitude, unbalance_phase, drive_mode, ...)` | Time response driven by the induction-motor torque | `TimeResponseResults` (motor simulation in `.motor_results`: `MotorResponseResults`) | `plot_1d(probe)`, `plot_2d(node)`, `plot_3d()`, `plot_dfft(probe)`; `motor_results.plot_torque()`, `plot_speed()` | [motor](ross/agent_skills/ross/motor.md) |
 
+`MultiRotor` (shafts coupled by gears) runs the same analyses, with every speed given for the driving rotor; `run_critical_speed(shaft=)` picks the shaft whose 1X excitation is considered. See [multi_rotor](ross/agent_skills/ross/multi_rotor.md).
+
 ### Units
 
 All values are SI internally: speed in rad/s, stiffness in N/m, damping in N·s/m, unbalance in kg·m, mass moment of inertia in kg·m². Convert with pint: `rs.Q_(4000, "RPM").to("rad/s").m`.
@@ -115,6 +117,7 @@ Elements → Rotor assembly → Rotor.run_*() → Results objects with .plot_*()
 | `ross/element.py` | `Element` ABC |
 | `ross/shaft_element.py`, `disk_element.py`, `bearing_seal_element.py`, `coupling_element.py`, `point_mass.py` | Core elements |
 | `ross/bearings/`, `ross/seals/` | Bearing and seal models |
+| `ross/bearings/fluid_film/`, `ross/bearings/film/` | Journal-bearing solver behind `FluidFilmBearing` (sweeps, convergence diagnostics, pad matrices) and its geometry-independent parts (`Lubricant`, mass-conserving cavitation, condensation, `ConvergenceRecord`, `ConvergenceWarning`) |
 | `ross/motors/` | `ElectricMotor`, electrical sources and inverters (`SourceAC`, `InverterVF`, `InverterFOC`), `MotorResponseResults`, `PhaseResults` |
 | `ross/rotor_assembly.py`, `ross/multi_rotor/` | `Rotor`, `MultiRotor`: assembly and analyses |
 | `ross/results.py` | `Results` ABC and the rotor results classes; the bearing, multi-rotor, motor and stochastic results classes live in their subpackages |
@@ -162,7 +165,7 @@ To prepare a PR, follow the `ross-pr-create` skill in `.agents/skills/ross-pr-cr
 - One concern per PR. Keep core-library changes, interface changes and vendored third-party code in separate PRs. Split large work into a stack of PRs that can each be reviewed on their own.
 - Plan however you like, locally. The plan is not committed; the PR text carries what a reviewer needs: scope, the design decisions to confirm, API changes, evidence, changes to existing tests and documentation. Fill in every section of the template, writing "none" where nothing applies.
 - Do not paste session logs, local notes or agent transcripts into the PR.
-- Keep the cookbook in sync: the recipes in `ross/agent_skills/ross/` follow the tutorials in `docs/user_guide/`: `tutorial_modeling_part_1` and `tutorial_modeling_part_2` for modeling, `tutorial_analyses_part_1` for static and modal, `tutorial_analyses_part_2` for time and frequency, `tutorial_motor` for motors, and examples 1–32. When a tutorial or `run_*` method changes, update the matching recipe and the `SKILL.md` index. The skill folder must stay self-contained: recipes only link to files inside it.
+- Keep the cookbook in sync: the recipes in `ross/agent_skills/ross/` follow the tutorials in `docs/user_guide/` and the theory pages in `docs/theory_and_code/`: `tutorial_modeling_part_1` and `tutorial_modeling_part_2` for modeling, `tutorial_analyses_part_1` for static and modal, `tutorial_analyses_part_2` for time and frequency, `tutorial_bearings_part_1`, `tutorial_bearings_part_2` and the `fluid_film_bearings` theory page for bearings, `tutorial_seals` and the `labyrinth_seal` and `holepattern_seal` theory pages for seals, `tutorial_faults` for faults, `tutorial_multirotor` for multi-rotors, `tutorial_motor` for motors, and examples 1–32. When a tutorial or `run_*` method changes, update the matching recipe and the `SKILL.md` index. The skill folder must stay self-contained: recipes only link to files inside it.
 
 ### Reviewing a pull request
 

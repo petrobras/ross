@@ -1,6 +1,6 @@
 # Advanced Bearings
 
-Source: `docs/user_guide/tutorial_bearings_part_1.ipynb`, `docs/user_guide/tutorial_bearings_part_2.ipynb`
+Source: `docs/user_guide/tutorial_bearings_part_1.ipynb`, `docs/user_guide/tutorial_bearings_part_2.ipynb`, `docs/theory_and_code/fluid_film_bearings.ipynb`
 
 ## Coefficient Tables: Speed, Frequency, or Both
 
@@ -197,11 +197,12 @@ lemon = rs.EllipticalBearing(
 
 ### Whirl-Dependent (2-D) Tables
 
-One engine case runs per entry of `speed`, reducing the film to the 2x2
-matrices at whirl ratio `excitation_ratio` (default 1, synchronous). Passing
-`frequency=` as well runs one case per `(speed, frequency)` pair with whirl
-ratio `frequency / speed` (`excitation_ratio` is ignored; speeds must be
-nonzero) and stores a 2-D table:
+One engine case runs per entry of `speed`, condensing the film and pad
+coordinates to the 2x2 matrices at whirl ratio `excitation_ratio` (default 1,
+synchronous; 0 gives the static condensation). Passing `frequency=` as well
+condenses the state solved at each speed at every frequency (one solve per
+speed, `excitation_ratio` is ignored; speeds must be nonzero) and stores a 2-D
+table:
 
 ```python
 tpb_2d = rs.TiltingPad(
@@ -222,24 +223,168 @@ tpb_2d = rs.TiltingPad(
     lubricant="ISOVG32",
     oil_supply_temperature=Q_(40, "degC"),
     oil_flow_v=Q_(10, "l/min"),
-    num_processes=4,  # 6 engine cases here
+    n_jobs=2,  # warm-start chains solved in 2 worker processes
 )
 np.array(tpb_2d.kxx).shape  # (2, 3)
 ```
 
-Tilting pads condense the pad degrees of freedom at the whirl frequency, so
-their reduced coefficients genuinely change along the frequency axis; a rigid
-fixed-geometry film gives the same coefficients at every whirl ratio.
+Tilting pads condense the pad degrees of freedom (tilt and, with pivot
+flexibility, pivot displacement, with the pad mass and inertia about the pivot)
+at the whirl frequency, so their reduced coefficients genuinely change along
+the frequency axis; a rigid fixed-geometry film gives the same coefficients at
+every whirl ratio. `bearing.results` keeps one entry per `(speed, frequency)`
+pair, sharing the equilibrium of the speed, and the unreduced matrices of each
+solved speed (`i` indexes `speed`):
+
+```python
+res = tpb_2d.results
+K, C = res.coefficients(0, frequency=Q_(2200, "RPM").to("rad/s").m)  # 2x2, exact
+K0, C0 = res.coefficients(0, frequency=0)  # static limit (pad tilts in equilibrium)
+pads = res.pad_matrices(
+    0
+)  # PadMatrices: K, C, M per pad, labels, pad_mass, pad_inertia
+D = pads.impedance(-20.0 + 300.0j)  # 2x2 complex D(s) at a damped eigenvalue s
+```
+
+`results.coefficients` condenses at any frequency without a new solve (the
+element's `coefficients()` still interpolates its table, as the rotor does).
+`impedance(s)` gives `D(s) = sum_k Z_uu - Z_ue Z_ee^-1 Z_eu` for complex `s`, the
+bearing at a damped rotor eigenvalue (`run_modal(matched_whirl=True)` uses
+`K(w) + i w C(w)` at the damped natural frequency, which is exact only for an
+undamped mode).
+
+Inputs are checked before any case is solved: a `ValueError` names the
+argument for speeds that are not finite and positive, negative whirl
+frequencies or `excitation_ratio`, non-positive geometry, density or oil flow,
+`preload` outside `[0, 1)`, `offset` outside `[0, 1]`, pads that overlap
+(leading edge at `pivot_angle - offset * pad_arc`) or cover more than 360 deg,
+and pivot flexibility without its data (`pivot_stiffness > 0` for
+`"user_specified_stiffness"`, `0 < pivot_diameter < house_diameter` for
+`"ball_in_socket"` and `"button"`).
+
+`TiltingPad` defaults to `equilibrium_type="match_eccentricity"`: the journal
+is held at `eccentricity` / `attitude_angle` and the load is not used (a
+`UserWarning` says so when a load is given). Pass
+`equilibrium_type="match_load"` to solve the position for the load, as in the
+examples above. `TiltingPad` also has its own thermal and mesh defaults
+(`pad_conductivity=116`, `edges_convection=1500`, `relax_temperature=0.5`,
+mesh 30/30/16); `FluidFilmBearing` uses 50, 73.59, 1 and 40/20/20.
+
+Pressures are gauge, relative to the drain. `ambient_pressure_1/2` set the
+film boundaries in `"axial_flow"`, `"high_ambient_pressure"` and the starved
+and oil-ring modes. In every mode the inter-pad grooves carry their mean, which
+adds a net force on the journal for an asymmetric pad layout. In the default
+`"regular_flooded"` mode the axial film edges stay at 0 and a nonzero ambient
+pressure warns.
+
+### Convergence and operating results
+
+Every case records whether its iterations converged (equilibrium force
+balance `|F_net| / |F_ext| < 2e-3`, pad tilt, turbulence, temperatures,
+deformation, pivot, sump, starved film onset) and runs under a work budget
+(`max_reynolds_solves`, default 400,000 Reynolds solves per pad and case,
+plus a cap of 4,000 per pad and equilibrium solve, both counting at least 5
+pads; optional `time_limit` in s). A case that does
+not converge emits a `ConvergenceWarning`; `on_failure` decides what happens
+to its speed:
+
+- `"warn"` (default): the speed is left out of the coefficient table (for a 2-D
+  table, the whole speed row); the element interpolates between the converged
+  speeds and `save()` writes only those rows. If no case converged, every row
+  is kept and the warning says the element must not be used.
+- `"raise"`: `FluidFilmConvergenceError`
+  (`ross.bearings.fluid_film.diagnostics`).
+- `"keep"`: every row is kept, with the warning.
+
+A first pad of exactly 360 deg (`pad_arc=2 pi`) switches the film to the
+short-bearing (oil seal) model: no circumferential pressure flow, so the load
+at L/D 1 is about twice that of a finite bearing. Use 359.9 deg for a full
+journal solved with the finite-length Reynolds equation.
+
+Failed cases stay in `bearing.results` (`results.converged`,
+`results.convergence[i]` with the per-loop iterations, residuals, tolerances
+and reasons) and in `bearing.operating_results`, a `pandas.DataFrame` with one
+row per case:
+
+```python
+op = plain.operating_results
+op[
+    [
+        "speed",
+        "converged",
+        "reason",
+        "eccentricity",
+        "attitude",
+        "h_min",
+        "p_max",
+        "power_loss",
+        "sommerfeld",
+        "re_max",
+        "re_cb",
+        "re_taylor",
+    ]
+]
+```
+
+Columns: `speed`, `frequency`, `converged`, `reason`, `iterations` and
+`residual` (equilibrium Newton), `reynolds_solves`, `wall_time`,
+`eccentricity`, `attitude` (from `-y`), `attitude_from_load`, `xj`, `yj`,
+`h_min`, `h_min_pad`, `p_max` (also isoviscous), `T_max_pad`, `T_max_film`
+(NaN isoviscous), `power_loss`, `q_supply`, `q_side`, `q_carryover`,
+`sommerfeld` (`mu N L D / W (R/C)^2`, N in rev/s, supply viscosity),
+`specific_load`, `re_max` (local film), `re_cb` (`rho U C / mu`), `re_taylor`
+(`41.2 sqrt(R/C)`), `pad_load` and `tilt_angle` (per pad). Reasons:
+`"max_iterations"`, `"diverged"`, `"budget"`, `"time_limit"`,
+`"singular_jacobian"`, `"pivot_unloaded"`, `"non_finite"`, `"contact"`
+(the final journal position crosses the bearing surface; a thermal case also
+stops with it, before any temperature pass, when an equilibrium pass closes
+the film, and its outlet temperatures are NaN), and for the mass-conserving
+film solve `"stalled"`, `"singular"` and `"nan"`.
+
+Each pad tilt solves the pivot moment balance to `|M| <= 1e-9` of the pad's
+moment scale or a 1e-10 rad root bracket (Brent's method from the previous
+tilt). The `tilt` loop record holds the worst pad's residual relative to
+these tolerances (tolerance 1), plus `pad`, `moment` (`|M| / M_scale`) and
+`width` (rad). An unloaded pad (no film pressure over a range of tilts)
+settles at the largest tilt of that range.
 
 Useful knobs and post-processing:
 
-- `lubricant`: a key of `rs.lubricants_dict` (`"ISOVG32"`, `"ISOVG46"`, `"ISOVG68"`, ...)
+- `lubricant`: a key of `rs.lubricants_dict` (`"ISOVG32"`, `"ISOVG46"`, `"ISOVG68"`, ...), a dict in its format, or a `Lubricant` (`from ross.bearings.film.lubricant import Lubricant`)
+- `viscosity_model`: `None` (default, `"exponential"`: the two-point exponential fit) or `"walther"` (ASTM D341) for a name or dict. A `Lubricant`, or a dict with a `viscosity_model` key, keeps its own law; a different `viscosity_model` is ignored with a warning. Through the ISOVG32 table points (40 and 100 C) the exponential fit is 11-18 % above Walther over 50-80 C, 33 % below at 20 C and 20 % below at 120 C
+- Oil datasheet: `Lubricant.from_datasheet(Q_(32, "cSt"), Q_(5.4, "cSt"), 870.0)` (kinematic viscosities at 40 and 100 C, density at 15 C; Walther law by default) builds the density from the API MPMS 11.1 form (linearised at 40 C) and `c_p`, `k` from Cragoe; override any of them with `specific_heat=`, `thermal_conductivity=`, `volumetric_expansion=`. The journal energy equation uses `rho`, `c_p`, `k` at `oil_supply_temperature` as constants. `oil.to_dict()` gives the `lubricants_dict` format plus `viscosity_model`
+- Turbulence onset: `re_laminar=500` and `re_turbulent=None` (1000) are compared with the largest local film Reynolds number `re_max`; between them the eddy viscosity is blended. `re_laminar="taylor"` uses `Re_c = 41.2 sqrt(R/C_b)` and, with `re_turbulent=None`, `2 Re_c` (the factor 2 is a choice of the implementation, not part of Taylor's criterion); an explicit `re_turbulent` number is used as given. `Re_c` is compared with the local `re_max`, based on the local film thickness, while Taylor defines it on the mean clearance: on preloaded pads (film up to about `2 C_b`) the onset comes earlier. `operating_results` reports `re_max`, `re_cb` and `re_taylor`. Example, 300 mm, 12,000 rpm plain journal (`re_cb` 1470): 0.65 MW forced laminar, 0.74 MW with `"taylor"`
 - `thermal_type`: `None` (isoviscous), `"adiabatic"` or `"full"` (pad conduction)
 - `deform_type`: `None` (rigid pads, default) or one of the `"pad_mechanical*"` options for pad/pivot elasticity (full TEHD)
-- `num_processes`: solve the speed table (or the `(speed, frequency)` grid) in parallel
+- Speed sweeps: the meshes are built once; the speeds are cut into chains of `chunk_size` (default 5) ascending speeds, and each speed after the first of its chain starts from the converged state of the previous one (`warm_start=True`, default). A 10-speed isoviscous tilting-pad sweep takes about a tenth of the Reynolds solves of cold starts with the earlier tilt bisection. The coefficients at a speed then depend, within the loop tolerances, on which other speeds are in the sweep (up to about 0.3 % at the default tolerances); `warm_start=False` solves every speed independently, exactly as a single-speed bearing. `results.convergence[i]["warm_start"]["start"]` is `"cold"`, `"warm"` or `"cold_retry"` (a warm start that failed and was solved again cold)
+- `n_jobs`: chains solved at once in `spawn` worker processes (`-1`: one per CPU); results are identical for every `n_jobs`; a script using it needs an `if __name__ == "__main__":` guard (a notebook does not), and a `RuntimeError` is raised when the workers cannot start. `num_processes` is an alias
 - `bearing.coefficients(speed, frequency=None)` returns `(kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)` interpolated at a rotor speed (and whirl frequency for 2-D tables)
 - Plots: `plot_pressure_2d()`, `plot_pressure_3d()`, `plot_temperature_2d()`, `plot_film_temperature_3d()`, `plot_film_thickness_2d()`; `show_results()` prints a per-case summary table
 - `plot_pad_temperature_3d()` draws the pads as real geometry colored by the solid pad conduction field, resolved through the pad thickness (`thermal_type="full"` only)
 - `bearing.save(file)` stores the solved coefficient table, 2-D included (reloads as a plain `BearingElement`, no re-solve)
+- `cavitation_pressure` (Pa, gauge): the film never falls below it and the cavitated film is held at it
+- `cavitation_model`: `"reynolds"` (default: pressure floor at `cavitation_pressure`, divergent clearance downstream of the minimum film cavitated) or `"mass_conserving"` (Elrod-Adams pressure and film fraction: oil is conserved through the cavitated zone, rupture and reformation follow from the mass balance). Mass-conserving limits: `thermal_type` `None` or `"adiabatic"`, `deform_type=None`, `operating_type` `"regular_flooded"` or `"starved_condition_even"` (starved on fixed-geometry bearings only), no pressure dam, no 360 deg pad (else `NotImplementedError`; the film boundary pressures must not be below `cavitation_pressure`, else `ValueError`). Starved operation sets each pad's inlet film fraction so that its net draw through the leading edge (Couette inflow less the pressure backflow into the supply) equals the available oil (`oil_flow_v / n_pads` plus the hot-oil carry-over), instead of moving the film onset; a pad whose flooded draw is below the available oil floods and spills the rest (`inlet_flow` in the cavitation record). The pad flows (`q_in`, `q_out`, `q_sides`, `q_carryover`) are the finite-volume boundary flows, including the half-width strips along the axial edges, so a starved bearing drains its supply exactly through the sides and the oil not carried over. Starved results differ from the default model's film-onset starvation (example journal at 12 L/min: kyy +33 %, kxx -14 %). Strongly starved cases step along the load when the film carries no load, halve steps that raise the force residual or cross a pad, and solve the force balance to 2e-6 inside the inlet-fraction loop (1.6 to 2.4 times the film solves); without carry-over (`hot_oil_lambda=0`) they can still fail, reported as not converged. A film that reforms inside a land converges at first order in the circumferential element size (peak pressure tens of percent off on 40 elements): refine `total_ex_film` (160+) for such films. With `cavitation_pressure` below the ambient, the axial edges (full film at ambient) feed the cavity. Its stiffness is the central difference of the mass-conserving film force (tilts held for the journal block, journal held for the tilt blocks); its damping comes from the Reynolds perturbation with the cavitated nodes of the mass-conserving film held (an approximation: no film-content perturbation). `results.convergence[i]["loops"]["cavitation"]` holds the film solver's iterations, residual, per-pad `mass_balance`, `solves`, `film_fraction_in` and `inlet_flow`; every film solve counts in `reynolds_solves`. On a flooded two-axial-groove journal the load capacity is within 0.3 % of the Reynolds model; it differs where the film reforms inside a land (starved inlets, partial lands). `bearing.results.film_fraction_fields` holds the film fraction and `bearing.plot_film_fraction_2d()` draws it
+
+```python
+plain_mc = rs.PlainJournal(
+    n=3,
+    pad_axial_length=0.263,
+    journal_diameter=0.4,
+    radial_clearance=1.95e-4,
+    n_pads=2,
+    pad_arc=Q_(176, "deg"),
+    oil_supply_temperature=Q_(50, "degC"),
+    speed=Q_([900, 1200], "RPM"),
+    fys_load=-112815,
+    lubricant="ISOVG32",
+    oil_flow_v=Q_(30, "l/min"),
+    thermal_type="adiabatic",  # or None
+    cavitation_model="mass_conserving",
+)
+plain_mc.results.convergence[0]["loops"]["cavitation"]["mass_balance"]  # per pad
+fig = plain_mc.plot_film_fraction_2d()
+```
+
+- Film force at a prescribed journal position (no equilibrium search, no coefficients), e.g. for a force map or a finite-difference check: `from ross.bearings.fluid_film.sweep import BearingSetup, film_force_at`; `setup = BearingSetup.from_inputs(**bearing._engine_inputs(speed))` meshes once, then `film_force_at(setup, speed, xj, yj, tilts="solve")` (positions in m; the keyword dict itself is accepted too, at the cost of a mesh per call) returns `fx`, `fy`, per-pad forces and pivot moments; `tilts="frozen"` holds the tilts of the equilibrium, an array holds given tilts
 
 See `docs/user_guide/tutorial_bearings_part_2.ipynb` for the full tour.

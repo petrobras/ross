@@ -122,6 +122,15 @@ These are classes used to store results and to provide useful methods such as pl
     MotorResponseResults
     PhaseResults
 
+.. currentmodule:: ross.multi_rotor.results
+
+.. autosummary::
+    :toctree: generated/results
+
+    BacklashResults
+
+.. currentmodule:: ross
+
 Bearing Results
 ---------------
 Post-processing classes for thermo-hydro-dynamic bearing models.
@@ -133,6 +142,59 @@ Post-processing classes for thermo-hydro-dynamic bearing models.
     FluidFilmBearingResults
     ThrustPadResults
     SqueezeFilmDamperResults
+
+Fluid-Film Bearing Solver
+-------------------------
+Lubricants, convergence reports, pad matrices and film solvers used by ``FluidFilmBearing``
+and the journal bearings built on it.
+
+.. currentmodule:: ross.bearings.film.lubricant
+
+.. autosummary::
+    :toctree: generated/fluid_film
+
+    Lubricant
+
+.. currentmodule:: ross.bearings.film.loops
+
+.. autosummary::
+    :toctree: generated/fluid_film
+
+    ConvergenceRecord
+    ConvergenceWarning
+
+.. currentmodule:: ross.bearings.fluid_film.diagnostics
+
+.. autosummary::
+    :toctree: generated/fluid_film
+
+    FluidFilmConvergenceError
+
+.. currentmodule:: ross.bearings.fluid_film.padmatrices
+
+.. autosummary::
+    :toctree: generated/fluid_film
+
+    PadMatrices
+
+.. currentmodule:: ross.bearings.fluid_film.sweep
+
+.. autosummary::
+    :toctree: generated/fluid_film
+
+    BearingSetup
+    film_force_at
+
+.. currentmodule:: ross.bearings.film.cavitation
+
+.. autosummary::
+    :toctree: generated/fluid_film
+
+    CavitationGrid
+    CavitationSolution
+    solve_elrod_adams
+
+.. currentmodule:: ross
 
 Faults
 ------
@@ -156,6 +218,18 @@ Methods for reducing the size of rotor finite element models.
     ModelReduction
     PseudoModal
     Guyan
+
+Motor Parameter Estimation
+--------------------------
+Estimation of the equivalent circuit of an induction motor from nameplate or catalog data, used by
+``MotorElement.from_nameplate`` and ``MotorElement.from_catalog``.
+
+.. autosummary::
+    :toctree: generated/motor_estimation
+
+    estimate_from_nameplate
+    estimate_from_catalog
+    EstimationResult
 
 Motor Drives
 ------------

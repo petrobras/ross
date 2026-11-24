@@ -1,7 +1,10 @@
+import warnings
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
+from ross.bearings.film.loops import ConvergenceWarning
 from ross.bearings.fixed_geometry import FixedGeometryBearing
 from ross.bearings.plain_journal import PlainJournal
 from ross.units import Q_
@@ -177,3 +180,66 @@ def test_thermal_model_runs():
     out = bearing._results.outputs[0]
     assert out["tpad_max"][0] > 323.15
     assert float(bearing.kxx[0]) > 0
+
+
+def _coarse_plain(**overrides):
+    """Coarse isoviscous plain journal for the input checks."""
+    kwargs = dict(
+        n=0,
+        pad_axial_length=0.05,
+        journal_diameter=0.1,
+        radial_clearance=100e-6,
+        n_pads=2,
+        pad_arc=Q_(160, "deg"),
+        oil_supply_temperature=Q_(40, "degC"),
+        speed=Q_([3000], "RPM"),
+        fys_load=-2000.0,
+        lubricant="ISOVG32",
+        oil_flow_v=Q_(10, "l/min"),
+        thermal_type=None,
+        total_ex_film=20,
+        total_ez_film=10,
+        total_ey_film=10,
+        total_ey_pad=10,
+    )
+    kwargs.update(overrides)
+    return kwargs
+
+
+@pytest.mark.parametrize(
+    "overrides, match",
+    [
+        # a zero speed in a 1-D table divided by zero in the solver
+        (dict(speed=[0.0, 300.0]), "nonzero speeds"),
+        # 3 x 170 deg and 2 x 200 deg lands do not fit in one revolution
+        (dict(n_pads=3, pad_arc=Q_(170, "deg")), "pad_arc"),
+        (dict(n_pads=2, pad_arc=Q_(200, "deg")), "pad_arc"),
+        # preload 1 makes the pad clearance c / (1 - preload) infinite
+        (dict(preload=1.0), "preload"),
+    ],
+)
+def test_invalid_inputs_raise(overrides, match):
+    with pytest.raises(ValueError, match=match):
+        PlainJournal(**_coarse_plain(**overrides))
+
+
+@pytest.mark.parametrize(
+    "overrides, converged",
+    [(dict(preload=0.95), False), (dict(n_pads=2, pad_arc=Q_(179.9, "deg")), True)],
+)
+def test_valid_neighbours_build(overrides, converged):
+    """Inputs just inside the limits of the checks above still solve.
+
+    The 179.9 deg lands converge. With preload 0.95 the equilibrium search of
+    this journal gives up (force residual 1.41 at eccentricity 1.33, as for
+    preload 0.9; preload 0.5 converges): the build returns and reports the
+    failure instead of hiding it. Preload 0.99 passes the checks
+    too (``test_fluid_film_bearing.py``, ``test_valid_inputs_reach_the_solver``)
+    and ends with non-finite forces.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", ConvergenceWarning)
+        bearing = PlainJournal(**_coarse_plain(**overrides))
+    assert np.isfinite(float(bearing.kyy[0]))
+    assert float(bearing.kyy[0]) > 0
+    assert bool(bearing.results.converged[0]) is converged

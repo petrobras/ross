@@ -8,7 +8,8 @@ Usage::
 
 Read the Docs never executes notebooks (see ``conf.py``), so the outputs stored
 here are what the site shows. Notebooks that plot must set
-``pio.renderers.default = "notebook"`` so Plotly figures are stored as HTML;
+``pio.renderers.default = "notebook_connected"`` so Plotly figures are stored as
+HTML that loads plotly.js from its CDN (``"notebook"`` stores a 5 MB copy of it);
 ``fig.show()`` without it stores only the Plotly JSON mimetype, which the site
 skips.
 """
