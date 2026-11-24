@@ -796,8 +796,9 @@ class InverterFOC(Inverter):
         Rotor leakage reactance at rated frequency [Ohm].
     mutual_reactance : float
         Magnetizing (mutual) reactance at rated frequency [Ohm].
-    Ip_motor : float
-        Rotor polar moment of inertia [kg.m²].
+    Ip_rotor : float
+        Polar moment of inertia of the whole rotor, motor included [kg.m²]. It
+        tunes the speed controller.
     time_ramp : float, optional
         Acceleration ramp time [s] for the mechanical speed reference.
         Default is 1.
@@ -831,7 +832,7 @@ class InverterFOC(Inverter):
         stator_reactance,
         rotor_reactance,
         mutual_reactance,
-        Ip_motor,
+        Ip_rotor,
         time_ramp=1.0,
         frequency_ref=None,
     ):
@@ -890,7 +891,7 @@ class InverterFOC(Inverter):
         BWi_w = BWp_w / 8
 
         KL = float(torque_rated) / (self.np_pairs * self.speed_rated)  # Load constant
-        J = float(Ip_motor)
+        J = float(Ip_rotor)
 
         # Proportional and integral controller gain
         self.kp_w = J * 2 * np.pi * (BWp_w + BWi_w) - KL
