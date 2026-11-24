@@ -15,6 +15,7 @@ skips.
 """
 
 import argparse
+import re
 from pathlib import Path
 
 import nbformat
@@ -29,6 +30,25 @@ def notebooks_under(paths):
             if ".ipynb_checkpoints" in str(notebook) or "_build" in str(notebook):
                 continue
             yield notebook
+
+
+WARNING_LOCATION = re.compile(
+    r"^(?:[A-Za-z]:)?[^\s:]*[/\\][^\s:]+\.py:\d+: (\w+: .*)\n(?:[ \t]+\S.*\n)?",
+    re.MULTILINE,
+)
+
+
+def strip_warning_paths(nb):
+    """Remove the file path, line number and source line from stored warnings.
+
+    Python prints ``/path/to/file.py:123: UserWarning: message`` followed by the
+    offending source line. The path is specific to the machine that ran the
+    notebook, so only ``UserWarning: message`` is kept.
+    """
+    for cell in nb.cells:
+        for output in cell.get("outputs", []):
+            if output.get("output_type") == "stream" and output.get("name") == "stderr":
+                output["text"] = WARNING_LOCATION.sub(r"\1\n", output["text"])
 
 
 def run_notebook(notebook_filename, timeout=600):
@@ -50,6 +70,7 @@ def run_notebook(notebook_filename, timeout=600):
         )
         raise
     finally:
+        strip_warning_paths(nb)
         nbformat.write(nb, notebook_filename)
 
 
