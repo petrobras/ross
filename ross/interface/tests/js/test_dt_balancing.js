@@ -340,6 +340,8 @@ check('the polar diagram is drawn first, one chart per balancing plane',
       asked.figure && asked.figure.chart === 'polar' && chartsDrawn().length === 1);
 check('the polar diagram needs no plane, so the plane picker is hidden',
       document.getElementById('dt-chart-node-group').style.display === 'none');
+check('the reference sensor picker is shown with the polar diagram',
+      document.getElementById('dt-polar-sensor-group').style.display === '');
 
 // In a browser, filling a `<select>` selects its first option; the fake DOM
 // does not, so the choice is made here as the user would.
@@ -363,6 +365,8 @@ await settle();
 check('the virtual sensing offers the balancing and the measuring planes',
       options('dt-chart-node').join(',') === '3,2,4'
       && document.getElementById('dt-chart-node-group').style.display === '');
+check('the reference sensor picker is hidden for any chart but the polar diagram',
+      document.getElementById('dt-polar-sensor-group').style.display === 'none');
 document.getElementById('dt-chart-node').value = '4';
 await MEASUREMENT_ACTIONS['dt-chart-change']({ dataset: {} });
 await settle();

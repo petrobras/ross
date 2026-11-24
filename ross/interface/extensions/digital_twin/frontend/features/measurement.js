@@ -319,6 +319,7 @@ function showChart() {
     picker.innerHTML = nodes.map(node => `<option value="${node}">${node}</option>`).join('');
     picker.value = String(nodes.includes(chosen) ? chosen : (nodes[0] ?? ''));
     document.getElementById('dt-chart-node-group').style.display = nodes.length ? '' : 'none';
+    document.getElementById('dt-polar-sensor-group').style.display = chart.kind === 'polar' ? '' : 'none';
     document.getElementById('dt-decomposition').style.display = chart.kind === 'decomposed' ? '' : 'none';
     document.getElementById('dt-chart-hint').textContent = chart.hint ? t(chart.hint) : '';
     if (chart.kind === 'decomposed') {
