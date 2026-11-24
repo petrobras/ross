@@ -761,6 +761,9 @@ Contributing and Release Process
 - The documentation notebooks load plotly.js from its CDN (``notebook_connected`` renderer) instead
   of storing a copy of it, which reduces them from 308 MB to 95 MB. Their figures need internet
   access (`#1507 <https://github.com/petrobras/ross/pull/1507>`_).
+- The documentation builds on Read the Docs no longer fail with a missing ``pkg_resources``: the
+  Google Analytics option of the theme replaces ``sphinxcontrib-googleanalytics``
+  (`#1509 <https://github.com/petrobras/ross/pull/1509>`_).
 - 3.2.0rc1 was the release candidate
   (`#1507 <https://github.com/petrobras/ross/pull/1507>`_).
 
