@@ -4,6 +4,7 @@ Usage::
 
     python run_notebooks.py                        # every notebook under the current directory
     python run_notebooks.py PATH...                # only the given notebooks or directories
+    python run_notebooks.py --skip-current PATH    # only notebooks whose code changed
     python run_notebooks.py --timeout 3600 PATH    # allow slow cells (seconds, default 600)
 
 Read the Docs never executes notebooks (see ``conf.py``), so the outputs stored
@@ -15,6 +16,7 @@ skips.
 """
 
 import argparse
+import hashlib
 import os
 import re
 import sys
@@ -62,12 +64,20 @@ def strip_warning_paths(nb):
                 output["text"] = ABSOLUTE_PATH.sub(r"\1", text)
 
 
-def run_notebook(notebook_filename, timeout=600):
+def code_hash(nb):
+    code = "\0".join(cell.source for cell in nb.cells if cell.cell_type == "code")
+    return hashlib.sha256(code.encode()).hexdigest()
+
+
+def run_notebook(notebook_filename, timeout=600, skip_current=False):
     print(f"Executing {notebook_filename} with {sys.executable}", flush=True)
     # The python3 kernelspec starts "python" from PATH; make it this interpreter.
     interpreter_dir = str(Path(sys.executable).parent)
     os.environ["PATH"] = interpreter_dir + os.pathsep + os.environ.get("PATH", "")
     nb = nbformat.read(notebook_filename, as_version=4)
+    if skip_current and nb.metadata.get("ross_code_hash") == code_hash(nb):
+        print("Skipped: the code cells have not changed since the last run.")
+        return
     client = NotebookClient(
         nb,
         timeout=timeout,
@@ -85,6 +95,7 @@ def run_notebook(notebook_filename, timeout=600):
         raise
     finally:
         strip_warning_paths(nb)
+        nb.metadata["ross_code_hash"] = code_hash(nb)
         nbformat.write(nb, notebook_filename)
 
 
@@ -94,6 +105,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--timeout", type=int, default=600, help="seconds allowed per cell"
     )
+    parser.add_argument(
+        "--skip-current",
+        action="store_true",
+        help="skip notebooks whose code cells have not changed since their last run",
+    )
     args = parser.parse_args()
     for notebook_filename in notebooks_under(args.paths or [Path.cwd()]):
-        run_notebook(notebook_filename, timeout=args.timeout)
+        run_notebook(
+            notebook_filename, timeout=args.timeout, skip_current=args.skip_current
+        )
