@@ -167,6 +167,14 @@ def test_clearance_compares_with_the_bearing_clearance(example):
 
 @pytest.mark.parametrize("speed", [0, 1000, 5000])
 def test_stability_matches_a_direct_modal_run(example, speed):
+    # Damped bearings: `rotor_example` has none, so its log decs are zero and
+    # only eigensolver round-off was compared, which differs on macOS.
+    plain = example.rotor
+    bearings = [
+        rs.BearingElement(n=bearing.n, kxx=1e6, cxx=500)
+        for bearing in plain.bearing_elements
+    ]
+    example.rotor = rs.Rotor(plain.shaft_elements, plain.disk_elements, bearings)
     out = analysis.run(example.id, "stability", {"speed": speed})
     with_seals = out["tables"][1]
     modal = rs.utils.convert_6dof_to_4dof(example.rotor).run_modal(
