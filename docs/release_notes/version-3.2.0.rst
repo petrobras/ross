@@ -764,6 +764,7 @@ Contributing and Release Process
 - The documentation builds on Read the Docs no longer fail with a missing ``pkg_resources``: the
   Google Analytics option of the theme replaces ``sphinxcontrib-googleanalytics``
   (`#1509 <https://github.com/petrobras/ross/pull/1509>`_).
+- ``CITATION.cff`` gives the version and date of this release; it still gave those of 1.0.1.
 - 3.2.0rc1 was the release candidate
   (`#1507 <https://github.com/petrobras/ross/pull/1507>`_).
 
