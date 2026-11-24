@@ -4,12 +4,12 @@ Source: `docs/user_guide/tutorial_motor.ipynb`
 
 `ElectricMotor` models a three-phase induction motor (TPIM) in a rotor-flux-oriented synchronous frame. Besides its electrical parameters, it carries the structure of the motor as a mechanical model, chosen by the arguments given to it:
 
-| Model | Arguments | What `Rotor.add_motor` adds to the rotor | `motor.n_torque` |
+| Model | Arguments | What `Rotor.add_motor` adds to the rotor | `motor.n_c` |
 |-------|-----------|------------------------------------------|------------------|
 | Lumped | `m`, `Ip` and, optionally, `Id` | A disk with the mass and the inertias of the motor, at node `n` | `n` |
 | Finite element | `shaft_elements` and, optionally, `disk_elements`, `bearing_elements`, `point_mass_elements` | The rotor of the motor, concatenated to the rotor of the load | Node shared by the two rotors |
 
-`Rotor.run_with_motor` applies the motor torque to the torsional DOF (`theta`) of node `motor.n_torque`, or of `electric_torque_node` if given. Use the lumped model when the motor is stiff compared to the rest of the machine; the finite element model adds the flexibility of the motor shaft and bearings and allows a coupling between the motor and the load.
+`Rotor.run_with_motor` applies the motor torque to the torsional DOF (`theta`) of node `motor.n_c`, or of `electric_torque_node` if given. Use the lumped model when the motor is stiff compared to the rest of the machine; the finite element model adds the flexibility of the motor shaft and bearings and allows a coupling between the motor and the load.
 
 ## Motor model
 
@@ -279,7 +279,7 @@ coupled_load_rotor = rs.Rotor(
 rotor_fem = coupled_load_rotor.add_motor(
     motor_fem
 )  # concatenates the motor rotor and the load rotor
-rotor_fem.motor.n_torque  # 5: the joint node (motor side of the coupling), where the torque acts
+rotor_fem.motor.n_c  # 5: the joint node (motor side of the coupling), where the motor connects to the load
 # the load rotor nodes are shifted by 5: coupling 5-6, disks at nodes 8 and 10
 
 t = np.arange(0, 4.0 + 1e-4, 1e-4)
@@ -296,7 +296,7 @@ response = rotor_lumped.run_with_motor(
 
 - `add_motor` with the finite element model accepts only `n` equal to the first or the last node of the rotor; otherwise it raises `ValueError`. With `n` = first node, the last node of the motor rotor is joined to it and the load nodes are shifted; with `n` = last node, the first node of the motor rotor is joined to it.
 - A coupling between the motor and the load goes at the start (motor on the left) or the end (motor on the right) of the load rotor, not in `shaft_elements` of the motor: otherwise the torque is applied on the load side of the coupling and bypasses its torsional stiffness. Build the load shaft with new `ShaftElement` objects: the elements of an assembled rotor keep their node numbers, so `[coupling, *rotor_example().shaft_elements]` fails.
-- `electric_torque_node` and `load_torque_node` (arguments of `run_with_motor`) are the nodes where the electromagnetic torque and the load torque are applied. By default both are `motor.n_torque`: the node of the lumped motor, or the node shared by the motor and the load rotors. Give `electric_torque_node` the node of the rotor core of a finite element motor, and `load_torque_node` the node of the driven machine, so that the torque twists the shafts between them. The motor speed is the shaft speed at `electric_torque_node`. `ValueError` if a node is not in the rotor.
+- `electric_torque_node` and `load_torque_node` (arguments of `run_with_motor`) are the nodes where the electromagnetic torque and the load torque are applied. By default both are `motor.n_c`: the node of the lumped motor, or the node shared by the motor and the load rotors. Give `electric_torque_node` the node of the rotor core of a finite element motor, and `load_torque_node` the node of the driven machine, so that the torque twists the shafts between them. The motor speed is the shaft speed at `electric_torque_node`. `ValueError` if a node is not in the rotor.
 - A rotor holds one motor; `add_motor` on a rotor that already has one raises `ValueError`. `rotor.add_elements` does not add motors.
 - The finite element model adds the flexibility of the motor shaft and the motor bearings, so the natural frequencies differ from the lumped model (in the tutorial, with the coupling, the second pair moves from 40.4 Hz to 52.2 Hz).
 - A rotor with a motor round-trips `save`/`load` with either model. A motor with `shaft_elements` cannot be saved on its own before it is connected to a rotor.

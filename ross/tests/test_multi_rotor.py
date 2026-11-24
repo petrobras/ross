@@ -226,7 +226,7 @@ def test_save_and_load_keep_the_motor(multi_rotor, file_format, tmp_path):
     assert loaded.motor is not None
     assert loaded.motor == with_motor.motor
     assert loaded.motor.n == with_motor.motor.n
-    assert loaded.motor.n_torque == with_motor.motor.n_torque
+    assert loaded.motor.n_c == with_motor.motor.n_c
     assert_allclose(loaded.M(), with_motor.M())
 
 
@@ -249,7 +249,7 @@ def test_motor_of_a_component_rotor_stays_only_in_the_multi_rotor(
 
     nodes = assembled.nodes if rotor_name == "driving" else assembled.driven_nodes
     assert assembled.motor.n == nodes[index]
-    assert assembled.motor.n_torque == nodes[index]
+    assert assembled.motor.n_c == nodes[index]
     assert (
         assembled.motor.dof_global_index[f"theta_{nodes[index]}"]
         == assembled.number_dof * nodes[index] + 5

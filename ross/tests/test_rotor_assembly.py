@@ -3856,7 +3856,7 @@ def test_refine_add_nodes_and_refine_mesh_keep_the_motor():
     ):
         new_motor = refined.motor
         assert new_motor is not None
-        assert new_motor.n == new_motor.n_torque == 4
+        assert new_motor.n == new_motor.n_c == 4
         assert_allclose(refined.nodes_pos[new_motor.n], rotor.nodes_pos[2])
         assert_allclose(refined.m, rotor.m)
 
@@ -3880,7 +3880,7 @@ def test_refine_add_nodes_and_refine_mesh_keep_the_motor_with_shaft_elements(sid
     ):
         new_motor = refined.motor
         assert_allclose(refined.nodes_pos[new_motor.n], motor_position, atol=1e-12)
-        assert_allclose(refined.nodes_pos[new_motor.n_torque], joint_position)
+        assert_allclose(refined.nodes_pos[new_motor.n_c], joint_position)
         assert_allclose(refined.m, rotor.m)
 
 
@@ -4012,7 +4012,7 @@ def test_add_motor_with_shaft_elements_matches_concatenate(side):
         joint_node = max(load.nodes)
     expected = Rotor.concatenate(rotors)
 
-    assert joined.motor.n_torque == joint_node
+    assert joined.motor.n_c == joint_node
     assert_allclose(joined.M(), expected.M())
     assert_allclose(joined.K(0), expected.K(0))
     assert_allclose(joined.G(), expected.G())
@@ -4028,12 +4028,12 @@ def test_run_with_motor_with_shaft_elements_applies_the_torque_at_the_joint(side
     rotor = load.add_motor(_motor_with_shaft_elements(n))
     motor = rotor.motor
     joint_shaft = next(
-        sh for sh in rotor.shaft_elements if motor.n_torque in (sh.n_l, sh.n_r)
+        sh for sh in rotor.shaft_elements if motor.n_c in (sh.n_l, sh.n_r)
     )
 
     assert (
-        motor.dof_global_index[f"theta_{motor.n_torque}"]
-        == joint_shaft.dof_global_index[f"theta_{motor.n_torque}"]
+        motor.dof_global_index[f"theta_{motor.n_c}"]
+        == joint_shaft.dof_global_index[f"theta_{motor.n_c}"]
     )
 
     t = np.arange(0, 0.3 + 1e-3, 1e-3)
@@ -4109,8 +4109,8 @@ def test_run_with_motor_torque_nodes_default_to_the_node_of_the_motor():
 
     default = rotor.run_with_motor(**arguments)
     explicit = rotor.run_with_motor(
-        electric_torque_node=rotor.motor.n_torque,
-        load_torque_node=rotor.motor.n_torque,
+        electric_torque_node=rotor.motor.n_c,
+        load_torque_node=rotor.motor.n_c,
         **arguments,
     )
 
@@ -4248,17 +4248,17 @@ def test_run_with_motor_on_the_driven_rotor_uses_the_speed_of_the_driving_rotor(
     )
 
     motor_results = results.motor_results
-    ratio = rotor.to_shaft_rotation(1.0, rotor.motor.n_torque)
+    ratio = rotor.to_shaft_rotation(1.0, rotor.motor.n_c)
     speed = motor_results.sample_at("speed", t) / ratio
     torque = motor_results.sample_at("electric_torque", t) - motor_results.sample_at(
         "load_torque", t
     )
 
     F = rotor.unbalance_force_over_time([2], [1e-3], [0.0], speed, t).T
-    F[:, rotor.motor.dof_global_index[f"theta_{rotor.motor.n_torque}"]] += torque
+    F[:, rotor.motor.dof_global_index[f"theta_{rotor.motor.n_c}"]] += torque
     Ktq = np.zeros((rotor.ndof, rotor.ndof))
     for sh in rotor.shaft_elements:
-        if rotor.motor.n_torque in (sh.n_l, sh.n_r):
+        if rotor.motor.n_c in (sh.n_l, sh.n_r):
             dofs = list(sh.dof_global_index.values())
             Ktq[np.ix_(dofs, dofs)] += sh.Ktq()
     expected = rotor.run_time_response(
@@ -4289,14 +4289,14 @@ def test_save_and_load_keep_the_motor(structure, file_format, tmp_path):
     assert loaded.motor is not None
     assert loaded == rotor
     assert loaded.motor.n == rotor.motor.n
-    assert loaded.motor.n_torque == rotor.motor.n_torque
+    assert loaded.motor.n_c == rotor.motor.n_c
     assert loaded.motor.dof_global_index == rotor.motor.dof_global_index
     assert_allclose(loaded.M(), rotor.M())
 
     refined = loaded.refine(2)
     reference = rotor.refine(2)
     assert refined.motor.n == reference.motor.n
-    assert refined.motor.n_torque == reference.motor.n_torque
+    assert refined.motor.n_c == reference.motor.n_c
     loaded.plot_rotor()
 
 
@@ -4377,7 +4377,7 @@ def test_plot_rotor_draws_a_fem_motor_at_the_torque_node(structure):
     # Reference: the axial position of the joint node, where the torque acts.
     rotor = _rotor_with_motor(structure)
     motor = rotor.motor
-    z_torque = rotor.nodes_pos[rotor.nodes.index(motor.n_torque)]
+    z_torque = rotor.nodes_pos[rotor.nodes.index(motor.n_c)]
     fig = rotor.plot_rotor()
     motor_trace = next(trace for trace in fig.data if trace.name == motor.tag)
 

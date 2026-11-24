@@ -270,7 +270,7 @@ class MultiRotor(Rotor):
             motor = copy(R2.motor)
             motor.n += driven_offset
             if motor._mechanical_model_type == "fem":
-                motor.n_torque += driven_offset
+                motor.n_c += driven_offset
 
         super().__init__(
             shaft_elements,

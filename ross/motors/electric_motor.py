@@ -124,12 +124,13 @@ class ElectricMotor:
     With the lumped model, it is a disk element with the mass ``m``, the
     diametral inertia ``Id`` and the polar inertia ``Ip`` at node ``n``. With
     ``shaft_elements``, it is the rotor assembled from the elements. The
-    attribute ``n_torque`` is the node where the torque is applied: ``n`` with
-    the lumped model, and the node of the motor rotor connected to the rotor of
-    the load otherwise (None until ``Rotor.add_motor`` connects them).
+    attribute ``n_c`` is the node where the motor is connected to the
+    load: ``n`` with the lumped model, and the node of the motor rotor shared
+    with the rotor of the load otherwise (None until ``Rotor.add_motor``
+    connects them). It is the default node of the motor torque and of the load
+    torque in :py:meth:`ross.Rotor.run_with_motor`.
 
-    The node ``n`` is where the motor is placed in the rotor. The motor torque
-    acts on the torsional DOF of this node.
+    The node ``n`` is where the motor is placed in the rotor.
     :py:meth:`ross.Rotor.run_with_motor` simulates the motor
     and applies its torque to the rotor. ``.run_direct_on_line()``,
     ``.run_with_inverter_vf()`` and ``.run_with_inverter_foc()`` simulate the
@@ -247,7 +248,7 @@ class ElectricMotor:
             )
             self.m = float(self.mechanical_model.m)
             self.Ip = float(self.mechanical_model.Ip)
-            self.n_torque = None
+            self.n_c = None
 
         self.viscosity_coeff = float(viscosity_coeff)
 
@@ -819,7 +820,7 @@ class ElectricMotor:
     def n(self):
         """Node where the motor is placed in the rotor.
 
-        With the lumped model, setting it also sets ``n_torque`` to the same node.
+        With the lumped model, setting it also sets ``n_c`` to the same node.
         """
         return self._n
 
@@ -827,7 +828,7 @@ class ElectricMotor:
     def n(self, value):
         self._n = value
         if self._mechanical_model_type == "lumped":
-            self.n_torque = value
+            self.n_c = value
 
     summary = Element.summary
     load = Element.__dict__["load"]
@@ -862,7 +863,7 @@ class ElectricMotor:
         >>> ElectricMotor.load(file) == motor
         True
         """
-        if self._mechanical_model_type == "fem" and self.n_torque is None:
+        if self._mechanical_model_type == "fem" and self.n_c is None:
             raise ValueError(
                 "A motor with shaft_elements is saved with the rotor it is "
                 "connected to."
@@ -876,7 +877,7 @@ class ElectricMotor:
             self,
             file,
             structure=self._mechanical_model_type,
-            n_torque=self.n_torque,
+            n_c=self.n_c,
             Id=Id,
             **more_args,
         )
@@ -920,14 +921,14 @@ class ElectricMotor:
         """
         data = dict(data)
         structure = data.pop("structure", "lumped")
-        n_torque = data.pop("n_torque", None)
+        n_c = data.pop("n_c", None)
 
         arguments = set(signature(cls.__init__).parameters).intersection(data)
         motor = cls(**{name: data[name] for name in arguments})
 
         if structure == "fem":
             motor._mechanical_model_type = "fem"
-            motor.n_torque = n_torque
+            motor.n_c = n_c
 
         return motor
 
@@ -943,7 +944,7 @@ class ElectricMotor:
         """
         frequency_hz = Q_(self.frequency_rated, "rad/s").to("Hz").m
         customdata = [
-            self.n_torque,
+            self.n_c,
             self.power_rated,
             self.voltage_rated,
             self.speed_rated,
@@ -974,7 +975,7 @@ class ElectricMotor:
         position : tuple
             Position ``(zpos, ypos, yc_pos, outer_diameter)`` in which the
             patch will be drawn. The icon is centered on ``(zpos, yc_pos)``,
-            the position of node ``n_torque``.
+            the position of node ``n_c``.
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
 

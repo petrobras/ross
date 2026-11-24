@@ -531,13 +531,14 @@ class Rotor(object):
         )
 
         # global indexes for dofs
+        self.global_dof_mapping = {}
         for elm in self.elements:
             dof_mapping = elm.dof_mapping()
-            global_dof_mapping = {}
+            elm_dof_mapping = {}
             for k, v in dof_mapping.items():
                 dof_letter, dof_number = k.split("_")
-                global_dof_mapping[dof_letter + "_" + str(int(dof_number) + elm.n)] = (
-                    int(v)
+                elm_dof_mapping[dof_letter + "_" + str(int(dof_number) + elm.n)] = int(
+                    v
                 )
 
             if elm.n in self.nodes:
@@ -550,33 +551,33 @@ class Rotor(object):
                     "connected external bearing-support node."
                 )
 
-            for k, v in global_dof_mapping.items():
-                global_dof_mapping[k] = elm_dof_start + v
+            for k, v in elm_dof_mapping.items():
+                elm_dof_mapping[k] = elm_dof_start + v
 
             if hasattr(elm, "n_link") and elm.n_link is not None:
                 if elm.n_link in self.nodes:
                     link_dof_start = int(self.number_dof * elm.n_link)
-                    global_dof_mapping[f"x_{elm.n_link}"] = int(link_dof_start)
-                    global_dof_mapping[f"y_{elm.n_link}"] = int(link_dof_start + 1)
-                    global_dof_mapping[f"z_{elm.n_link}"] = int(link_dof_start + 2)
+                    elm_dof_mapping[f"x_{elm.n_link}"] = int(link_dof_start)
+                    elm_dof_mapping[f"y_{elm.n_link}"] = int(link_dof_start + 1)
+                    elm_dof_mapping[f"z_{elm.n_link}"] = int(link_dof_start + 2)
                 elif elm.n_link in external_nodes:
                     link_dof_start = external_dof_mapping[elm.n_link]
-                    global_dof_mapping[f"x_{elm.n_link}"] = int(link_dof_start)
-                    global_dof_mapping[f"y_{elm.n_link}"] = int(link_dof_start + 1)
-                    global_dof_mapping[f"z_{elm.n_link}"] = int(link_dof_start + 2)
+                    elm_dof_mapping[f"x_{elm.n_link}"] = int(link_dof_start)
+                    elm_dof_mapping[f"y_{elm.n_link}"] = int(link_dof_start + 1)
+                    elm_dof_mapping[f"z_{elm.n_link}"] = int(link_dof_start + 2)
                 else:
                     raise ValueError(
                         f"{elm.__class__.__name__} link node {elm.n_link} is neither a shaft "
                         "node nor a connected external bearing-support node."
                     )
 
-            elm.dof_global_index = global_dof_mapping
+            elm.dof_global_index = elm_dof_mapping
+            self.global_dof_mapping.update(elm_dof_mapping)
             df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
                 elm.dof_global_index
             )
 
         df = df.copy()
-        self.global_dof_mapping = global_dof_mapping
 
         # define positions for disks
         for elm in self.disk_elements:
@@ -810,57 +811,6 @@ class Rotor(object):
             motor=motor,
             **parameters,
         )
-
-    @property
-    def motor(self):
-        """Electric motor of the rotor, or None if there is none.
-
-        Setting it registers the motor in the rotor: its tag, its degrees of
-        freedom and its row in ``df``.
-        """
-        return self._motor
-
-    @motor.setter
-    def motor(self, motor):
-        if motor is None and self._motor is not None:
-            self.df = self.df[self.df["type"] != "ElectricMotor"].reset_index(drop=True)
-            self.df_motor = pd.DataFrame()
-
-        self._motor = motor
-        if motor is not None:
-            if motor.tag in [el.tag for el in self.elements]:
-                raise ValueError("Tags should be unique.")
-
-            dof_names = ("x", "y", "z", "alpha", "beta", "theta")
-            motor.dof_global_index = {
-                f"{name}_{motor.n_torque}": int(self.number_dof * motor.n_torque + i)
-                for i, name in enumerate(dof_names)
-            }
-
-            if motor._mechanical_model_type == "lumped":
-                motor.mechanical_model = next(
-                    (
-                        disk
-                        for disk in self.disk_elements
-                        if disk.n == motor.n
-                        and np.isclose(disk.m, motor.m)
-                        and np.isclose(disk.Ip, motor.Ip)
-                    ),
-                    motor.mechanical_model,
-                )
-
-            z_pos = self.nodes_pos[self.nodes.index(motor.n_torque)]
-            df_motor = pd.DataFrame([motor.summary()])
-            df_motor["dof_global_index"] = [motor.dof_global_index]
-            df_motor["nodes_pos_l"] = z_pos
-            df_motor["nodes_pos_r"] = z_pos
-            df_motor["y_pos"] = 0.0
-            df_motor["shaft_number"] = 0.0
-
-            df = pd.concat([self.df, df_motor], sort=True)
-            df = df.sort_values(by="n_l")
-            self.df = df.reset_index(drop=True).copy()
-            self.df_motor = df_motor
 
     def update_element_tag(self, elm, tag):
         """Update the tag of an element in the rotor."""
@@ -1373,7 +1323,7 @@ class Rotor(object):
                     elm.sensor_node = new_node(elm.sensor_node)
             if elm in motor_list:
                 if elm._mechanical_model_type == "fem":
-                    elm.n_torque = new_node(elm.n_torque)
+                    elm.n_c = new_node(elm.n_c)
 
         return {
             "disk_elements": disk_elements,
@@ -1638,6 +1588,57 @@ class Rotor(object):
             motor=motor,
         )
 
+    @property
+    def motor(self):
+        """Electric motor of the rotor, or None if there is none.
+
+        Setting it registers the motor in the rotor: its tag, its degrees of
+        freedom and its row in ``df``.
+        """
+        return self._motor
+
+    @motor.setter
+    def motor(self, motor):
+        if motor is None and self._motor is not None:
+            self.df = self.df[self.df["type"] != "ElectricMotor"].reset_index(drop=True)
+            self.df_motor = pd.DataFrame()
+
+        self._motor = motor
+        if motor is not None:
+            if motor.tag in [el.tag for el in self.elements]:
+                raise ValueError("Tags should be unique.")
+
+            motor.dof_global_index = {
+                k: v
+                for k, v in self.global_dof_mapping.items()
+                if str(k).endswith(f"_{motor.n_c}")
+            }
+
+            if motor._mechanical_model_type == "lumped":
+                motor.mechanical_model = next(
+                    (
+                        disk
+                        for disk in self.disk_elements
+                        if disk.n == motor.n
+                        and np.isclose(disk.m, motor.m)
+                        and np.isclose(disk.Ip, motor.Ip)
+                    ),
+                    motor.mechanical_model,
+                )
+
+            z_pos = self.nodes_pos[self.nodes.index(motor.n_c)]
+            df_motor = pd.DataFrame([motor.summary()])
+            df_motor["dof_global_index"] = [motor.dof_global_index]
+            df_motor["nodes_pos_l"] = z_pos
+            df_motor["nodes_pos_r"] = z_pos
+            df_motor["y_pos"] = 0.0
+            df_motor["shaft_number"] = 0.0
+
+            df = pd.concat([self.df, df_motor], sort=True)
+            df = df.sort_values(by="n_l")
+            self.df = df.reset_index(drop=True).copy()
+            self.df_motor = df_motor
+
     def add_motor(self, motor):
         """Add an electric motor to the rotor.
 
@@ -1688,10 +1689,10 @@ class Rotor(object):
 
             if motor.n == min(self.nodes):
                 rotors = [motor_rotor, self]
-                joint_node = max(motor_rotor.nodes)
+                connection_node = max(motor_rotor.nodes)
             elif motor.n == max(self.nodes):
                 rotors = [self, motor_rotor]
-                joint_node = max(self.nodes)
+                connection_node = max(self.nodes)
             else:
                 raise ValueError(
                     f"The motor node n={motor.n} must be the first or the last node "
@@ -1699,7 +1700,7 @@ class Rotor(object):
                 )
 
             full_model = Rotor.concatenate(rotors)
-            motor.n_torque = joint_node
+            motor.n_c = connection_node
 
         full_model.motor = motor
 
@@ -4246,8 +4247,8 @@ class Rotor(object):
             motor = self.motor
             z_pos = Q_(self.df_motor["nodes_pos_l"].values[0], "m").to(length_units).m
             y_pos = Q_(self.df_motor["y_pos"].values[0], "m").to(length_units).m
-            yc_pos = center_line_pos[self.nodes.index(motor.n_torque)]
-            diam = nodes_o_d[self.nodes.index(motor.n_torque)]
+            yc_pos = center_line_pos[self.nodes.index(motor.n_c)]
+            diam = nodes_o_d[self.nodes.index(motor.n_c)]
             position = (z_pos, y_pos, yc_pos, diam)
             fig = motor._patch(position, fig)
 
@@ -5521,7 +5522,7 @@ class Rotor(object):
             Node where the electromagnetic torque is applied, for example the
             node of the rotor core of a motor with ``shaft_elements``. The motor
             speed is the shaft speed at this node. Default is None, which uses
-            the node of the motor (``motor.n_torque``).
+            the node of the motor (``motor.n_c``).
         load_torque_node : int, optional
             Node where the load torque is applied, for example the node of the
             driven machine. Default is None, which uses `electric_torque_node`.
@@ -5583,7 +5584,7 @@ class Rotor(object):
             )
 
         if electric_torque_node is None:
-            electric_torque_node = motor.n_torque
+            electric_torque_node = motor.n_c
         if load_torque_node is None:
             load_torque_node = electric_torque_node
         for name, node in (
@@ -5653,6 +5654,7 @@ class Rotor(object):
         torque = Te - Tl
 
         speed = motor_results.sample_at("speed", t)
+        speed = speed / self.to_shaft_rotation(1.0, electric_torque_node)
 
         F += self.unbalance_force_over_time(
             unbalance_node, unbalance_magnitude, unbalance_phase, speed, t
