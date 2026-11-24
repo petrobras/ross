@@ -15,7 +15,9 @@ skips.
 """
 
 import argparse
+import os
 import re
+import sys
 from pathlib import Path
 
 import nbformat
@@ -38,21 +40,33 @@ WARNING_LOCATION = re.compile(
 )
 
 
+ABSOLUTE_PATH = re.compile(
+    r"(?<![\w.)\]])(?:[A-Za-z]:)?(?:[/\\][^\s/\\:]+)+[/\\]([^\s/\\:]+)"
+)
+WARN_SOURCE_LINE = re.compile(r"^[ \t]+_?warnings\.warn\(.*\n", re.MULTILINE)
+
+
 def strip_warning_paths(nb):
     """Remove the file path, line number and source line from stored warnings.
 
     Python prints ``/path/to/file.py:123: UserWarning: message`` followed by the
     offending source line. The path is specific to the machine that ran the
-    notebook, so only ``UserWarning: message`` is kept.
+    notebook, so only ``UserWarning: message`` is kept. Absolute paths inside
+    a message are reduced to their file name.
     """
     for cell in nb.cells:
         for output in cell.get("outputs", []):
             if output.get("output_type") == "stream" and output.get("name") == "stderr":
-                output["text"] = WARNING_LOCATION.sub(r"\1\n", output["text"])
+                text = WARNING_LOCATION.sub(r"\1\n", output["text"])
+                text = WARN_SOURCE_LINE.sub("", text)
+                output["text"] = ABSOLUTE_PATH.sub(r"\1", text)
 
 
 def run_notebook(notebook_filename, timeout=600):
-    print(f"Executing {notebook_filename}", flush=True)
+    print(f"Executing {notebook_filename} with {sys.executable}", flush=True)
+    # The python3 kernelspec starts "python" from PATH; make it this interpreter.
+    interpreter_dir = str(Path(sys.executable).parent)
+    os.environ["PATH"] = interpreter_dir + os.pathsep + os.environ.get("PATH", "")
     nb = nbformat.read(notebook_filename, as_version=4)
     client = NotebookClient(
         nb,
