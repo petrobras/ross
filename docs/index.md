@@ -5,6 +5,11 @@ simulation.
 
 The source code is available at [github](https://github.com/petrobras/ross).
 
+Besides the rotor models and analyses, ROSS provides **surrogate models** of fluid-film bearings
+(plain journal, tilting-pad and thrust-pad). A surrogate is trained on a set of solver runs and then
+predicts the bearing stiffness and damping coefficients in milliseconds, as a `BearingElement` ready to use in a rotor.
+See the {doc}`surrogate models tutorial <user_guide/tutorial_surrogates>`.
+
 ### 💡 ROSS GPT – Your Virtual Assistant for Rotordynamics
 
 Access [ROSS GPT](https://chatgpt.com/g/g-6838c48fbfa081918b61d77b997fdc33-ross-gpt), a virtual assistant specialized in the ROSS (Rotordynamic Open-Source Software) package. 

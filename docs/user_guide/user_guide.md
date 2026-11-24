@@ -16,6 +16,7 @@ tutorial_faults
 tutorial_multirotor
 tutorial_motor
 tutorial_stochastic
+tutorial_surrogates
 ```
 
 
