@@ -81,6 +81,8 @@ holep = rs.HolePatternSeal(
 - A speed that fails gets NaN and a warning; with three or more speeds the pchip
   table cannot hold NaN, so the element raises a `ValueError` naming the failed speeds
 - `holep.choked`: one flag per speed; a choked seal returns the choke-limit flow
+- More than 4 speeds are solved in worker processes: a script then needs an
+  `if __name__ == "__main__":` guard (a notebook does not)
 - `cell_depth` is the only cell input: for a hole pattern use hole depth times
   hole-area ratio; `cell_length` and `cell_width` are not used by the model
 

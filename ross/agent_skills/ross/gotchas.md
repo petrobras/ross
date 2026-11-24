@@ -6,6 +6,7 @@
 - **Unbalance magnitude is kg·m** (mass × eccentricity), not kg. A 1 g unbalance at 10 mm radius = `1e-3 * 10e-3 = 1e-5` kg·m
 - **Stiffness is N/m**, damping is N·s/m. Common bearing stiffness: 1e5–1e9 N/m
 - All `@check_units`-decorated methods accept `pint.Quantity` objects, but results are always in base SI
+- **`Hz` is a rotational frequency**: `Hz`, `hertz`, `kHz` and `kilohertz` are revolutions per second, so `rs.Q_(150, "Hz").to("RPM")` is 9000 RPM and `.to("rad/s")` is 942.5 rad/s
 
 ## Node Numbering
 
@@ -58,3 +59,14 @@
 - Gyroscopic splitting only appears at nonzero speed
 - At zero speed, forward and backward modes are identical only for isotropic supports (`kxx == kyy`); anisotropic bearings still split each mode pair
 - Always run modal analysis at the operating speed for realistic results
+
+## Fluid-Film Bearings
+
+- A speed whose solve did not converge is left out of the coefficient table by default (`on_failure="warn"`, with a `ConvergenceWarning`), so the table can be shorter than `speed`. Check `bearing.operating_results[["speed", "converged", "reason"]]` before using the element; `on_failure="raise"` stops instead
+- `n_jobs > 1` starts worker processes: a script needs an `if __name__ == "__main__":` guard (a notebook does not)
+- `TiltingPad` holds the journal at `eccentricity` / `attitude_angle` by default (`equilibrium_type="match_eccentricity"`) and ignores the load; pass `equilibrium_type="match_load"` to solve the position for the load
+
+## Multi-Rotors
+
+- Analysis speeds are those of the driving rotor; the driven shaft turns `gear_ratio` times as fast, in the opposite direction
+- Pass the `MultiRotor` arguments after `backlash` by keyword: since ROSS 3.2, `mesh_damping_ratio` comes before `orientation_angle` and `position`, and `min_w`, `max_w` and `rated_w` before `tag`

@@ -7,10 +7,12 @@ description: >-
   analyses: modal analysis, Campbell diagram, critical speeds, unbalance
   response, frequency response (FRF), static analysis, time response,
   undamped critical speed (UCS) map, API 617 Level 1 stability, fault
-  analyses (rubbing, crack, misalignment), shaft mesh convergence, gas seals
-  with speed- and whirl-frequency-dependent coefficients, and three-phase
-  induction motors driving the rotor (direct-on-line, V/f and field-oriented
-  control drives).
+  analyses (rubbing, crack, misalignment), shaft mesh convergence, geared
+  multi-rotor trains, fluid-film journal bearings (convergence checks,
+  lubricants, mass-conserving cavitation), gas seals with speed- and
+  whirl-frequency-dependent coefficients, and three-phase induction motors
+  driving the rotor (equivalent circuit from nameplate or catalog data;
+  direct-on-line, V/f and field-oriented control drives).
 license: Apache-2.0
 ---
 
@@ -34,12 +36,13 @@ Concise recipes for rotordynamics analyses with ROSS. Each file is self-containe
 | UCS and Level 1 stability | [ucs_and_level1.md](ucs_and_level1.md) | `run_ucs`, `run_level1` |
 | Fault analysis | [faults.md](faults.md) | `run_rubbing`, `run_crack`, `run_misalignment` |
 | Mesh convergence | [mesh_convergence.md](mesh_convergence.md) | `run_mesh_convergence`, `refine` |
+| Multi-rotor (geared shafts) | [multi_rotor.md](multi_rotor.md) | `GearElement`, `MultiRotor`, `MultiRotor.concatenate`, `run_critical_speed(shaft=)`, `unbalance_force_over_time` |
 | Induction motor | [motor.md](motor.md) | `MotorElement`, `MotorElement.from_nameplate`, `MotorElement.from_catalog`, `run_direct_on_line`, `run_with_inverter_vf`, `run_with_inverter_foc`, `run_with_motor` |
 | Harmonic balance (no recipe yet) | — | `run_harmonic_balance_response`: see `help(rs.Rotor.run_harmonic_balance_response)` |
 | AMB sensitivity (no recipe yet) | — | `run_amb_sensitivity`: see `help(rs.Rotor.run_amb_sensitivity)` |
 | AMB sensor-actuator non-collocation (no recipe yet) | — | `run_amb_non_collocation`: see `help(rs.Rotor.run_amb_non_collocation)` |
-| Advanced bearings | [bearings_advanced.md](bearings_advanced.md) | `BearingElement` speed / frequency / 2-D tables, fluid-film bearings, convergence and `operating_results` |
-| Seals | [seals.md](seals.md) | `LabyrinthSeal`, `HolePatternSeal`, `HybridSeal`, whirl-dependent tables, `matched_whirl` |
+| Advanced bearings | [bearings_advanced.md](bearings_advanced.md) | `BearingElement` speed / frequency / 2-D tables, fluid-film bearings, convergence and `operating_results`, `Lubricant.from_datasheet`, `cavitation_model`, `results.coefficients`, `results.pad_matrices` |
+| Seals | [seals.md](seals.md) | `LabyrinthSeal`, `HolePatternSeal`, `HybridSeal`, real-gas closures (`gas_model`), whirl-dependent tables, `matched_whirl` |
 | Common gotchas | [gotchas.md](gotchas.md) | — |
 
 All values are SI internally: speed in rad/s, stiffness in N/m, damping in N·s/m, unbalance in kg·m. Convert with `rs.Q_(value, "unit")`, e.g. `rs.Q_(4000, "RPM").to("rad/s").m`.

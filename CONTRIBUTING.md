@@ -272,9 +272,11 @@ the `docs` folder, which executes every notebook in place; pass one or more
 notebook or folder paths to refresh only those (for example
 `python run_notebooks.py user_guide/example_17.ipynb`). Do this before a
 release so the published pages reflect the released code. A notebook that
-plots must set `pio.renderers.default = "notebook"` before its first figure:
-without it Plotly stores only its JSON mimetype, which the site cannot render,
-and the page shows no figure.
+plots must set `pio.renderers.default = "notebook_connected"` after importing
+ROSS, which sets its own default, and before its first figure. This renderer
+loads plotly.js from its CDN; `"notebook"` would store a copy of about 5 MB in
+the notebook. With a renderer that stores only the Plotly JSON mimetype, the
+page shows no figure.
 
 After building the docs, go to the \_build/html directory (~/ross/docs/\_build/html)
 and start a python http server:

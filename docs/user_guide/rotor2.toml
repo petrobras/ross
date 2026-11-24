@@ -3,12 +3,14 @@
 # Changing values here will NOT trigger recalculation of dependent quantities.
 # To modify the rotor, change parameters in Python and save again.
 
-ross_version = "3.1.0.dev0"
+ross_version = "3.2.0rc1"
+rotor_type = "Rotor"
 
 [parameters]
 default_damping_ratio = 0.0
 alpha = 0.0
 beta = 0.0
+tag = "Rotor 0"
 
 ["ShaftElement_Shaft Element 0"]
 L = 0.125
