@@ -1,82 +1,121 @@
 """Surrogate model for tilting-pad thrust bearings solved with ``ross.ThrustPad``."""
 
-import time
-from pathlib import Path
 from ross.bearings.thrust_pad import ThrustPad
 from ross.units import check_units
-from tqdm import tqdm
-import pandas as pd
-import ast
 from ross.surrogates.surrogate_core import CoefficientSurrogate
 
 
 class ThrustPadSurrogate(CoefficientSurrogate):
-    """Calculate thrust bearing with ross ThrustPad.
+    """Surrogate of the axial coefficients of a tilting-pad thrust bearing.
 
-    Surrogate of the axial coefficients (``kzz`` and ``czz``) of the
-    ``ross.ThrustPad`` solver (ross-rotordynamics >= 3.0). The bearing parameters
-    follow the ``ThrustPad`` vocabulary (SI units). ``predict()`` returns a
-    ``BearingElement`` with the predicted ``kzz`` and ``czz``.
+    The training samples are computed with :class:`ross.bearings.thrust_pad.ThrustPad`.
+    ``predict()`` returns a ``BearingElement`` with the predicted ``kzz`` and ``czz``.
 
     Parameters
     ----------
-    metamodel : str
-        Metamodel used for generate model result. Defaults to "KGR".
-    save_sample : str
-        Name file for save inputs and outputs in bearning of model (ex.: "example.csv").
+    metamodel : str, optional
+        Metamodel fitted to each coefficient: "KGR" (local Kriging, :class:`~ross.surrogates.kriging.Kriging`) or "gaussian"
+        (scikit-learn Gaussian process). Default is "KGR".
+    save_sample : str, optional
+        Name of a csv file where inputs and coefficients of each sample are saved.
+        If it already exists, its samples are reused and only the missing ones are
+        computed.
     input_variable : list of str
-        Name of variables used for bearing variation. Maximum 2 variables.
-        Example ["axial_load", "oil_supply_temperature"].
-    distribution : str
-        LHS - Latin Hypercube sampling (default)
-        FullFactorial - Regular grid sampling
-    corr : str
-        Correlation function used in the metamodel. The options are
-        [pow_exp, abs_exp, squar_exp, matern52, matern32]. Default is "squar_exp".
-    num_inital_samples : int, optional (Default: 100)
-        Number of samples used to create the metamodel.
-    step_num_inital_samples : int, optional (Default: None)
-        Increment of samples if the stop requirement is not met.
-    coef_R2 : float, optional (Default: 0.01)
-        Coefficient of determination used as stop requirement.
-    frequency : pint.Quantity or list [min, max] values
-        Rotor speeds. It is passed to ``ThrustPad`` as ``speed``.
+        Variables varied to build the metamodel, at most two. Each one is given as a
+        list [min, max].
+    distribution : str, optional
+        "LHS" (Latin Hypercube sampling) or "FullFactorial" (regular grid). Default is
+        "LHS".
+    corr : str, optional
+        Correlation function of the Kriging model: "pow_exp", "abs_exp", "squar_exp",
+        "matern52" or "matern32". Default is "squar_exp".
+    num_inital_samples : int, optional
+        Number of samples used to train the metamodel. Default is 100.
+    step_num_inital_samples : int, optional
+        Not used. Kept for compatibility with ``rossml``.
+    coef_R2 : float, optional
+        Not used. Kept for compatibility with ``rossml``.
+    n : int, optional
+        Node where the bearing is located. Default is 0.
+    frequency : list of float, pint.Quantity
+        Range [min, max] of rotor speeds, passed to the solver as ``speed``. Default
+        unit is rad/s.
+    print_result : bool, optional
+        If True, print each bearing after it is computed. Default is False.
+    print_time : bool, optional
+        If True, print the total time spent computing the samples. Default is False.
 
-    Bearing Geometry (Parameters)
-    -----------------------------
-    The remaining parameters are the ``ross.ThrustPad`` arguments with the same name
-    (``pad_inner_radius``, ``pad_outer_radius``, ``pad_pivot_radius``, ``pad_arc``,
-    ``pivot_angle``, ``lubricant``, ``n_pads``, ``axial_load``,
-    ``oil_supply_temperature``...). ``axial_load`` and ``oil_supply_temperature`` may
-    be given as a list [min, max] when used in ``input_variable``.
+    Other Parameters
+    ----------------
+    pad_inner_radius, pad_outer_radius, pad_pivot_radius : float, pint.Quantity
+        Inner, outer and pivot radius of the pads. Default unit is m.
+    pad_arc : float, pint.Quantity
+        Arc of each pad. Default unit is rad.
+    pivot_angle : float, pint.Quantity
+        Angular position of the pivot inside the pad. Default unit is rad.
+    oil_supply_temperature : float, pint.Quantity
+        Lubricant supply temperature. Default unit is K.
+    lubricant : str or dict
+        Key of :data:`ross.bearings.lubricants.lubricants_dict` or a dict with the same
+        fields.
+    n_pads : int
+        Number of pads.
+    n_theta, n_radial : int, optional
+        Number of volumes in the circumferential and radial directions. Default is 10.
+    equilibrium_position_mode : str, optional
+        "calculate" (default) or "imposed".
+    radial_inclination_angle, circumferential_inclination_angle : float, pint.Quantity
+        Initial inclination of the pad. Default unit is rad.
+    initial_film_thickness : float, pint.Quantity
+        Initial film thickness at the pivot. Default unit is m.
+    tolerance_force_moment, residual_force_moment : float, optional
+        Convergence tolerances of the equilibrium search. See
+        :class:`ross.bearings.thrust_pad.ThrustPad`.
+    model_type : str, optional
+        Model of the film. Default is "thermo_hydro_dynamic".
+    axial_load : float, pint.Quantity
+        Axial load. Default unit is N.
 
-    Example
-    -------
+    Any of the bearing parameters may be given as [min, max] when it is listed in
+    ``input_variable``.
+
+    See Also
+    --------
+    ross.bearings.thrust_pad.ThrustPad : Solver that generates the samples.
+
+    Examples
+    --------
     >>> import ross.surrogates as sg
-    >>> bearing = sg.ThrustPadSurrogate(
-    ...        metamodel="KGR",
-    ...        num_inital_samples=500,
-    ...        input_variable=["axial_load", "oil_supply_temperature"],
-    ...        n=1,
-    ...        frequency=Q_([80, 100], "RPM"),
-    ...        pad_inner_radius=Q_(1150, "mm"),
-    ...        pad_outer_radius=Q_(1725, "mm"),
-    ...        pad_pivot_radius=Q_(1442.5, "mm"),
-    ...        pad_arc=Q_(26, "deg"),
-    ...        pivot_angle=Q_(15, "deg"),
-    ...        lubricant="ISOVG68",
-    ...        n_pads=12,
-    ...        n_theta=10,
-    ...        n_radial=10,
-    ...        equilibrium_position_mode="calculate",
-    ...        axial_load=[10.0e6, 16.0e6],
-    ...        oil_supply_temperature=[308.15, 323.15],
-    ...        radial_inclination_angle=Q_(-2.75e-04, "rad"),
-    ...        circumferential_inclination_angle=Q_(-1.70e-05, "rad"),
-    ...        initial_film_thickness=Q_(0.2, "mm"),)
+    >>> from ross.units import Q_
+    >>> surrogate = sg.ThrustPadSurrogate(
+    ...     metamodel="gaussian",
+    ...     num_inital_samples=6,
+    ...     input_variable=["axial_load", "oil_supply_temperature"],
+    ...     n=1,
+    ...     frequency=Q_([80, 100], "RPM"),
+    ...     pad_inner_radius=Q_(1150, "mm"),
+    ...     pad_outer_radius=Q_(1725, "mm"),
+    ...     pad_pivot_radius=Q_(1442.5, "mm"),
+    ...     pad_arc=Q_(26, "deg"),
+    ...     pivot_angle=Q_(15, "deg"),
+    ...     lubricant="ISOVG68",
+    ...     n_pads=12,
+    ...     axial_load=[10e6, 16e6],
+    ...     oil_supply_temperature=[308.15, 323.15],
+    ...     radial_inclination_angle=Q_(-2.75e-4, "rad"),
+    ...     circumferential_inclination_angle=Q_(-1.7e-5, "rad"),
+    ...     initial_film_thickness=Q_(0.2, "mm"),
+    ... )  # doctest: +SKIP
+    >>> bearing = surrogate.predict(
+    ...     frequency=Q_(90, "RPM"),
+    ...     axial_load=13e6,
+    ...     oil_supply_temperature=313.15,
+    ... )  # doctest: +SKIP
     """
 
     coef_names = ("kzz", "czz")
+
+    _bearing_class = ThrustPad
 
     # Arguments forwarded as-is to ross.ThrustPad (frequency is forwarded as speed)
     _bearing_arguments = (
@@ -156,100 +195,5 @@ class ThrustPadSurrogate(CoefficientSurrogate):
         for name in self._bearing_arguments:
             self.input_parameters[name] = _arguments[name]
 
-        self.cylidrical_bearing = []
-        if input_variable != None:
+        if input_variable is not None:
             self.run()
-
-    def run(self):
-        out_coefs = {coef: [] for coef in self.coef_names}
-
-        aux_input_parameters = self.input_parameters.copy()
-        if self.input_parameters["metamodel"] != None:
-            aux_input_parameters = self._size_samples(
-                self.input_parameters["num_inital_samples"], aux_input_parameters
-            )
-        _aux_input_parameters = aux_input_parameters.copy()
-
-        _init = 0
-        if self.input_parameters["save_sample"] is not None:
-            if Path(self.input_parameters["save_sample"]).is_file():
-                df = pd.read_csv(self.input_parameters["save_sample"])
-                if not df.empty:
-                    _init = df["index"].max() + 1
-
-        t1 = time.time()
-        with tqdm(
-            total=len(
-                _aux_input_parameters[_aux_input_parameters["input_variable"][0]]
-            ),
-            desc="Metamodel training",
-        ) as progress_bar:
-            progress_bar.update(_init - 1)
-            for i in range(
-                _init,
-                len(_aux_input_parameters[_aux_input_parameters["input_variable"][0]]),
-            ):
-                for j in range(len(_aux_input_parameters["input_variable"])):
-                    aux_input_parameters[aux_input_parameters["input_variable"][j]] = (
-                        _aux_input_parameters[
-                            _aux_input_parameters["input_variable"][j]
-                        ][i]
-                    )
-                    aux_input_parameters["frequency"] = _aux_input_parameters[
-                        "frequency"
-                    ][i]
-
-                self._blockPrint()  # disable prints
-
-                bearing = ThrustPad(
-                    speed=[aux_input_parameters["frequency"]],
-                    **{
-                        name: aux_input_parameters[name]
-                        for name in self._bearing_arguments
-                    },
-                )
-                self.cylidrical_bearing.append(bearing)
-
-                for coef in self.coef_names:
-                    out_coefs[coef].append(getattr(self.cylidrical_bearing[i], coef))
-                del bearing
-
-                if self.input_parameters["print_result"]:
-                    self._enablePrint()  # enable prints
-                    print(self.cylidrical_bearing[-1])
-
-                if self.input_parameters["save_sample"] is not None:
-                    self._samples_csv(
-                        path=self.input_parameters["save_sample"],
-                        inputs=aux_input_parameters,
-                        coefs=out_coefs,
-                    )
-
-                progress_bar.update(1)
-
-        t2 = time.time()
-        self._enablePrint()  # enable prints
-
-        if self.input_parameters["save_sample"] is not None:
-            out_coefs = {}
-            df = pd.read_csv(self.input_parameters["save_sample"])
-            for k in self.coef_names:
-                if df[k].dtype == "object":
-                    out_coefs[k] = [ast.literal_eval(s)[0] for s in df[k]]
-                else:
-                    out_coefs[k] = list(df[k])
-
-        if self.input_parameters["metamodel"] != None:
-            self._set_model(inputs=_aux_input_parameters, coefs=out_coefs)
-
-            new_num_inital_samples = self._find_min_samples(
-                inputs=_aux_input_parameters
-            )
-            if new_num_inital_samples != self.input_parameters["num_inital_samples"]:
-                self.input_parameters["num_inital_samples"] = new_num_inital_samples
-                self.run()
-
-        if self.input_parameters["print_time"]:
-            print(f"Overall Time model ThrustPad: {(t2 - t1) / 60.0:.2f} min")
-
-        return self.cylidrical_bearing

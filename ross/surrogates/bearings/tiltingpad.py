@@ -1,88 +1,106 @@
 """Surrogate model for tilting-pad bearings solved with ``ross.TiltingPad``."""
 
-import time
-from pathlib import Path
 from ross.bearings.tilting_pad import TiltingPad
 from ross.units import check_units
-from tqdm import tqdm
-import pandas as pd
-import ast
 from ross.surrogates.surrogate_core import CoefficientSurrogate
 
 
 class TiltingPadSurrogate(CoefficientSurrogate):
-    """Surrogate of the coefficients of a ``ross.TiltingPad`` bearing.
+    """Surrogate of the coefficients of a tilting-pad journal bearing.
 
-    The training samples are generated with the ``ross.TiltingPad`` solver and the
-    bearing parameters follow its vocabulary (SI units). ``predict()`` returns a
-    ``BearingElement`` with the predicted stiffness and damping coefficients.
+    The training samples are computed with :class:`ross.bearings.tilting_pad.TiltingPad`.
+    ``predict()`` returns a ``BearingElement`` with the predicted stiffness and damping
+    coefficients.
 
     Parameters
     ----------
-    metamodel : str
-        Metamodel used for generate model result. Defaults to "KGR".
-    save_sample : str
-        Name file for save inputs and outputs in bearning of model (ex.: "example.csv").
+    metamodel : str, optional
+        Metamodel fitted to each coefficient: "KGR" (local Kriging, :class:`~ross.surrogates.kriging.Kriging`) or "gaussian"
+        (scikit-learn Gaussian process). Default is "KGR".
+    save_sample : str, optional
+        Name of a csv file where inputs and coefficients of each sample are saved.
+        If it already exists, its samples are reused and only the missing ones are
+        computed.
     input_variable : list of str
-        Name of variables used for bearing variation. Maximum 2 variables.
-        Example ["radial_clearance", "journal_temperature"].
-    distribution : str
-        LHS - Latin Hypercube sampling (default)
-        FullFactorial - Regular grid sampling
-    corr : str
-        Correlation function used in the metamodel. The options are
-        [pow_exp, abs_exp, squar_exp, matern52, matern32]. Default is "squar_exp".
-    num_inital_samples : int, optional (Default: 100)
-        Number of samples used to create the metamodel.
-    step_num_inital_samples : int, optional (Default: None)
-        Increment of samples if the stop requirement is not met.
-    coef_R2 : float, optional (Default: 0.01)
-        Coefficient of determination used as stop requirement.
-    frequency : pint.Quantity or list [min, max] values
-        Rotor speeds. It is passed to ``TiltingPad`` as ``speed``.
+        Variables varied to build the metamodel, at most two. Each one is given as a
+        list [min, max].
+    distribution : str, optional
+        "LHS" (Latin Hypercube sampling) or "FullFactorial" (regular grid). Default is
+        "LHS".
+    corr : str, optional
+        Correlation function of the Kriging model: "pow_exp", "abs_exp", "squar_exp",
+        "matern52" or "matern32". Default is "squar_exp".
+    num_inital_samples : int, optional
+        Number of samples used to train the metamodel. Default is 100.
+    step_num_inital_samples : int, optional
+        Not used. Kept for compatibility with ``rossml``.
+    coef_R2 : float, optional
+        Not used. Kept for compatibility with ``rossml``.
+    n : int, optional
+        Node where the bearing is located. Default is 0.
+    frequency : list of float, pint.Quantity
+        Range [min, max] of rotor speeds, passed to the solver as ``speed``. Default
+        unit is rad/s.
+    print_result : bool, optional
+        If True, print each bearing after it is computed. Default is False.
+    print_time : bool, optional
+        If True, print the total time spent computing the samples. Default is False.
 
-    Bearing Geometry (Parameters)
-    -----------------------------
-    The remaining parameters are the ``ross.TiltingPad`` arguments with the same name
-    (``journal_diameter``, ``radial_clearance``, ``pad_thickness``, ``pivot_angle``,
-    ``pad_arc``, ``pad_axial_length``, ``preload``, ``offset``, ``lubricant``,
-    ``oil_supply_temperature``, ``oil_flow_v``, ``weight``, ``journal_temperature``...).
-    ``radial_clearance`` and ``journal_temperature`` may be given as a list
-    [min, max] when used in ``input_variable``.
+    Other Parameters
+    ----------------
+    journal_diameter, radial_clearance, pad_thickness, pad_axial_length,
+    oil_supply_temperature, oil_flow_v, ...
+        The remaining parameters are those of
+        :class:`ross.bearings.tilting_pad.TiltingPad` and of
+        :class:`ross.bearings.fluid_film_bearing.FluidFilmBearing`, with the same
+        names, meaning and SI units. ``eccentricity``, ``attitude_angle`` and
+        ``num_processes`` are not available.
 
-    Example
-    -------
+    Any of the bearing parameters may be given as [min, max] when it is listed in
+    ``input_variable``.
+
+    See Also
+    --------
+    ross.bearings.tilting_pad.TiltingPad : Solver that generates the samples.
+
+    Examples
+    --------
     >>> import ross.surrogates as sg
-    >>> bearing = sg.TiltingPadSurrogate(
-    ...        metamodel="KGR",
-    ...        num_inital_samples=500,
-    ...        input_variable=["radial_clearance", "journal_temperature"],
-    ...        n=0,
-    ...        frequency=Q_([900, 1100], "RPM"),
-    ...        total_ex_film=10,
-    ...        total_ey_film=6,
-    ...        total_ez_film=4,
-    ...        total_ey_pad=4,
-    ...        bearing_type="conventional_tilting_pad",
-    ...        thermal_type="full",
-    ...        deform_type="pad_mechanical_thermal_shaft_shell_thermal",
-    ...        equilibrium_type="match_load",
-    ...        journal_diameter=Q_(15.748, "in"),
-    ...        radial_clearance=[1.75e-4, 2.05e-4],
-    ...        pad_thickness=Q_(5.89034, "in"),
-    ...        pivot_angle=Q_([90, 270], "deg"),
-    ...        pad_arc=Q_([176, 176], "deg"),
-    ...        pad_axial_length=Q_([10.36, 10.36], "in"),
-    ...        preload=[0, 0],
-    ...        offset=[0.5, 0.5],
-    ...        lubricant="TEST",
-    ...        pivot_type="rocker_back",
-    ...        weight=Q_(25361.8, "lbf"),
-    ...        oil_flow_v=Q_(2.64172e1, "gallon/min"),
-    ...        oil_supply_temperature=Q_(121.73, "degF"),
-    ...        journal_temperature=[303.15, 323.15],
-    ...        starvation_number=2,)
+    >>> from ross.units import Q_
+    >>> surrogate = sg.TiltingPadSurrogate(
+    ...     metamodel="gaussian",
+    ...     num_inital_samples=6,
+    ...     input_variable=["radial_clearance", "oil_supply_temperature"],
+    ...     n=1,
+    ...     frequency=Q_([3000, 3500], "RPM"),
+    ...     equilibrium_type="match_load",
+    ...     thermal_type="adiabatic",
+    ...     journal_diameter=101.6e-3,
+    ...     radial_clearance=[70e-6, 80e-6],
+    ...     pad_thickness=12.7e-3,
+    ...     pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
+    ...     pad_arc=Q_([60] * 5, "deg"),
+    ...     pad_axial_length=[50.8e-3] * 5,
+    ...     preload=[0.5] * 5,
+    ...     offset=[0.5] * 5,
+    ...     lubricant="ISOVG32",
+    ...     oil_supply_temperature=[303.15, 323.15],
+    ...     oil_flow_v=Q_(10, "l/min"),
+    ...     fxs_load=8.8405e02,
+    ...     fys_load=-2.6704e03,
+    ...     total_ex_film=20,
+    ...     total_ez_film=10,
+    ...     total_ey_pad=10,
+    ...     total_ey_film=10,
+    ... )  # doctest: +SKIP
+    >>> bearing = surrogate.predict(
+    ...     frequency=Q_(3200, "RPM"),
+    ...     radial_clearance=75e-6,
+    ...     oil_supply_temperature=313.15,
+    ... )  # doctest: +SKIP
     """
+
+    _bearing_class = TiltingPad
 
     # Arguments forwarded as-is to ross.TiltingPad (frequency is forwarded as speed)
     _bearing_arguments = (
@@ -251,7 +269,7 @@ class TiltingPadSurrogate(CoefficientSurrogate):
 
         try:
             probes = [(i, j, k.to("m").m) for i, j, k in probes]
-        except:
+        except (AttributeError, TypeError, ValueError):
             pass
 
         _arguments = locals()
@@ -272,115 +290,5 @@ class TiltingPadSurrogate(CoefficientSurrogate):
         for name in self._bearing_arguments:
             self.input_parameters[name] = _arguments[name]
 
-        self.cylidrical_bearing = []
-        if input_variable != None:
+        if input_variable is not None:
             self.run()
-
-    def run(self):
-        out_coefs = {
-            "kxx": [],
-            "kxy": [],
-            "kyx": [],
-            "kyy": [],
-            "cxx": [],
-            "cxy": [],
-            "cyx": [],
-            "cyy": [],
-        }
-
-        aux_input_parameters = self.input_parameters.copy()
-        if self.input_parameters["metamodel"] != None:
-            aux_input_parameters = self._size_samples(
-                self.input_parameters["num_inital_samples"], aux_input_parameters
-            )
-        _aux_input_parameters = aux_input_parameters.copy()
-
-        _init = 0
-        if self.input_parameters["save_sample"] is not None:
-            if Path(self.input_parameters["save_sample"]).is_file():
-                df = pd.read_csv(self.input_parameters["save_sample"])
-                if not df.empty:
-                    _init = df["index"].max() + 1
-
-        t1 = time.time()
-        with tqdm(
-            total=len(
-                _aux_input_parameters[_aux_input_parameters["input_variable"][0]]
-            ),
-            desc="Metamodel training",
-        ) as progress_bar:
-            progress_bar.update(_init - 1)
-            for i in range(
-                _init,
-                len(_aux_input_parameters[_aux_input_parameters["input_variable"][0]]),
-            ):
-                for j in range(len(_aux_input_parameters["input_variable"])):
-                    aux_input_parameters[aux_input_parameters["input_variable"][j]] = (
-                        _aux_input_parameters[
-                            _aux_input_parameters["input_variable"][j]
-                        ][i]
-                    )
-                    aux_input_parameters["frequency"] = _aux_input_parameters[
-                        "frequency"
-                    ][i]
-
-                self._blockPrint()  # disable prints
-
-                bearing = TiltingPad(
-                    speed=[aux_input_parameters["frequency"]],
-                    **{
-                        name: aux_input_parameters[name]
-                        for name in self._bearing_arguments
-                    },
-                )
-                self.cylidrical_bearing.append(bearing)
-
-                out_coefs["kxx"].append(self.cylidrical_bearing[i].kxx)
-                out_coefs["kxy"].append(self.cylidrical_bearing[i].kxy)
-                out_coefs["kyx"].append(self.cylidrical_bearing[i].kyx)
-                out_coefs["kyy"].append(self.cylidrical_bearing[i].kyy)
-                out_coefs["cxx"].append(self.cylidrical_bearing[i].cxx)
-                out_coefs["cxy"].append(self.cylidrical_bearing[i].cxy)
-                out_coefs["cyx"].append(self.cylidrical_bearing[i].cyx)
-                out_coefs["cyy"].append(self.cylidrical_bearing[i].cyy)
-                del bearing
-
-                if self.input_parameters["print_result"]:
-                    self._enablePrint()  # enable prints
-                    print(self.cylidrical_bearing[-1])
-
-                if self.input_parameters["save_sample"] is not None:
-                    self._samples_csv(
-                        path=self.input_parameters["save_sample"],
-                        inputs=aux_input_parameters,
-                        coefs=out_coefs,
-                    )
-
-                progress_bar.update(1)
-
-        t2 = time.time()
-        self._enablePrint()  # enable prints
-
-        if self.input_parameters["save_sample"] is not None:
-            out_coefs = {}
-            df = pd.read_csv(self.input_parameters["save_sample"])
-            for k in ["kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"]:
-                if df[k].dtype == "object":
-                    out_coefs[k] = [ast.literal_eval(s)[0] for s in df[k]]
-                else:
-                    out_coefs[k] = list(df[k])
-
-        if self.input_parameters["metamodel"] != None:
-            self._set_model(inputs=_aux_input_parameters, coefs=out_coefs)
-
-            new_num_inital_samples = self._find_min_samples(
-                inputs=_aux_input_parameters
-            )
-            if new_num_inital_samples != self.input_parameters["num_inital_samples"]:
-                self.input_parameters["num_inital_samples"] = new_num_inital_samples
-                self.run()
-
-        if self.input_parameters["print_time"]:
-            print(f"Overall Time model TiltingPad: {(t2 - t1) / 60.0:.2f} min")
-
-        return self.cylidrical_bearing

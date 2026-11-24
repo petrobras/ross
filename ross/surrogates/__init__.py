@@ -1,17 +1,19 @@
 """Surrogate models for bearings.
 
+- ``ross.surrogates.kriging``: ``Kriging`` metamodel (numpy and scipy only) and the sampling plans.
 - ``ross.surrogates.surrogate_core``: ``CoefficientSurrogate`` and ``GaussianProcessSurrogate``.
 - ``ross.surrogates.bearings``: ``TiltingPadSurrogate``, ``ThrustPadSurrogate``, ``PlainJournalSurrogate``.
 
-The classes need the optional dependencies installed with
-``pip install "ross-rotordynamics[surrogates]"``. They are imported on first access,
-so ``import ross.surrogates`` works without them and the error appears only when a
-class is used.
+The surrogate classes need the optional dependencies installed with
+``pip install "ross-rotordynamics[surrogates]"``; ``Kriging`` needs only numpy and
+scipy. The classes are imported on first access, so ``import ross.surrogates`` works
+without the extra and the error appears only when a surrogate class is used.
 """
 
 import importlib
 
 _CLASS_MODULES = {
+    "Kriging": "ross.surrogates.kriging",
     "CoefficientSurrogate": "ross.surrogates.surrogate_core",
     "GaussianProcessSurrogate": "ross.surrogates.surrogate_core",
     "TiltingPadSurrogate": "ross.surrogates.bearings",

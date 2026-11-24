@@ -17,7 +17,6 @@ _ALLOWED_MODULE_PREFIXES = (
     "pint",
     "scipy",
     "sklearn",
-    "smt",
     "joblib",
     "collections",
     "copyreg",
@@ -63,6 +62,11 @@ class RestrictedUnpickler(pickle.Unpickler):
 
     def find_class(self, module, name):
         module = _MODULE_ALIASES.get(module, module)
+        if module == "smt" or module.startswith("smt."):
+            raise pickle.UnpicklingError(
+                "This surrogate was saved with the Kriging model of SMT, which ROSS "
+                "no longer uses. Train the surrogate again."
+            )
         if module in ("builtins", "__builtin__"):
             if name in _ALLOWED_BUILTINS:
                 return super().find_class(module, name)

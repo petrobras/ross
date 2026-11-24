@@ -10,7 +10,8 @@ description: >-
   analyses (rubbing, crack, misalignment), shaft mesh convergence, gas seals
   with speed- and whirl-frequency-dependent coefficients, and three-phase
   induction motors driving the rotor (direct-on-line, V/f and field-oriented
-  control drives).
+  control drives), and surrogate (metamodel) models of fluid-film bearing
+  coefficients.
 license: Apache-2.0
 ---
 
@@ -35,6 +36,7 @@ Concise recipes for rotordynamics analyses with ROSS. Each file is self-containe
 | Fault analysis | [faults.md](faults.md) | `run_rubbing`, `run_crack`, `run_misalignment` |
 | Mesh convergence | [mesh_convergence.md](mesh_convergence.md) | `run_mesh_convergence`, `refine` |
 | Induction motor | [motor.md](motor.md) | `MotorElement`, `run_direct_on_line`, `run_with_inverter_vf`, `run_with_inverter_foc`, `run_with_motor` |
+| Bearing surrogate models | [surrogates.md](surrogates.md) | `PlainJournalSurrogate`, `TiltingPadSurrogate`, `ThrustPadSurrogate`, `predict`, `save`, `load` |
 | Harmonic balance (no recipe yet) | — | `run_harmonic_balance_response`: see `help(rs.Rotor.run_harmonic_balance_response)` |
 | AMB sensitivity (no recipe yet) | — | `run_amb_sensitivity`: see `help(rs.Rotor.run_amb_sensitivity)` |
 | AMB sensor-actuator non-collocation (no recipe yet) | — | `run_amb_non_collocation`: see `help(rs.Rotor.run_amb_non_collocation)` |

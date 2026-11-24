@@ -4,9 +4,9 @@
 logic shared by every bearing surrogate.
 """
 
-import sys
-import os
+import contextlib
 import copy
+import io
 import pickle
 import lzma
 import time
@@ -15,34 +15,32 @@ from pathlib import Path
 import numpy as np
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
+from ross.surrogates.kriging import Kriging, full_factorial, latin_hypercube
 from ross.surrogates.safe_pickle import loads as pickle_loads
 
 try:
     from sklearn.metrics import r2_score
     from sklearn.gaussian_process import GaussianProcessRegressor
     from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
-    from smt.surrogate_models import KRG
-    from smt.sampling_methods import LHS, FullFactorial
     from json_tricks import dumps, loads
-    import tqdm  # noqa: F401
+    from tqdm import tqdm
 except ImportError as error:
     raise ImportError(
         "The surrogate models need optional dependencies that are not installed. "
         'Install them with: pip install "ross-rotordynamics[surrogates]"'
     ) from error
 import zipfile
-import shutil
 import pandas as pd
 import csv
 import ast
 
 
 class GaussianProcessSurrogate:
-    """Adapter that exposes an SMT-like interface (``set_training_values``,
+    """Adapter that exposes the ``Kriging`` interface (``set_training_values``,
     ``train``, ``predict_values``) around scikit-learn's
     :class:`~sklearn.gaussian_process.GaussianProcessRegressor`, so it can be
-    used as a drop-in replacement for the SMT ``KRG`` model inside
-    :class:`CoefficientSurrogate`.
+    used as a drop-in replacement for :class:`~ross.surrogates.kriging.Kriging`
+    inside :class:`CoefficientSurrogate`.
 
     Parameters
     ----------
@@ -85,18 +83,33 @@ class GaussianProcessSurrogate:
         self.yt = None
 
     def set_training_values(self, xt, yt):
-        """Store training inputs/outputs, mirroring ``smt``'s API."""
+        """Store training inputs/outputs, mirroring the ``Kriging`` API."""
         self.xt = np.asarray(xt, dtype=float)
         self.yt = np.asarray(yt, dtype=float)
 
     def train(self):
         """Fit the Gaussian Process on the stored training data."""
-        self.model.fit(self.xt, self.yt)
+        self.x_min = self.xt.min(axis=0)
+        span = self.xt.max(axis=0) - self.x_min
+        self.x_span = np.where(span > 0, span, 1.0)
+        self.model.fit(self._scale(self.xt), self.yt)
+
+    def _scale(self, x):
+        """Scale the inputs to [0, 1] with the training range.
+
+        The inputs have very different magnitudes (speed in rad/s, clearance in m),
+        which makes the kernel length scales of the Gaussian Process meaningless.
+        Models saved before the scaling was introduced have no range and are not
+        scaled.
+        """
+        if getattr(self, "x_min", None) is None:
+            return x
+        return (x - self.x_min) / self.x_span
 
     def predict_values(self, x):
-        """Predict the mean response for ``x``, shaped like ``smt``'s output."""
+        """Predict the mean response for ``x``, shaped like the ``Kriging`` output."""
         x = np.asarray(x, dtype=float)
-        y = self.model.predict(x)
+        y = self.model.predict(self._scale(x))
         if self.options.get("print_prediction"):
             print(y)
         return np.atleast_1d(y).reshape(-1, 1)
@@ -125,26 +138,36 @@ class GaussianProcessSurrogate:
     def predict_variances(self, x):
         """Predict the variance of the response for ``x``."""
         x = np.asarray(x, dtype=float)
-        _, std = self.model.predict(x, return_std=True)
+        _, std = self.model.predict(self._scale(x), return_std=True)
         return np.atleast_1d(std**2).reshape(-1, 1)
 
 
 class CoefficientSurrogate:
-    """Class to create a surrogate model based on another model. The class automatically finds the best surrogate structure, i.e., the best combination of method, polynomial function and correlation. This automatization is achieved through the evaluation of error metrics.
+    """Base class of the bearing surrogate models.
 
-    It is possible to:
-    ------------------
+    A surrogate samples the inputs of a bearing model, computes the stiffness and
+    damping coefficients of each sample with the bearing solver and fits one
+    metamodel per coefficient. The trained surrogate predicts the coefficients of a
+    new operating point without running the solver again.
 
-    Choose the metamodel;
-    Find the minimum number of samples;
-    Save template;
-    Load model;
-    Predict coefficients.
+    The subclasses define ``_bearing_class`` (the solver), ``_bearing_arguments``
+    (the arguments forwarded to it) and fill ``input_parameters``.
+
+    Attributes
+    ----------
+    cylidrical_bearing : list
+        Bearings computed to build the training samples.
+    inputs_model : dict
+        Inputs of the trained model, with the sampled values of ``frequency`` and
+        of each variable in ``input_variable``.
     """
 
     # Coefficients handled by the metamodels. Subclasses with a different set of
     # outputs (e.g. thrust bearings: kzz, czz) store it in inputs["coef_names"].
     _default_coef_names = ("kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy")
+    coef_names = _default_coef_names
+
+    _kriging_theta0 = [1e-2]
 
     def _get_coef_names(self):
         inputs = getattr(self, "inputs_model", None) or {}
@@ -152,52 +175,42 @@ class CoefficientSurrogate:
 
     def __init__(self):
         self.cylidrical_bearing = []
-        self.input_samples = []
-        self.output_samples = []
-        self.out_kxx = []
-        self.out_kxy = []
-        self.out_kyx = []
-        self.out_kyy = []
-        self.out_cxx = []
-        self.out_cxy = []
-        self.out_cyx = []
-        self.out_cyy = []
-
-        self.smt_theta0 = [1e-2]
-        self.old_num_min_sample = 5
-
-        self.num_sampling_lhs = 0
-        self.lhs_inputs = []
-
-    def _parameterization(self, arg1, arg2):
-        qtd_bearing_calculate = len(arg1)
-
-        if qtd_bearing_calculate < len(arg2):
-            qtd_bearing_calculate = len(arg2)
-
-            for i in range(qtd_bearing_calculate):
-                if i >= len(arg1):
-                    arg1 = np.append(arg1, arg1[i - 1])
-
-                if i >= len(arg2):
-                    arg2 = np.append(arg2, arg2[i - 1])
-
-        return arg1, arg2
 
     def _set_model(self, inputs=None, coefs=None):
-        """Choose metamodel or AI used.
+        """Train one metamodel per coefficient.
 
-        Args:
-            inputs (dictionary): bearing inputs.
-            coefs (dictionary): bearing coefficients.
+        Parameters
+        ----------
+        inputs : dict
+            Bearing inputs, with the sampled values.
+        coefs : dict
+            Coefficients computed for each sample. Invalid samples are removed.
         """
+        metamodel = inputs["metamodel"]
+        if metamodel == "KGR":
+
+            def build():
+                return Kriging(theta0=self._kriging_theta0, corr=inputs["corr"])
+
+        elif metamodel == "gaussian":
+            build = GaussianProcessSurrogate
+        else:
+            raise ValueError(
+                f"metamodel must be 'KGR' or 'gaussian', not {metamodel!r}"
+            )
 
         self.inputs_model = inputs
         self.out_coefs = coefs
-        if inputs["metamodel"] == "KGR":
-            self._surrogate_smt_kgr(inputs, coefs)
-        elif inputs["metamodel"] == "gaussian":
-            self._surrogate_sklearn_gaussian(inputs, coefs)
+        xinput, index_error = self._build_training_inputs(inputs, coefs)
+
+        for coef in self._get_coef_names():
+            x, y = self._clean_coef_training_data(coef, coefs, index_error, xinput)
+            if x is None:
+                raise ValueError(f"There are no valid samples to train {coef}.")
+            model = build()
+            model.set_training_values(x, y)
+            model.train()
+            setattr(self, f"sm_{coef}", model)
 
     @staticmethod
     def _build_training_inputs(inputs, coefs):
@@ -267,10 +280,8 @@ class CoefficientSurrogate:
                         coef_data.append(np.nan)
                     else:
                         coef_data.append(float(val))
-            elif isinstance(val, (list, tuple)):
-                coef_data.append(float(val[0]))
             else:
-                coef_data.append(float(val))
+                coef_data.append(float(np.ravel(val)[0]))
 
         coef_array = np.array(coef_data, dtype=float)
         valid_idx = ~np.isnan(coef_array)
@@ -280,65 +291,77 @@ class CoefficientSurrogate:
 
         return xinput[valid_idx], coef_array[valid_idx]
 
-    def _surrogate_smt_kgr(self, inputs=None, coefs=None):
-        """Performs kriging metamodel training.
+    def run(self):
+        """Compute the training samples with the bearing solver and train the metamodels.
 
-        Args:
-            inputs (dictionary): bearing inputs.
-            coefs (dictionary): bearing coefficients.
+        Returns
+        -------
+        bearings : list
+            Bearings computed for the training samples.
         """
-
-        xinput, index_error = self._build_training_inputs(inputs, coefs)
-
-        self.out_coefs = coefs
-        _coefs = self._get_coef_names()
-
-        for coef in _coefs:
-            xinput_filtered, coef_array_filtered = self._clean_coef_training_data(
-                coef, coefs, index_error, xinput
+        parameters = self.input_parameters
+        if parameters["metamodel"] not in ("KGR", "gaussian"):
+            raise ValueError(
+                f"metamodel must be 'KGR' or 'gaussian', not {parameters['metamodel']!r}"
             )
-            if xinput_filtered is None:
-                continue
 
-            setattr(
-                self, f"sm_{coef}", KRG(theta0=self.smt_theta0, corr=inputs["corr"])
-            )
-            getattr(self, f"sm_{coef}").set_training_values(
-                xinput_filtered, coef_array_filtered
-            )
-            getattr(self, f"sm_{coef}").train()
+        samples = self._size_samples(
+            parameters["num_inital_samples"], parameters.copy()
+        )
+        variables = ["frequency", *samples["input_variable"]]
+        n_samples = len(samples["frequency"])
+        coef_names = list(self.coef_names)
+        out_coefs = {coef: [] for coef in coef_names}
 
-        print("### Finished training ###")
+        n_done = 0
+        save_sample = parameters["save_sample"]
+        if save_sample is not None and Path(save_sample).is_file():
+            saved = pd.read_csv(save_sample).iloc[:n_samples]
+            n_done = len(saved)
+            for name in variables:
+                samples[name][:n_done] = saved[name].to_numpy()
 
-    def _surrogate_sklearn_gaussian(self, inputs=None, coefs=None):
-        """Performs Gaussian Process metamodel training using scikit-learn's
-        ``GaussianProcessRegressor`` through the :class:`GaussianProcessSurrogate`
-        adapter.
+        start_time = time.time()
+        sample = samples.copy()
+        with tqdm(total=n_samples, initial=n_done, desc="Metamodel training") as bar:
+            for i in range(n_done, n_samples):
+                for name in variables:
+                    sample[name] = samples[name][i]
 
-        Args:
-            inputs (dictionary): bearing inputs.
-            coefs (dictionary): bearing coefficients.
-        """
+                with contextlib.redirect_stdout(io.StringIO()):
+                    bearing = self._bearing_class(
+                        speed=[sample["frequency"]],
+                        **{name: sample[name] for name in self._bearing_arguments},
+                    )
+                self.cylidrical_bearing.append(bearing)
 
-        xinput, index_error = self._build_training_inputs(inputs, coefs)
+                for coef in coef_names:
+                    out_coefs[coef].append(getattr(bearing, coef))
 
-        self.out_coefs = coefs
-        _coefs = self._get_coef_names()
+                if parameters["print_result"]:
+                    print(bearing)
 
-        for coef in _coefs:
-            xinput_filtered, coef_array_filtered = self._clean_coef_training_data(
-                coef, coefs, index_error, xinput
-            )
-            if xinput_filtered is None:
-                continue
+                if save_sample is not None:
+                    self._samples_csv(path=save_sample, inputs=sample, coefs=out_coefs)
 
-            setattr(self, f"sm_{coef}", GaussianProcessSurrogate())
-            getattr(self, f"sm_{coef}").set_training_values(
-                xinput_filtered, coef_array_filtered
-            )
-            getattr(self, f"sm_{coef}").train()
+                bar.update(1)
 
-        print("### Finished training (Gaussian Process) ###")
+        if save_sample is not None:
+            saved = pd.read_csv(save_sample).iloc[:n_samples]
+            out_coefs = {}
+            for coef in coef_names:
+                if saved[coef].dtype == "object":
+                    out_coefs[coef] = [ast.literal_eval(v)[0] for v in saved[coef]]
+                else:
+                    out_coefs[coef] = list(saved[coef])
+
+        self._set_model(inputs=samples, coefs=out_coefs)
+
+        if parameters["print_time"]:
+            elapsed = (time.time() - start_time) / 60.0
+            print(f"Overall time of {type(self).__name__}: {elapsed:.2f} min")
+
+        return self.cylidrical_bearing
 
     def save(self, file):
         """Save the trained metamodels in a .zip file.
@@ -373,10 +396,7 @@ class CoefficientSurrogate:
         with zipfile.ZipFile(file, mode="w") as archive:
             for coef in coef_names:
                 model = getattr(self, f"sm_{coef}")
-                if isinstance(model, GaussianProcessSurrogate):
-                    model = model.prediction_only_copy()
-                elif isinstance(model, KRG):
-                    model = self._stripped_kriging_copy(model)
+                model = model.prediction_only_copy()
                 archive.writestr(f"{coef}.pkl", pickle.dumps(model))
 
             archive.writestr(
@@ -423,83 +443,6 @@ class CoefficientSurrogate:
                 setattr(surrogate, f"sm_{coef}", model)
 
         return surrogate
-
-    @staticmethod
-    def _stripped_kriging_copy(model):
-        """Return a copy of a Kriging model without the internals not needed to predict.
-
-        The training matrices grow with the square of the number of samples and
-        dominate the pickle size. They are replaced by empty placeholders while the
-        model is copied, so the original model is untouched and the large arrays are
-        never duplicated.
-        """
-        memo = {}
-        for name in ("D", "F", "ij", "_thetaMemory"):
-            value = getattr(model, name, None)
-            if isinstance(value, np.ndarray):
-                memo[id(value)] = np.array([])
-        memo[id(model.training_points)] = {}
-        for name in ("sigma2", "C", "Q", "Ft"):
-            value = model.optimal_par.get(name)
-            if isinstance(value, np.ndarray):
-                memo[id(value)] = np.array([])
-
-        original = model
-        model = copy.deepcopy(original, memo)
-        model.D = np.array([])
-        model.theta0 = np.array([])
-        model.optimal_par["sigma2"] = np.array([])
-        model.F = np.array([])
-        model.optimal_par["C"] = np.array([])
-        model.optimal_par["Q"] = np.array([])
-        model.optimal_par["Ft"] = np.array([])
-        model.F = np.array([])
-        model.ij = np.array([])
-        model.training_points = {}
-        model._correlation_class = {}
-        model._train = {}
-        model._new_train = {}
-        model.corr._abc_impl = {}
-        model._abc_impl = {}
-        model._check_F = {}
-        model._check_param = {}
-        model._compute_sigma2 = {}
-        model._correct_distances_cat_decreed = {}
-        model._final_initialize = {}
-        model._initialize = {}
-        model._initialize_theta = {}
-        model._internal_predict_variance = {}
-        model._matrix_data_corr = {}
-        model._optimize_hyperparam = {}
-        model._post_predict = {}
-        model._pre_predict = {}
-        model._predict_derivatives = {}
-        model._predict_output_derivatives = {}
-        model._predict_variance_derivatives = {}
-        model._predict_variance_gradient = {}
-        model._predict_variances = {}
-        model._reduced_likelihood_function = {}
-        model._reduced_likelihood_gradient = {}
-        model._reduced_likelihood_hessian = {}
-        model._thetaMemory = np.array([])
-        model.design_space._configs_to_x = {}
-        model.design_space._correct_get_acting = {}
-        model.design_space._cs_denormalize_x = {}
-        model.design_space._cs_denormalize_x_ordered = {}
-        model.design_space._design_variables = np.array([])
-        model.design_space._get_correct_config = {}
-        model.design_space._get_design_variables = {}
-        model.design_space._get_n_dim_unfolded = {}
-        model.design_space._get_param = {}
-        model.design_space._get_param2 = {}
-        model.design_space._impute_non_acting = {}
-        model.design_space._is_conditionally_acting = {}
-        model.design_space._normalize_x = {}
-        model.design_space._normalize_x_no_integer = {}
-        model.design_space._round_equally_distributed = {}
-        model.design_space._sample_valid_x = {}
-        model.design_space._to_seed = {}
-        return model
 
     @check_units
     def predict(
@@ -664,9 +607,9 @@ class CoefficientSurrogate:
         _limits = _limits.reshape(len(inputs["input_variable"]) + 1, 2)
 
         if inputs["distribution"] != "FullFactorial":
-            sampling = LHS(xlimits=np.array(_limits))(N)
+            sampling = latin_hypercube(_limits, N)
         else:
-            sampling = FullFactorial(xlimits=np.array(_limits))(N)
+            sampling = full_factorial(_limits, N)
 
         _name_data = ["frequency"]
         _name_data = np.append(_name_data, inputs["input_variable"])
@@ -678,89 +621,7 @@ class CoefficientSurrogate:
                 df[inputs["input_variable"][i]]
             )
 
-        self.old_num_min_sample = N
-
         return inputs
-
-    def _find_min_samples(self, inputs=None):
-        """Finds the minimum amount of samples needed to represent the model."""
-
-        # Latin Hypercube sampling
-        xlimits = np.array(
-            [
-                [
-                    min(inputs[inputs["input_variable"][0]]),
-                    max(inputs[inputs["input_variable"][0]]),
-                ],
-                [
-                    min(inputs[inputs["input_variable"][1]]),
-                    max(inputs[inputs["input_variable"][1]]),
-                ],
-                [
-                    min(inputs["frequency"]),
-                    max(inputs["frequency"]),
-                ],
-            ]
-        )
-
-        # if 'gas_composition' in inputs:
-        #     _key, _value = next(iter(inputs['gas_composition'].items()))
-        #     if isinstance(_value, tuple):
-        #         gas_composition = inputs["gas_composition"]
-        #         min_max_values = {}
-
-        #         for sample in gas_composition:
-        #             for gas, value in sample.items():
-        #                 if gas not in min_max_values:
-        #                     min_max_values[gas] = {"min": value, "max": value}
-        #                 else:
-        #                     min_max_values[gas]["min"] = min(min_max_values[gas]["min"], value)
-        #                     min_max_values[gas]["max"] = max(min_max_values[gas]["max"], value)
-
-        #         for gas, values in min_max_values.items():
-        #             # print(f"{gas}: Mínimo = {values['min']}, Máximo = {values['max']}")
-        #             xlimits.append([values['min'], values['max']])
-
-        # --------------------------------- uncoomment init ---------------------------------
-        # sampling = LHS(xlimits=xlimits)
-        # self.num_sampling_lhs = len(self.out_coefs["kxx"]) - len(self.lhs_inputs)
-        # self.lhs_inputs.extend(
-        #     sampling(self.num_sampling_lhs)
-        # )  # len(self.out_coefs["kxx"]))
-        # arg1_LHS = [item[0] for item in self.lhs_inputs]
-        # arg2_LHS = [item[1] for item in self.lhs_inputs]
-        # arg_freq_LHS = [item[2] for item in self.lhs_inputs]
-        # self.predict(
-        #     arg1=arg1_LHS, arg2=arg2_LHS, frequency=arg_freq_LHS, print_result=False, check_min_samples=False
-        # )
-
-        # _RMSError = self.rms_error(self.prediction_kxx, self.out_coefs["kxx"])
-        # _rms_error_relative = self.rms_error_relative(
-        #     self.prediction_kxx, self.out_coefs["kxx"]
-        # )
-
-        # or2 = self.or2(self.prediction_kxx, self.out_coefs["kxx"])
-        # --------------------------------- uncoomment end ---------------------------------
-        number_min_sample = inputs["num_inital_samples"]
-        # print(f"N. min samples: {number_min_sample}")
-        # print(
-        #     f"R_square: {or2:.2}"
-        # )  # , RMSError: {_RMSError:.2} and RMSError Relative: {_rms_error_relative:.2} ")
-
-        # # if _RMSError < max_RMSError and  _rms_error_relative < max_rms_error_relative:
-        # #     return number_min_sample
-        # if inputs["coef_R2"] < or2:
-        #     return number_min_sample
-
-        # if inputs["step_num_inital_samples"] == None:
-        #     number_min_sample = number_min_sample * 2
-        # else:
-        #     number_min_sample += inputs["step_num_inital_samples"]
-
-        # print(f"New Number min samples: {number_min_sample}")
-        # --------------------------------- uncoomment end ---------------------------------
-
-        return number_min_sample
 
     @staticmethod
     def or2(out, out_target):
@@ -816,12 +677,6 @@ class CoefficientSurrogate:
         error = np.sqrt(np.mean((np.array(out_target) - np.array(out))) ** 2)
         return (error / (len(np.array(out_target)) * np.mean(out_target))) * 100
 
-    def _blockPrint(self):
-        sys.stdout = open(os.devnull, "w")  # Disable prints
-
-    def _enablePrint(self):
-        sys.stdout = sys.__stdout__  # Restore prints
-
     def _samples_csv(self, path, inputs, coefs):
         """Save samples in csv file.
 
@@ -841,7 +696,6 @@ class CoefficientSurrogate:
             with open(path, "w", newline="") as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
-                f.close()
 
         df = pd.read_csv(path)
         if not df.empty:
@@ -858,4 +712,3 @@ class CoefficientSurrogate:
         with open(path, mode="a", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writerow(_sample)
-            f.close()
