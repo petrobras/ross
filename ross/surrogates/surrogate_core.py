@@ -18,17 +18,11 @@ from ross.units import Q_, check_units
 from ross.surrogates.kriging import Kriging, full_factorial, latin_hypercube
 from ross.surrogates.safe_pickle import loads as pickle_loads
 
-try:
-    from sklearn.metrics import r2_score
-    from sklearn.gaussian_process import GaussianProcessRegressor
-    from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
-    from json_tricks import dumps, loads
-    from tqdm import tqdm
-except ImportError as error:
-    raise ImportError(
-        "The surrogate models need optional dependencies that are not installed. "
-        'Install them with: pip install "ross-rotordynamics[surrogates]"'
-    ) from error
+from sklearn.metrics import r2_score
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
+from json_tricks import dumps, loads
+from tqdm import tqdm
 import zipfile
 import pandas as pd
 import csv

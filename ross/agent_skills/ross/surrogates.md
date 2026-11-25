@@ -4,7 +4,7 @@ Source: `docs/user_guide/tutorial_surrogates.ipynb`
 
 A surrogate replaces a slow bearing solver (`PlainJournal`, `TiltingPad`, `ThrustPad`) by a metamodel of its stiffness and damping coefficients. The solver runs once per training sample; after that, `predict` returns a `BearingElement` in milliseconds. Use it when the same bearing is evaluated many times (sweeps, optimization, stochastic analysis).
 
-The surrogates are an optional extra. Install them with `pip install "ross-rotordynamics[surrogates]"`. Without the extra, `import ross` works and using a surrogate class raises an `ImportError` with this command.
+The surrogates need no extra install: their dependencies (scikit-learn, json_tricks, tqdm) come with ROSS.
 
 ## Train a surrogate
 

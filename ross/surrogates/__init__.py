@@ -4,10 +4,9 @@
 - ``ross.surrogates.surrogate_core``: ``CoefficientSurrogate`` and ``GaussianProcessSurrogate``.
 - ``ross.surrogates.bearings``: ``TiltingPadSurrogate``, ``ThrustPadSurrogate``, ``PlainJournalSurrogate``.
 
-The surrogate classes need the optional dependencies installed with
-``pip install "ross-rotordynamics[surrogates]"``; ``Kriging`` needs only numpy and
-scipy. The classes are imported on first access, so ``import ross.surrogates`` works
-without the extra and the error appears only when a surrogate class is used.
+The classes are imported on first access, so ``import ross.surrogates`` stays cheap.
+``Kriging`` needs only numpy and scipy; the other classes also use scikit-learn,
+json_tricks and tqdm.
 """
 
 import importlib

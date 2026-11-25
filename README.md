@@ -11,7 +11,7 @@ ROSS is a Python library for rotordynamic analysis, which allows the constructio
 simulation. Shaft elements are modeled with the Timoshenko beam theory, which considers shear and rotary inertia
 effects, and discretized by means of the Finite Element Method. Disks are assumed to be rigid bodies, thus their strain
 energy is not taken into account. Bearings and seals are included as linear stiffness and damping coefficients. Surrogate models of fluid-film bearings
-(optional `surrogates` extra) predict these coefficients without running the bearing solver for every operating point.
+predict these coefficients without running the bearing solver for every operating point.
 
 After defining the elements for the model, you can plot the rotor geometry and run simulations such as static analysis,
 modal analysis, undamped critical speed, frequency response, unbalance response, time response, and more.

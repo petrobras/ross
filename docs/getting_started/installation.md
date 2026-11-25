@@ -33,13 +33,6 @@ decimation written in numpy:
 pip install "ross-rotordynamics[downsample]"
 ```
 
-The surrogate models of fluid-film bearings (`ross.surrogates`) need extra packages (scikit-learn, json_tricks and tqdm), which come with the `surrogates` extra. Without
-it, the rest of ROSS works normally and using a surrogate raises an error that names this command:
-
-```{code-block}
-pip install "ross-rotordynamics[surrogates]"
-```
-
 The Kriging metamodel (`ross.surrogates.kriging`) is implemented in ROSS with numpy and scipy only. It follows the `KRG` model of the
 [Surrogate Modeling Toolbox (SMT)](https://github.com/SMTorg/smt) (BSD 3-Clause license, Copyright (c) 2017, SMT developers), which
 is no longer a dependency of ROSS. The license text is kept in the header of `ross/surrogates/kriging.py`.

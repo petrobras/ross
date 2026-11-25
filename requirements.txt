@@ -10,3 +10,6 @@ numba
 ccp-performance>=0.4.1
 prettytable
 control
+scikit-learn>=1.3
+json_tricks
+tqdm

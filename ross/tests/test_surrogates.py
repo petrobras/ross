@@ -8,8 +8,6 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_allclose
 
-pytest.importorskip("json_tricks")
-
 import ross.surrogates as sg  # noqa: E402
 from ross.surrogates.safe_pickle import loads as safe_loads  # noqa: E402
 from ross.units import Q_  # noqa: E402
