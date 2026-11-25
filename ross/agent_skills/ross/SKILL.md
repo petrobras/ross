@@ -36,6 +36,7 @@ Concise recipes for rotordynamics analyses with ROSS. Each file is self-containe
 | UCS and Level 1 stability | [ucs_and_level1.md](ucs_and_level1.md) | `run_ucs`, `run_level1` |
 | Fault analysis | [faults.md](faults.md) | `run_rubbing`, `run_crack`, `run_misalignment` |
 | Mesh convergence | [mesh_convergence.md](mesh_convergence.md) | `run_mesh_convergence`, `refine` |
+| Multi-rotor (geared shafts) | [multi_rotor.md](multi_rotor.md) | `GearElement`, `MultiRotor`, `MultiRotor.concatenate`, `run_critical_speed(shaft=)`, `unbalance_force_over_time` |
 | Induction motor | [motor.md](motor.md) | `ElectricMotor`, `ElectricMotor.from_nameplate`, `ElectricMotor.from_catalog`, `run_direct_on_line`, `run_with_inverter_vf`, `run_with_inverter_foc`, `run_with_motor` |
 | Harmonic balance (no recipe yet) | — | `run_harmonic_balance_response`: see `help(rs.Rotor.run_harmonic_balance_response)` |
 | AMB sensitivity (no recipe yet) | — | `run_amb_sensitivity`: see `help(rs.Rotor.run_amb_sensitivity)` |
