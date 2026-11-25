@@ -5467,7 +5467,8 @@ class Rotor(object):
               field-oriented control.
         load_torque_entrance_time : float, pint.Quantity, optional
             Time when load torque is applied to the motor shaft [s].
-            Default is half the simulation time.
+            Default is half the simulation time, which is also used, with a
+            warning, when the given time is after the end of `t`.
         load_torque_ratio : float, optional
             Load torque ratio applied at the entrance time. This is a multiplier
             for the rated load torque, e.g., a value of 1.0 applies 100% of the
@@ -5621,6 +5622,13 @@ class Rotor(object):
         Ip_load = self.Ip - motor.Ip
 
         if load_torque_entrance_time is None:
+            load_torque_entrance_time = t[len(t) // 2]
+
+        if load_torque_entrance_time > t[-1]:
+            warnings.warn(
+                f"'load_torque_entrance_time' ({load_torque_entrance_time}) is after "
+                f"the end of 't' ({t[-1]}); half of the simulation time was used."
+            )
             load_torque_entrance_time = t[len(t) // 2]
 
         if F is None:

@@ -4132,6 +4132,30 @@ def test_run_with_motor_checks_the_torque_nodes(name):
         )
 
 
+@pytest.mark.parametrize("steady_state", [True, False])
+def test_run_with_motor_entrance_time_after_the_end_of_t_uses_half_of_t(steady_state):
+    # Reference: the same run with the default entrance time, half of t.
+    rotor = rotor_example().add_motor(motor_example())
+    arguments = dict(
+        t=np.arange(0, 0.5, 1e-3),
+        unbalance_node=[2],
+        unbalance_magnitude=[5e-4],
+        unbalance_phase=[0.0],
+        drive_mode="DOL",
+        steady_state=steady_state,
+    )
+
+    with pytest.warns(UserWarning, match="half of the simulation time"):
+        results = rotor.run_with_motor(load_torque_entrance_time=2.0, **arguments)
+    expected = rotor.run_with_motor(**arguments)
+
+    assert_allclose(results.yout, expected.yout, rtol=1e-10, atol=1e-18)
+    assert_allclose(
+        results.motor_results.sample_at("load_torque", results.t),
+        expected.motor_results.sample_at("load_torque", results.t),
+    )
+
+
 @pytest.mark.parametrize("drive_mode", ["XX", 1, None])
 def test_run_with_motor_invalid_drive_mode_raises(drive_mode):
     rotor = rotor_example().add_motor(motor_example())
