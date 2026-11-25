@@ -24,7 +24,6 @@ import ross
 project = "ross"
 copyright = "2025"
 author = "ROSS devs"
-googleanalytics_id = "G-YKZBE83MZ5"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -54,7 +53,6 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_design",
     "numpydoc",
-    "sphinxcontrib.googleanalytics",
 ]
 
 # -- Algolia DocSearch (inactive until credentials exist) -------------------
@@ -156,6 +154,7 @@ else:
 html_theme_options = {
     "github_url": "https://github.com/petrobras/ross",
     "repository_url": "https://github.com/petrobras/ross",
+    "analytics": {"google_analytics_id": "G-YKZBE83MZ5"},
 }
 html_sourcelink_suffix = ""
 html_static_path = ["_static"]

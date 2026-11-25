@@ -182,10 +182,16 @@ def rotor_example_amb_complex_controllers(ambs=True):
     # electromagnet) and a pole-face area of 470.3 mm^2 per axis, i.e.
     # A = 235.15 mm^2 per pole, as required by the ki and ks formulas of
     # MagneticBearingElement. i0 = 1 A is the bias current used in the
-    # experiments. This ideal model gives
-    # ki = 111.5 N/A and ks = -258 kN/m, about 10 % above the values
-    # identified on the rig (96-104 N/A and -203 to -235 kN/m), since
-    # fringing and iron reluctance are not modeled.
+    # experiments. This ideal model gives ki = 111.5 N/A and ks = -258 kN/m.
+    # The values identified on the rig for each control axis are
+    # ki = 96.2 to 104.3 N/A and ks = -203.1 to -222.3 kN/m (de Oliveira,
+    # 2015), so the model is 7 to 16 % above in ki and 16 to 27 % above in
+    # |ks|: fringing, iron reluctance and the differences between the axes
+    # are not modeled.
+    # Reference: M. V. F. de Oliveira, "Caracterização numérica e
+    # experimental de uma bancada de rotor flexível suportada por mancais
+    # magnéticos ativos", MSc dissertation, Federal University of
+    # Uberlândia, 2015 (Tables 4.4 and 4.5).
     n_list = [11, 39]  # actuator centers at 152.99 mm and 572.01 mm
     n = 276
     A = 235.15e-6
