@@ -89,7 +89,9 @@ def lu_solve(a, total_n, bandwidth, a_lower, index1, b):
     return lu_solve_band_jit(a, total_n, bandwidth, a_lower, index1, b)
 
 
-def lu_solve_cavitating(a, total_n, bandwidth, a_lower, index1, b, press_cavitate):
+def lu_solve_cavitating(
+    a, total_n, bandwidth, a_lower, index1, b, press_cavitate, return_clamped=False
+):
     """Solve ``A x = b`` and apply the Reynolds cavitation clamp.
 
     Identical to :func:`lu_solve` except that the back substitution floors the
@@ -109,16 +111,25 @@ def lu_solve_cavitating(a, total_n, bandwidth, a_lower, index1, b, press_cavitat
         Right-hand side. Copied, as in :func:`lu_solve`.
     press_cavitate : float
         Cavitation pressure, Pa.
+    return_clamped : bool, optional
+        Also return the boolean mask of the entries the clamp raised to
+        ``press_cavitate``. Default is False.
 
     Returns
     -------
     numpy.ndarray
         The clamped solution.
+    numpy.ndarray of bool
+        The clamped entries (only with ``return_clamped=True``).
     """
     a = np.ascontiguousarray(a, dtype=np.float64)
     a_lower = np.ascontiguousarray(a_lower, dtype=np.float64)
     index1 = np.ascontiguousarray(index1, dtype=np.int64)
     b = np.array(b, dtype=np.float64, copy=True)
-    return lu_solve_band_cavitating_jit(
-        a, total_n, bandwidth, a_lower, index1, b, press_cavitate
+    clamped = np.zeros(b.shape[0], dtype=np.bool_)
+    x = lu_solve_band_cavitating_jit(
+        a, total_n, bandwidth, a_lower, index1, b, float(press_cavitate), clamped
     )
+    if return_clamped:
+        return x, clamped
+    return x

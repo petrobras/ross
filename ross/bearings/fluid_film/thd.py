@@ -16,7 +16,8 @@ plus the temperature post-processing routines it calls:
   the bulk heat flux into the shaft is zero.
 * :func:`t_outlet` -- area- and flow-weighted pad outlet temperatures.
 * :func:`temp_mixing_carryover` -- pad inlet temperature from the conventional
-  hot-oil-carryover mixing model (all bearings except spray-bar).
+  hot-oil-carryover mixing model (all bearings except spray-bar); the shared
+  implementation of :mod:`ross.bearings.film.mixing`, re-exported here.
 * :func:`temp_mixing_spray_bar` -- pad inlet temperature for spray-bar bearings.
 * :func:`temp_inlet_residual` -- RMS of the pad inlet-temperature change.
 
@@ -65,12 +66,27 @@ from ross.bearings.fluid_film._numba_kernels import (
     t_outlet_jit,
     temp_journal_film_average_jit,
 )
+from ross.bearings.film.mixing import temp_mixing_carryover, upstream_pads
 from ross.bearings.fluid_film.constants import (
     JTEMP_ERROR,
     MAX_ITERATION,
     TEMP_ERROR,
     TEMP_INLET_ERROR,
 )
+
+
+def _record(monitor, name, iterations, residual, tolerance, exit_kind):
+    """Record the last pass of a thermal loop; converged means below tolerance."""
+    if monitor is None:
+        return
+    converged = bool(abs(residual) < tolerance)
+    if converged:
+        reason = "converged"
+    elif not np.isfinite(residual):
+        reason = "non_finite"
+    else:
+        reason = "max_iterations" if exit_kind == "converged" else exit_kind
+    monitor.record(name, iterations, residual, tolerance, converged, reason)
 
 
 def _filter_kw(fn, kw):
@@ -111,6 +127,8 @@ def thermohydrodynamics(
     t_outlet_inputs=None,
     mixing_inputs=None,
     hd_converged_key="hd_converged",
+    monitor=None,
+    tolerance_scale=1.0,
 ):
     """Run the coupled thermohydrodynamic solution for one configuration.
 
@@ -201,6 +219,11 @@ def thermohydrodynamics(
     hd_converged_key : str, optional
         Key under which ``hydrodynamics`` reports journal-equilibrium
         convergence (``0`` not converged). Default ``"hd_converged"``.
+    monitor : LoopMonitor, optional
+        Receives the ``viscosity``, ``journal_temperature`` and ``mixing``
+        records (last pass of each loop). Default is None.
+    tolerance_scale : float, optional
+        Factor on the three temperature tolerances. Default is 1.0.
 
     Returns
     -------
@@ -248,6 +271,9 @@ def thermohydrodynamics(
     rms_temp = 0.0
     d_tj = 0.0
     rms_temp_inlet = 0.0
+    temp_tolerance = TEMP_ERROR * tolerance_scale
+    jtemp_tolerance = JTEMP_ERROR * tolerance_scale
+    inlet_tolerance = TEMP_INLET_ERROR * tolerance_scale
 
     # ----- outer loop: pad inlet (mixing) temperature ---------------------
     diverge_tin = 0
@@ -257,6 +283,7 @@ def thermohydrodynamics(
         for jtemp_index in range(1, MAX_ITERATION + 1):
             # ----- inner loop: film/pad temperature & viscosity ----------
             diverge_t = 0
+            vis_exit = "max_iterations"
             for vis_index in range(1, MAX_ITERATION + 1):
                 # Hydrodynamic analysis under the current thermal condition.
                 hd_out = hydrodynamics(**state)
@@ -264,6 +291,19 @@ def thermohydrodynamics(
 
                 # Isoviscous: skip every thermal branch.
                 if thermal_type is None:
+                    return state
+
+                # A closed film (the journal position crosses a pad surface)
+                # has no film to heat: the energy equation is not solved on
+                # it, and the case ends here. The driver reports it as
+                # "contact", as for a final position that crosses a pad.
+                # Solving it anyway fed temperatures and viscosities of an
+                # inverted film back into the equilibrium, which diverged by
+                # many orders of magnitude and could raise in the kernels.
+                if np.any(np.asarray(state["h_min"], dtype=float)[:total_pads] <= 0.0):
+                    # No temperature pass ran: no outlet temperatures.
+                    for name in ("temp_outlet", "temp_outlet_bulk"):
+                        state.setdefault(name, np.full(total_pads, np.nan))
                     return state
 
                 rms_temp_old = 0.0 if vis_index == 1 else rms_temp
@@ -295,17 +335,21 @@ def thermohydrodynamics(
                 hd_converged = state.get(hd_converged_key, 1)
 
                 # Convergence / divergence on the film-pad temperature.
-                if rms_temp < TEMP_ERROR:
+                if rms_temp < temp_tolerance:
+                    vis_exit = "converged"
                     break
                 if rms_temp > 0.95 * rms_temp_old and vis_index > 1 and diverge_t <= 10:
                     if hd_converged == 0:
+                        vis_exit = "diverged"
                         break
                     diverge_t += 1
                 elif (
                     rms_temp > 0.95 * rms_temp_old and vis_index > 1 and diverge_t > 10
                 ):
+                    vis_exit = "diverged"
                     break
             # (label 100)
+            _record(monitor, "viscosity", vis_index, rms_temp, temp_tolerance, vis_exit)
 
             # Refresh the natural-shape view after the inner loop's last
             # ``state.update(hd_out)`` (state arrays may have been reallocated).
@@ -398,21 +442,22 @@ def thermohydrodynamics(
             hd_converged = state.get(hd_converged_key, 1)
 
             converged_tj = False
-            if abs(d_tj) < JTEMP_ERROR:
+            tj_exit = "max_iterations"
+            if abs(d_tj) < jtemp_tolerance:
                 converged_tj = True
+                tj_exit = "converged"
             elif d_tj > 0.95 * d_tj_old and jtemp_index > 1 and diverge_tj <= 10:
                 if hd_converged == 0:
                     converged_tj = True
+                    tj_exit = "diverged"
                 else:
                     diverge_tj += 1
             elif d_tj > 0.95 * d_tj_old and jtemp_index > 1 and diverge_tj > 10:
                 converged_tj = True
+                tj_exit = "diverged"
 
-            # Limit the journal temperature change to 10 degF per iteration.
-            # Everything here is in kelvin, so that is 10/1.8 K; a bare 10.0
-            # would cap at 10 K (= 18 degF) and under-relax large early
-            # temperature swings.
-            jtemp_step_limit = 10.0 / 1.8
+            # Limit the journal temperature change to 5 K per iteration.
+            jtemp_step_limit = 5.0
             if abs(d_tj) > jtemp_step_limit:
                 relax_tj = jtemp_step_limit / abs(d_tj)
             else:
@@ -423,6 +468,9 @@ def thermohydrodynamics(
             if converged_tj:
                 break
         # (label 200)
+        _record(
+            monitor, "journal_temperature", jtemp_index, d_tj, jtemp_tolerance, tj_exit
+        )
 
         # Refresh natural-shape views after the journal-temperature loop.
         nat = _state_for_thermal(state)
@@ -520,7 +568,9 @@ def thermohydrodynamics(
 
         hd_converged = state.get(hd_converged_key, 1)
 
-        if rms_temp_inlet < TEMP_INLET_ERROR:
+        mix_exit = "max_iterations"
+        if rms_temp_inlet < inlet_tolerance:
+            mix_exit = "converged"
             break
         if (
             rms_temp_inlet > 0.95 * rms_temp_inlet_old
@@ -528,6 +578,7 @@ def thermohydrodynamics(
             and diverge_tin <= 10
         ):
             if hd_converged == 0:
+                mix_exit = "diverged"
                 break
             diverge_tin += 1
         elif (
@@ -535,6 +586,7 @@ def thermohydrodynamics(
             and mixtemp_index > 1
             and diverge_tin > 10
         ):
+            mix_exit = "diverged"
             break
         else:
             # Under-relax the inlet temperature for the next outer pass.
@@ -545,6 +597,7 @@ def thermohydrodynamics(
                 )
             _assign_padded(state, "temp_inlet", temp_inlet)
     # (label 300)
+    _record(monitor, "mixing", mixtemp_index, rms_temp_inlet, inlet_tolerance, mix_exit)
 
     state["rms_temp"] = rms_temp
     state["d_tj"] = d_tj
@@ -810,7 +863,7 @@ def temp_journal_zero_flux(
     ``scale_dissip * (T_j - T_film) / dy`` at the film/journal interface for
     every Reynolds node, surface-integrates it over each pad, and moves the
     bracket so the summed flux goes to zero. The search stops when the bracket
-    is narrower than ``0.1 / 1.8`` K.
+    is narrower than 0.05 K.
 
     Parameters
     ----------
@@ -867,12 +920,10 @@ def temp_journal_zero_flux(
             )
             sum_flux += inte_flux
 
-        # Bisection bracket tolerance: 0.1 degF, i.e. 0.1/1.8 K here. A bare
-        # 0.1 would stop the bisection a step early (0.1 K ~= 0.18 degF),
-        # coarser than the enclosing journal-temperature loop's own
-        # JTEMP_ERROR, leaving temp_j under-resolved for the
+        # Stop at the JTEMP_ERROR of the enclosing journal-temperature loop;
+        # a wider bracket would leave temp_j under-resolved for the
         # "no heat flux into journal" mode.
-        if abs(bound_upper - bound_lower) < 0.1 / 1.8:
+        if abs(bound_upper - bound_lower) < JTEMP_ERROR:
             break
 
         if sum_flux < 0.0:
@@ -968,65 +1019,6 @@ def t_outlet(
     )
 
 
-def temp_mixing_carryover(
-    total_pads,
-    operating_type,
-    q_in,
-    q_carryover,
-    temp_sump,
-    temp_outlet,
-    temp_inlet,
-):
-    """Pad inlet temperature from the conventional hot-oil mixing model.
-
-    Used for all bearings except spray-bar. The inlet
-    temperature of pad ``p`` mixes the hot oil carried over from the upstream
-    pad (``p - 1``, wrapping the first pad to the last) with fresh sump oil,
-    weighted by flow. If the carryover exceeds the pad inlet flow the inlet is
-    simply the upstream outlet. For axial-flow (``operating_type == "axial_flow"``) or
-    ring-lubricated (``operating_type == "oil_ring_lubricated"``) bearings every inlet is fixed at
-    the sump temperature.
-
-    Parameters
-    ----------
-    total_pads : int
-        Number of pads.
-    operating_type : str
-        Lubrication model, one of
-        :data:`~ross.bearings.fluid_film.constants.OPERATING_TYPES`.
-    q_in, q_carryover : array_like of float
-        Per-pad inlet and carryover flow rates, m^3/s.
-    temp_sump : float
-        Sump (reservoir) temperature, K.
-    temp_outlet : array_like of float
-        Per-pad outlet temperature.
-    temp_inlet : array_like of float
-        Per-pad inlet temperature (overwritten copy returned).
-
-    Returns
-    -------
-    numpy.ndarray of float
-        Updated per-pad inlet temperature (same layout as ``temp_inlet``).
-    """
-    temp_inlet = np.array(temp_inlet, dtype=float, copy=True)
-    for pad_index in range(total_pads):
-        # Upstream pad (0-based), wrapping the first pad to the last.
-        u = total_pads - 1 if pad_index == 0 else pad_index - 1
-        p = pad_index
-        if q_carryover[u] > q_in[p]:
-            temp_inlet[p] = temp_outlet[u]
-        else:
-            temp_inlet[p] = (
-                q_carryover[u] * temp_outlet[u] + (q_in[p] - q_carryover[u]) * temp_sump
-            ) / q_in[p]
-
-    if operating_type in ("axial_flow", "oil_ring_lubricated"):
-        for pad_index in range(total_pads):
-            temp_inlet[pad_index] = temp_sump
-
-    return temp_inlet
-
-
 def temp_mixing_spray_bar(
     total_pads,
     operating,
@@ -1068,9 +1060,9 @@ def temp_mixing_spray_bar(
     """
     temp_inlet = np.array(temp_inlet, dtype=float, copy=True)
     q_share = q_supply / total_pads
+    upstream = upstream_pads(total_pads)
     for idx in range(total_pads):
-        # Upstream pad (0-based), wrapping the first pad to the last.
-        u = total_pads - 1 if idx == 0 else idx - 1
+        u = upstream[idx]
         p = idx
         q1 = q_in[p] - q_share
         q_hot = min(q_carryover[u], q1)
