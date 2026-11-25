@@ -68,7 +68,7 @@ All values are SI internally: speed in rad/s, stiffness in N/m, damping in N·s/
 
 ### Surrogate models
 
-`ross.surrogates` (optional extra: `pip install "ross-rotordynamics[surrogates]"`) trains a metamodel of the stiffness and damping coefficients of a bearing solver. Surrogates are not `run_*` analyses: `PlainJournalSurrogate`, `TiltingPadSurrogate` and `ThrustPadSurrogate` sample the solver on construction, `predict(frequency, **inputs)` returns a `BearingElement`, and `save()`/`load()` use a `.zip` file. Recipe: [surrogates](ross/agent_skills/ross/surrogates.md).
+`ross.surrogates` trains a metamodel of the stiffness and damping coefficients of a bearing solver. Surrogates are not `run_*` analyses: `PlainJournalSurrogate`, `TiltingPadSurrogate` and `ThrustPadSurrogate` sample the solver on construction, `predict(frequency, **inputs)` returns a `BearingElement`, and `save()`/`load()` use a `.zip` file. Recipe: [surrogates](ross/agent_skills/ross/surrogates.md).
 
 ### Save, load, interface, recipes
 
@@ -120,7 +120,7 @@ Elements → Rotor assembly → Rotor.run_*() → Results objects with .plot_*()
 | `ross/shaft_element.py`, `disk_element.py`, `bearing_seal_element.py`, `coupling_element.py`, `point_mass.py` | Core elements |
 | `ross/bearings/`, `ross/seals/` | Bearing and seal models |
 | `ross/motors/` | `MotorElement`, electrical sources and inverters (`SourceAC`, `InverterVF`, `InverterFOC`), `MotorResponseResults`, `PhaseResults` |
-| `ross/surrogates/` | `CoefficientSurrogate` and the bearing surrogates (`PlainJournalSurrogate`, `TiltingPadSurrogate`, `ThrustPadSurrogate`), `Kriging` (`kriging.py`, numpy and scipy only, derived from SMT under BSD 3-Clause); optional dependencies `scikit-learn`, `json_tricks` and `tqdm`, tested in `ross/tests/test_surrogates.py` and `ross/tests/test_kriging.py` |
+| `ross/surrogates/` | `CoefficientSurrogate` and the bearing surrogates (`PlainJournalSurrogate`, `TiltingPadSurrogate`, `ThrustPadSurrogate`), `Kriging` (`kriging.py`, numpy and scipy only, derived from SMT under BSD 3-Clause); dependencies `scikit-learn`, `json_tricks` and `tqdm` (in `requirements.txt`), tested in `ross/tests/test_surrogates.py` and `ross/tests/test_kriging.py` |
 | `ross/rotor_assembly.py`, `ross/multi_rotor/` | `Rotor`, `MultiRotor`: assembly and analyses |
 | `ross/results.py` | `Results` ABC and the rotor results classes; the bearing, multi-rotor, motor and stochastic results classes live in their subpackages |
 | `ross/units.py` | `@check_units` and `Q_` |
