@@ -43,7 +43,7 @@ WARNING_LOCATION = re.compile(
 
 
 ABSOLUTE_PATH = re.compile(
-    r"(?<![\w.)\]])(?:[A-Za-z]:)?(?:[/\\][^\s/\\:]+)+[/\\]([^\s/\\:]+)"
+    r"(?<![\w.)\]:/])(?:[A-Za-z]:)?(?:[/\\][^\s/\\:]+)+[/\\]([^\s/\\:]+)"
 )
 WARN_SOURCE_LINE = re.compile(r"^[ \t]+_?warnings\.warn\(.*\n", re.MULTILINE)
 
