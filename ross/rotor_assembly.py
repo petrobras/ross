@@ -5521,8 +5521,8 @@ class Rotor(object):
             lateral transient; use False, or a longer `t`, when the response
             amplitudes matter. If False, the full time array is used.
         F : array, optional
-            Force array (needs to have the same number of rows as time array).
-            Each column corresponds to a dof and each row to a time.
+            Force array [N] with shape ``(len(t), rotor.ndof)``. Each column
+            corresponds to a dof and each row to an instant of `t`.
         electric_torque_node : int, optional
             Node where the electromagnetic torque is applied, for example the
             node of the rotor core of a motor with ``shaft_elements``. The motor
@@ -5635,6 +5635,10 @@ class Rotor(object):
             F = np.zeros((len(t), self.ndof))
         else:
             F = np.array(F, dtype=float)
+            if F.shape != (len(t), self.ndof):
+                raise ValueError(
+                    f"'F' must have shape (len(t), ndof) = ({len(t)}, {self.ndof})"
+                )
 
         frequency_s = Q_(5000, "Hz")
 
