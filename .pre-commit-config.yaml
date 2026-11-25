@@ -12,7 +12,7 @@ repos:
       # Refresh the stored outputs of the documentation notebooks that changed.
       - id: run-notebooks
         name: run changed documentation notebooks
-        entry: python3 docs/run_notebooks.py --skip-current
+        entry: python3 docs/run_notebooks.py --only-changed
         language: system
         files: ^docs/.*\.ipynb$
         exclude: ^docs/_build/
