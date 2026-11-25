@@ -4156,6 +4156,43 @@ def test_run_with_motor_entrance_time_after_the_end_of_t_uses_half_of_t(steady_s
     )
 
 
+@pytest.mark.parametrize("nodes", [(0, 6), (6, 0), (0, 3), (2, 5)])
+def test_ktq_of_applied_torques_is_uniform_between_the_nodes_at_constant_speed(nodes):
+    # Reference: with Te = Tl = T the speed is constant, there is no inertia
+    # torque, and the shaft transmits T between the nodes and nothing outside
+    # them. The torque is positive towards the higher axial position, so it is
+    # negative if the load is before the motor. The reference gives that torque
+    # to the elements through their torque attribute, which multiplies the same
+    # element matrix in K(). The tolerance is round-off.
+    rotor = rotor_example()
+    torque = 7.0
+    sign = 1.0 if nodes[0] < nodes[1] else -1.0
+    shafts = []
+    for shaft in rotor.shaft_elements:
+        loaded_shaft = copy(shaft)
+        inside = min(nodes) <= min(shaft.n_l, shaft.n_r) < max(nodes)
+        loaded_shaft.torque = sign * torque if inside else 0.0
+        shafts.append(loaded_shaft)
+    loaded = Rotor(shafts, rotor.disk_elements, rotor.bearing_elements)
+    expected = loaded.K(0) - rotor.K(0)
+    assert expected.any()
+
+    Ktq_electric, Ktq_load = rotor._Ktq_of_applied_torques(*nodes)
+
+    assert_allclose(torque * (Ktq_electric - Ktq_load), expected, rtol=1e-9, atol=1e-6)
+
+
+def test_ktq_of_applied_torques_is_the_same_matrix_for_a_single_node():
+    # Reference: with the electric and the load torque at one node, the torque in
+    # the shaft is proportional to Te - Tl, so both matrices are the same.
+    rotor = rotor_example()
+
+    Ktq_electric, Ktq_load = rotor._Ktq_of_applied_torques(0, 0)
+
+    assert_allclose(Ktq_electric, Ktq_load)
+    assert Ktq_electric.any()
+
+
 @pytest.mark.parametrize("drive_mode", ["XX", 1, None])
 def test_run_with_motor_invalid_drive_mode_raises(drive_mode):
     rotor = rotor_example().add_motor(motor_example())

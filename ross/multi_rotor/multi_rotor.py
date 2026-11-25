@@ -1035,6 +1035,34 @@ class MultiRotor(Rotor):
         """
         return self._node_gear_ratio(node) * value
 
+    def _Ktq_of_applied_torques(self, electric_node, load_node):
+        """Assemble the stiffness matrices due to the torque next to the electric node.
+
+        The distribution of the torque along a gear train is not modelled: the
+        shaft elements that end at ``electric_node`` receive the net torque
+        ``Te - Tl``, so the two matrices are the same and ``load_node`` is not
+        used.
+
+        Parameters
+        ----------
+        electric_node : int
+            Node where the electric torque is applied.
+        load_node : int
+            Node where the load torque is applied.
+
+        Returns
+        -------
+        Ktq_electric, Ktq_load : np.ndarray
+            Global matrices to be multiplied by ``Te`` and by ``-Tl`` at each time
+            step, respectively.
+        """
+        Ktq = np.zeros((self.ndof, self.ndof))
+        for sh in self.shaft_elements:
+            if electric_node in (sh.n_l, sh.n_r):
+                dofs = list(sh.dof_global_index.values())
+                Ktq[np.ix_(dofs, dofs)] += sh.Ktq()
+        return Ktq, Ktq.copy()
+
     def _node_gear_ratio(self, node):
         """Return the signed speed ratio of the specified node.
 

@@ -3838,10 +3838,19 @@ class Rotor(object):
             torque = kwargs.get("torque", np.zeros_like(speed))
 
             if np.any(Ktq) and np.any(torque):
-                Ktq = reduce_matrix(Ktq)
+                Ktq = np.asarray(Ktq)
+                if Ktq.ndim == 3:
+                    Ktq = np.array([reduce_matrix(K) for K in Ktq])
+                else:
+                    Ktq = reduce_matrix(Ktq)
                 torque = kwargs.get("torque")
                 kwargs.pop("Ktq")
                 kwargs.pop("torque")
+
+            def torque_stiffness(step):
+                if np.ndim(Ktq) == 3:
+                    return np.tensordot(np.asarray(torque)[:, step], Ktq, axes=1)
+                return Ktq * torque[step]
 
             brgs_with_var_coeffs = tuple(
                 brg
@@ -3862,7 +3871,7 @@ class Rotor(object):
                     return (
                         M,
                         C1 + C2 * speed[step],
-                        K1 + K2 * accel[step] + Ktq * torque[step],
+                        K1 + K2 * accel[step] + torque_stiffness(step),
                         forces(step, **current_state),
                     )
 
@@ -3873,7 +3882,7 @@ class Rotor(object):
                 rotor_system = lambda step, **current_state: (
                     M,
                     C1 + C2 * speed[step],
-                    K1 + K2 * accel[step] + Ktq * torque[step],
+                    K1 + K2 * accel[step] + torque_stiffness(step),
                     forces(step, **current_state),
                 )
 
@@ -5412,6 +5421,56 @@ class Rotor(object):
 
         return results
 
+    def _Ktq_of_applied_torques(self, electric_node, load_node):
+        """Assemble the stiffness matrices due to the torque in the shaft elements.
+
+        The rotor accelerates as a rigid body under the electric torque ``Te`` at
+        ``electric_node`` and the load torque ``Tl`` at ``load_node``. The torque
+        transmitted by an element is the sum of the applied torques and of the
+        inertia torques of the part of the rotor on its left, so it is
+        ``Te * c_e - Tl * c_l`` with coefficients that depend on the element.
+
+        Parameters
+        ----------
+        electric_node : int
+            Node where the electric torque is applied.
+        load_node : int
+            Node where the load torque is applied.
+
+        Returns
+        -------
+        Ktq_electric, Ktq_load : np.ndarray
+            Global matrices to be multiplied by ``Te`` and by ``-Tl`` at each time
+            step, respectively. The torque is positive when it is transmitted to
+            the part of the rotor with higher axial position.
+        """
+        dofs_theta = [self.global_dof_mapping[f"theta_{n}"] for n in self.nodes]
+        node_inertia = self.M()[np.ix_(dofs_theta, dofs_theta)].sum(axis=1)
+
+        order = np.argsort(self.nodes_pos, kind="stable")
+        rank = np.empty(len(order), dtype=int)
+        rank[order] = np.arange(len(order))
+        inertia_share = np.cumsum(node_inertia[order]) / node_inertia.sum()
+
+        rank_electric = rank[self.nodes.index(electric_node)]
+        rank_load = rank[self.nodes.index(load_node)]
+
+        Ktq_electric = np.zeros((self.ndof, self.ndof))
+        Ktq_load = np.zeros((self.ndof, self.ndof))
+        for sh in self.shaft_elements:
+            rank_left = min(rank[self.nodes.index(n)] for n in (sh.n_l, sh.n_r))
+            dofs = list(sh.dof_global_index.values())
+            Ktq = sh.Ktq()
+            share = inertia_share[rank_left]
+            Ktq_electric[np.ix_(dofs, dofs)] += (
+                float(rank_electric <= rank_left) - share
+            ) * Ktq
+            Ktq_load[np.ix_(dofs, dofs)] += (
+                float(rank_load <= rank_left) - share
+            ) * Ktq
+
+        return Ktq_electric, Ktq_load
+
     @check_units
     def run_with_motor(
         self,
@@ -5687,7 +5746,6 @@ class Rotor(object):
 
         Te = motor_results.sample_at("electric_torque", t)
         Tl = motor_results.sample_at("load_torque", t)
-        torque = Te - Tl
 
         speed = motor_results.sample_at("speed", t)
         speed = speed / self.to_shaft_rotation(1.0, electric_torque_node)
@@ -5699,14 +5757,10 @@ class Rotor(object):
         F[:, self.global_dof_mapping[f"theta_{electric_torque_node}"]] += Te
         F[:, self.global_dof_mapping[f"theta_{load_torque_node}"]] -= Tl
 
-        Ktq = np.zeros((self.ndof, self.ndof))
-        for sh in self.shaft_elements:
-            if electric_torque_node in (sh.n_l, sh.n_r):
-                dofs = list(sh.dof_global_index.values())
-                Ktq[np.ix_(dofs, dofs)] += sh.Ktq()
-
-        kwargs["Ktq"] = Ktq
-        kwargs["torque"] = torque
+        kwargs["Ktq"] = np.array(
+            self._Ktq_of_applied_torques(electric_torque_node, load_torque_node)
+        )
+        kwargs["torque"] = np.array([Te, -Tl])
 
         if verbose:
             print("[2/3] Integrating rotor response... ", end="", flush=True)
