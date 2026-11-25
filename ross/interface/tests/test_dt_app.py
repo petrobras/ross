@@ -3,7 +3,6 @@
 
 from ross.interface.tests.dt_app import HEADERS, create_app
 
-from ross.interface.extensions.digital_twin.domain import network
 from ross.interface.extensions.digital_twin.extension import EXTENSION
 
 
@@ -49,9 +48,7 @@ def test_frontend_files_are_public():
         response.close()
 
 
-def test_routes_require_the_session_token(monkeypatch):
-    # The network check is tested in test_dt_models.py; here only the token.
-    monkeypatch.setattr(network, "on_corporate_network", lambda: True)
+def test_routes_require_the_session_token():
     client = create_app().test_client()
     assert client.get("/api/dt/equipment").status_code == 403
     assert client.post("/api/dt/session").status_code == 403
@@ -69,7 +66,6 @@ def test_every_route_of_the_extension_is_registered():
         "/api/dt/process-data",
         "/api/dt/model",
         "/api/dt/model-settings",
-        "/api/dt/network",
         "/api/dt/balancing",
         "/api/dt/balancing-settings",
         "/api/dt/balancing-figure",

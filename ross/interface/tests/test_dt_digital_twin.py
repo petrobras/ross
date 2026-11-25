@@ -9,7 +9,7 @@ import pytest
 os.environ.setdefault("DT_SESSIONS_DIR", tempfile.mkdtemp(prefix="dt-sessions-"))
 
 from ross.interface.tests.dt_app import HEADERS, create_app, requires_dt_app
-from ross.interface.extensions.digital_twin.domain import equipment, network, session
+from ross.interface.extensions.digital_twin.domain import equipment, session
 from ross.interface.extensions.digital_twin.services.digital_twin import (
     create_model,
     load_process_data,
@@ -19,11 +19,6 @@ LMEST = "LMEST-2-DISCOS"
 PI_TIME = "2026/11/11 00:00:00"
 
 pytestmark = requires_dt_app
-
-
-@pytest.fixture(autouse=True)
-def inside_network(monkeypatch):
-    monkeypatch.setattr(network, "on_corporate_network", lambda: True)
 
 
 def _all_equipment():

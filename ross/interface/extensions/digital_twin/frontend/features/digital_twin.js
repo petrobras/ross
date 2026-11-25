@@ -4,8 +4,7 @@
 // For now the equipment are the rotors of the user's Rotor Hub: step 1 lists
 // them, step 2 (process data) is hidden and step 3 builds the chosen rotor.
 // The pre-established models of the Digital Twin app, with their PI data,
-// are kept behind USE_PRE_ESTABLISHED; they answer only on the Petrobras
-// network, and outside it the screen says so and its controls stay disabled.
+// are kept behind USE_PRE_ESTABLISHED.
 import { openCustomAlert } from '/components/modals.js';
 import { projectForServer } from '/core/api.js';
 import { escapeHtml } from '/core/dom.js';
@@ -32,8 +31,6 @@ const state = {
 
 const USE_PRE_ESTABLISHED = false;
 
-const CONTROLS = ['dt-platform', 'dt-equipment', 'dt-rotation', 'dt-source', 'dt-load'];
-
 export function startDigitalTwin() {
     if (!document.getElementById('dt-platform')) return;
     document.getElementById('dt-date').value = new Date().toISOString().slice(0, 10);
@@ -46,7 +43,7 @@ export function startDigitalTwin() {
     document.getElementById('dt-to-hub').addEventListener('click', openInHub);
     onLanguageChanged(redrawTexts);
     if (USE_PRE_ESTABLISHED) {
-        checkNetwork();
+        loadEquipment();
     } else {
         startUserRotors();
     }
@@ -153,20 +150,6 @@ async function createUserModel(openBalancing = true) {
     }
 }
 
-
-async function checkNetwork() {
-    let body;
-    try {
-        body = await apiJson('/api/dt/network');
-    } catch (error) {
-        body = { available: false, message: error.message };
-    }
-    const note = document.getElementById('dt-network-note');
-    note.textContent = body.message || '';
-    note.style.display = body.available ? 'none' : '';
-    CONTROLS.forEach(id => { document.getElementById(id).disabled = !body.available; });
-    if (body.available) loadEquipment();
-}
 
 async function loadEquipment() {
     try {

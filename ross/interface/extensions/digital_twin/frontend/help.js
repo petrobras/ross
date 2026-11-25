@@ -9,7 +9,6 @@ const HELP = {
             body: `
                 <h4>1. Equipamento</h4>
                 <ul>
-                    <li>Os modelos pré-estabelecidos estão disponíveis só na rede Petrobras (ou VPN).</li>
                     <li>Escolha a <b>plataforma</b> e o <b>equipamento</b>. Um equipamento marcado como indisponível usa um modelo que importa um pacote não instalado (por exemplo, <code>rossxl</code> ou <code>rossml</code>); a nota abaixo da lista diz qual.</li>
                     <li>O <b>sentido de rotação</b> é visto do acionador para o acionado.</li>
                 </ul>
@@ -44,7 +43,6 @@ const HELP = {
             body: `
                 <h4>1. Equipment</h4>
                 <ul>
-                    <li>The pre-established models are available only on the Petrobras network (or VPN).</li>
                     <li>Choose the <b>platform</b> and the <b>equipment</b>. Equipment marked unavailable uses a model that imports a package that is not installed (for example <code>rossxl</code> or <code>rossml</code>); the note below the list says which.</li>
                     <li>The <b>rotation direction</b> is seen from the driver towards the driven machine.</li>
                 </ul>

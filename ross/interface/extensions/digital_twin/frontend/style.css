@@ -208,11 +208,6 @@
     font-weight: 600;
 }
 
-#screen-dt .dt-network-note {
-    color: var(--accent-danger);
-    font-weight: 600;
-}
-
 #screen-dt .dt-plane-picker {
     display: flex;
     align-items: flex-end;

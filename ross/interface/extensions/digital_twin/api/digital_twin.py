@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Digital Twin routes. The work lives in services.digital_twin.
+"""Digital Twin routes. The work lives in services.digital_twin."""
 
-The routes that read a pre-established equipment model or process data first
-check that this computer is on the Petrobras network (`domain/network.py`).
-The others work on a rotor of the user's own Rotor Hub and answer anywhere.
-"""
+from flask import Blueprint, jsonify, request
 
-from flask import Blueprint, abort, jsonify, request
-
-from ross.interface.extensions.digital_twin.domain import equipment, network, session
+from ross.interface.extensions.digital_twin.domain import equipment, session
 from ross.interface.extensions.digital_twin.services.digital_twin import (
     create_model,
     create_user_model,
@@ -29,39 +24,12 @@ from ross.interface.extensions.digital_twin.services.measurement import (
 
 digital_twin = Blueprint("dt_digital_twin", __name__)
 
-NETWORK_ROUTES = {
-    "dt_digital_twin.equipment_list",
-    "dt_digital_twin.model_settings",
-    "dt_digital_twin.process_data",
-    "dt_digital_twin.model",
-    "dt_digital_twin.project",
-}
-
-
-@digital_twin.before_request
-def require_corporate_network():
-    """Refuse the pre-established model routes with 403 outside the Petrobras network."""
-    if request.endpoint not in NETWORK_ROUTES:
-        return None
-    if not network.on_corporate_network():
-        abort(403, description=network.refusal())
-    return None
-
 
 def _body():
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         raise ValueError("Send the request as JSON.")
     return payload
-
-
-@digital_twin.route("/api/dt/network")
-def network_status():
-    """Tell whether the pre-established models can be used from here."""
-    available = network.on_corporate_network()
-    return jsonify(
-        {"available": available, "message": "" if available else network.refusal()}
-    )
 
 
 @digital_twin.route("/api/dt/equipment")

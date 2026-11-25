@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Pre-established rotor models, behind the network check.
+"""Pre-established rotor models.
 
 These tests build a small Digital Twin app in a temporary folder, with a
 model written the way the `models_files` models are (`get_pi_data` and
 `create_model`, which reads `configured_data`), so they run without the
-private repository or the Petrobras network.
+private repository.
 """
 
 import os
@@ -21,7 +21,6 @@ from ross.interface.extensions.digital_twin.domain import (
     dt_app,
     equipment,
     model_settings,
-    network,
     session,
 )
 from ross.interface.extensions.digital_twin.services import digital_twin, measurement
@@ -78,7 +77,7 @@ def _write(path, text):
 
 @pytest.fixture
 def fake_app(tmp_path, monkeypatch):
-    """A Digital Twin app with two models, and the network check passing."""
+    """A Digital Twin app with two models."""
     _write(str(tmp_path / "models_files" / "__init__.py"), "")
     _write(str(tmp_path / "models_files" / "fake_rotor" / "fake_rotor.py"), MODEL)
     _write(
@@ -96,7 +95,6 @@ def fake_app(tmp_path, monkeypatch):
     )
     for module in (dt_app, equipment):
         monkeypatch.setattr(module, "APP_DIR", str(tmp_path))
-    monkeypatch.setattr(network, "on_corporate_network", lambda: True)
     cached = {
         name: sys.modules.pop(name)
         for name in list(sys.modules)
@@ -274,83 +272,6 @@ def test_the_routes_walk_to_the_hub(fake_app):
     )
     assert project.status_code == 200
     assert len(project.get_json()["projectData"]["bearings"]) == 2
-
-
-def test_outside_the_network_only_the_pre_established_routes_are_refused(
-    monkeypatch,
-):
-    monkeypatch.setattr(network, "on_corporate_network", lambda: False)
-    client = create_app().test_client()
-    status = client.get("/api/dt/network", headers=HEADERS)
-    assert status.status_code == 200
-    assert status.get_json() == {"available": False, "message": network.refusal()}
-    for method, path in (
-        ("get", "/api/dt/equipment"),
-        ("get", "/api/dt/model-settings"),
-        ("post", "/api/dt/process-data"),
-        ("post", "/api/dt/model"),
-        ("post", "/api/dt/project"),
-    ):
-        answer = getattr(client, method)(path, json={}, headers=HEADERS)
-        assert answer.status_code == 403, path
-        assert answer.get_json()["message"] == network.refusal()
-    # The user's own rotors: a 400 for the empty body, not the network refusal.
-    for path in ("/api/dt/user-model", "/api/dt/planes", "/api/dt/sensor"):
-        answer = client.post(path, json={}, headers=HEADERS)
-        assert answer.status_code == 400, path
-    assert client.post("/api/dt/session", headers=HEADERS).status_code == 200
-    assert client.get("/api/dt/network").status_code == 403
-
-
-def test_the_network_check_opens_a_connection_and_remembers(monkeypatch):
-    calls = []
-
-    def reachable(host, port, timeout=network.TIMEOUT):
-        calls.append((host, port))
-        return host == "inside.example"
-
-    monkeypatch.delenv("DT_NETWORK_CHECK", raising=False)
-    monkeypatch.setattr(network, "reachable", reachable)
-    monkeypatch.setenv("DT_NETWORK_PROBE", "outside.example:443, inside.example:80")
-    network.forget()
-    try:
-        assert network.on_corporate_network(now=0.0)
-        assert calls == [("outside.example", 443), ("inside.example", 80)]
-        assert network.on_corporate_network(now=10.0)
-        assert len(calls) == 2
-        monkeypatch.setenv("DT_NETWORK_PROBE", "outside.example:443")
-        assert not network.on_corporate_network(now=10.0 + network.CACHE_SECONDS)
-
-        monkeypatch.setenv("DT_NETWORK_CHECK", "off")
-        network.forget()
-        assert network.on_corporate_network(now=0.0)
-        assert len(calls) == 3
-    finally:
-        network.forget()
-
-
-def test_without_a_probe_host_the_check_fails_closed(monkeypatch):
-    # No internal address is built in, so an interface that was never told
-    # which host to test must answer "not on the network" and say what to set,
-    # rather than offer the models to everyone.
-    monkeypatch.delenv("DT_NETWORK_CHECK", raising=False)
-    monkeypatch.delenv("DT_NETWORK_PROBE", raising=False)
-    monkeypatch.setattr(
-        network, "reachable", lambda host, port, timeout=network.TIMEOUT: True
-    )
-    network.forget()
-    try:
-        assert network.probes() == []
-        assert not network.on_corporate_network(now=0.0)
-        assert network.refusal() == network.UNSET
-        monkeypatch.setenv("DT_NETWORK_PROBE", "inside.example:443")
-        assert network.refusal() == network.OUTSIDE
-    finally:
-        network.forget()
-
-
-def test_a_closed_port_is_not_reachable():
-    assert not network.reachable("127.0.0.1", 9, timeout=0.5)
 
 
 # The format the measuring system exports and `rossml` reads: a title line,
@@ -544,8 +465,7 @@ def test_a_hub_rotor_is_refused_when_it_cannot_be_built(hub_project):
         digital_twin.create_user_model(current.id, hub_project, " ", "clockwise")
 
 
-def test_the_user_model_route_answers_outside_the_network(hub_project, monkeypatch):
-    monkeypatch.setattr(network, "on_corporate_network", lambda: False)
+def test_the_user_model_route_builds_the_hub_rotor(hub_project):
     client = create_app().test_client()
     opened = client.post("/api/dt/session", headers=HEADERS).get_json()
     answer = client.post(
