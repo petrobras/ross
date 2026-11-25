@@ -4132,6 +4132,47 @@ def test_run_with_motor_checks_the_torque_nodes(name):
         )
 
 
+@pytest.mark.parametrize("drive_mode", ["XX", 1, None])
+def test_run_with_motor_invalid_drive_mode_raises(drive_mode):
+    rotor = rotor_example().add_motor(motor_example())
+    with pytest.raises(ValueError, match="drive_mode must be"):
+        rotor.run_with_motor(
+            t=np.arange(0, 0.1, 1e-3),
+            unbalance_node=[2],
+            unbalance_magnitude=[5e-4],
+            unbalance_phase=[0.0],
+            drive_mode=drive_mode,
+        )
+
+
+@pytest.mark.parametrize(
+    "drive_mode, ignored",
+    [
+        ("DOL", {"time_step": 1e-5}),
+        ("DOL", {"frequency_ref": Q_(60.0, "Hz")}),
+        ("VFD_VF", {"ac_source_harmonics": {"enable": False}}),
+        ("VFD_FOC", {"ac_source_unbalances": {"enable": False}}),
+    ],
+)
+def test_run_with_motor_warns_about_arguments_of_another_drive_mode(
+    drive_mode, ignored
+):
+    rotor = rotor_example().add_motor(motor_example())
+    arguments = dict(time_step=1e-5, time_ramp=0.01) if drive_mode != "DOL" else {}
+    arguments.update(ignored)
+
+    with pytest.warns(UserWarning, match=f"'{next(iter(ignored))}' is used only"):
+        rotor.run_with_motor(
+            t=np.arange(0, 0.02, 1e-3),
+            unbalance_node=[2],
+            unbalance_magnitude=[5e-4],
+            unbalance_phase=[0.0],
+            drive_mode=drive_mode,
+            steady_state=False,
+            **arguments,
+        )
+
+
 def test_run_with_motor_foc_is_tuned_with_the_inertia_of_the_rotor():
     # Reference: the motor alone under the same drive, with the polar inertia
     # of the load rotor as Ip_load, which tunes the speed controller.

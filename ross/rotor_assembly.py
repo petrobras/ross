@@ -5434,7 +5434,7 @@ class Rotor(object):
         verbose=False,
         **kwargs,
     ):
-        """Run time response with electric motor torque at the motor node.
+        """Run time response of a rotor driven by an electric motor.
 
         The motor is simulated independently and its electromagnetic torque
         (electric torque minus load torque) is applied to the torsional DOF
@@ -5449,8 +5449,8 @@ class Rotor(object):
 
         Parameters
         ----------
-        t : array
-            Time array.
+        t : array_like, pint.Quantity
+            Time array [s].
         unbalance_node : list, int
             Nodes where the unbalance is applied.
         unbalance_magnitude : list, float, pint.Quantity
@@ -5474,7 +5474,7 @@ class Rotor(object):
             rated torque at entrance time. Default is 1.0.
         ac_source_harmonics : dict, optional
             Configuration for grid harmonic injection.
-            Active only when `drive_mode='DOL'`.
+            Used only when `drive_mode='DOL'`; a warning is issued otherwise.
             Expected keys:
 
             - ``'enable'`` (bool): enable harmonics.
@@ -5485,7 +5485,7 @@ class Rotor(object):
               and 2%).
         ac_source_unbalances : dict, optional
             Configuration for three-phase grid unbalance.
-            Active only when `drive_mode='DOL'`.
+            Used only when `drive_mode='DOL'`; a warning is issued otherwise.
             Expected keys:
 
             - ``'enable'`` (bool): enable unbalances.
@@ -5498,17 +5498,19 @@ class Rotor(object):
               elements.
         time_step : float, pint.Quantity, optional
             Time step [s] for numerical integration of the motor model.
-            Active only when `drive_mode` is ``'VFD_VF'`` or ``'VFD_FOC'``.
+            Used only when `drive_mode` is ``'VFD_VF'`` or ``'VFD_FOC'``; a
+            warning is issued otherwise.
             Default is None, which uses the inverter switching period / 200.
         time_ramp : float, pint.Quantity, optional
             Acceleration ramp time [s] for frequency ramping.
-            Active only when `drive_mode` is ``'VFD_VF'`` or ``'VFD_FOC'``.
+            Used only when `drive_mode` is ``'VFD_VF'`` or ``'VFD_FOC'``.
             Default is 0.6667.
         frequency_ref : float, pint.Quantity, optional
             Electrical frequency reference [rad/s]. Used as the V/f reference
             when `drive_mode='VFD_VF'` and as the synchronous frequency
             reference when `drive_mode='VFD_FOC'`.
-            Active only when `drive_mode` is ``'VFD_VF'`` or ``'VFD_FOC'``.
+            Used only when `drive_mode` is ``'VFD_VF'`` or ``'VFD_FOC'``; a
+            warning is issued otherwise.
             Default is None, which uses half the motor rated frequency.
         steady_state : bool, optional
             If True (default), only the last third of the interval after
@@ -5596,6 +5598,26 @@ class Rotor(object):
             if node not in self.nodes:
                 raise ValueError(f"'{name}' ({node}) is not a node of the rotor.")
 
+        drive_modes = ("DOL", "VFD_VF", "VFD_FOC")
+        if not isinstance(drive_mode, str) or drive_mode.upper() not in drive_modes:
+            raise ValueError("drive_mode must be 'DOL', 'VFD_VF' or 'VFD_FOC'.")
+
+        if drive_mode.upper() == "DOL":
+            unused = {"time_step": time_step, "frequency_ref": frequency_ref}
+            mode_of_unused = "'VFD_VF' or 'VFD_FOC'"
+        else:
+            unused = {
+                "ac_source_harmonics": ac_source_harmonics,
+                "ac_source_unbalances": ac_source_unbalances,
+            }
+            mode_of_unused = "'DOL'"
+        for name, value in unused.items():
+            if value is not None:
+                warnings.warn(
+                    f"'{name}' is used only when drive_mode is {mode_of_unused}, "
+                    f"and was ignored for drive_mode='{drive_mode}'."
+                )
+
         Ip_load = self.Ip - motor.Ip
 
         if load_torque_entrance_time is None:
@@ -5662,7 +5684,6 @@ class Rotor(object):
             unbalance_node, unbalance_magnitude, unbalance_phase, speed, t
         ).T
 
-        # Add torque to the rotor
         F[:, self.global_dof_mapping[f"theta_{electric_torque_node}"]] += Te
         F[:, self.global_dof_mapping[f"theta_{load_torque_node}"]] -= Tl
 
