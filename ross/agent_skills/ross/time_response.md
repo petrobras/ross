@@ -79,15 +79,24 @@ fig = response.plot_2d(node=3, t_initial=rs.Q_(4000, "ms"), t_final=8.0)
 fig = response.plot_3d(t_initial=4.0, t_final=8.0)
 
 # One shaft revolution (2*pi rad at the speed given to run_time_response; a
-# varying speed is integrated). Without bounds: the last revolution.
-fig = response.plot_1d(probe=[probe1], one_revolution=True)
-fig = response.plot_2d(node=3, one_revolution=True)
+# varying speed is integrated). At 500 rad/s it lasts 12.6 ms, which the 10 ms
+# step above cannot resolve: use a finer time step.
+t_fine = np.arange(0, 1, 1e-4)
+F_fine = np.zeros((len(t_fine), rotor.ndof))
+F_fine[:, rotor.number_dof * node + 0] = 10 * np.cos(speed * t_fine)
+F_fine[:, rotor.number_dof * node + 1] = 10 * np.sin(speed * t_fine)
+response_fine = rotor.run_time_response(speed, F_fine, t_fine)
+
+# Without bounds: the last revolution
+fig = response_fine.plot_1d(probe=[probe1], one_revolution=True)
+fig = response_fine.plot_2d(node=3, one_revolution=True)
 
 # Anchor the revolution with one bound: it starts at t_initial or ends at t_final
-fig = response.plot_2d(node=3, one_revolution=True, t_initial=8.0)
-fig = response.plot_3d(one_revolution=True, t_final=9.0)
+fig = response_fine.plot_2d(node=3, one_revolution=True, t_initial=0.8)
+fig = response_fine.plot_3d(one_revolution=True, t_final=0.9)
 ```
 
+- A window must hold at least 10 time samples, or `ValueError` is raised with the largest time step that would work.
 - Passing both `t_initial` and `t_final` with `one_revolution=True` raises `ValueError`; use a regular window instead.
 - `plot_dfft` takes no window.
 

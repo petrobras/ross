@@ -1,4 +1,4 @@
-"""Dynamic coefficients, Jacobian and dynamic reduction.
+"""Dynamic coefficients and the equilibrium Jacobian.
 
 For a converged hydrodynamic (zeroth-order) pressure solution, this module
 computes:
@@ -9,10 +9,9 @@ computes:
   kdeltadelta`` plus the per-pad direct blocks.
 * :func:`damping` -- the corresponding velocity-perturbation damping
   coefficients ``cxx, cyx, cxy, cyy`` and their tilt-DOF / per-pad blocks.
-* :func:`dynamic_reduction` / :func:`dynamic_reduction_pivot` -- condensation
-  of the pad tilt (and, with a flexible pivot, the pivot translation) degrees
-  of freedom at a given excitation frequency, yielding the reduced 2x2 ``K``
-  and ``C`` matrices.
+
+The pad tilt (and pivot) degrees of freedom are condensed at the whirl
+frequency by :class:`~ross.bearings.fluid_film.padmatrices.PadMatrices`.
 
 Each coefficient comes from a perturbation solve of the Reynolds equation:
 :func:`stiffness_press` perturbs the journal position and pad tilt,
@@ -49,6 +48,7 @@ from ross.bearings.fluid_film._numba_kernels import (
     gamma_g_loop_jit,
     integrate_forces_jit,
     pert_press_assemble_all_jit,
+    pert_press_rhs_all_jit,
     press_bc_pert_jit,
     stiffness_source_all_jit,
     stiffness_source_terms_jit,
@@ -106,13 +106,13 @@ def press_bc_pert(
     pad_index,
     film_onset,
     pads,
-    nodal_pressure,
-    press_cavitate,
+    cavitated,
 ):
     """Build the prescribed-pressure boundary condition for a perturbation.
 
     Returns the list of constrained nodes and their prescribed (always zero)
-    pressures.
+    pressures: the film edges, the nodes before the film onset and the nodes
+    the zeroth-order solve held at the cavitation pressure.
 
     Parameters
     ----------
@@ -125,10 +125,9 @@ def press_bc_pert(
     pads : PadGeometry
         Per-pad geometry (``pad_length``, ``axial_length``,
         ``arc_length_rad``).
-    nodal_pressure : ndarray, shape (total_pads, dim_xz)
-        Zeroth-order nodal pressure (used to detect the cavitation region).
-    press_cavitate : float
-        Cavitation pressure, Pa.
+    cavitated : ndarray of bool, shape (total_pads, dim_xz)
+        Nodes held at the cavitation pressure by the zeroth-order solve
+        (returned by :func:`ross.bearings.fluid_film.pressure.press`).
 
     Returns
     -------
@@ -149,8 +148,7 @@ def press_bc_pert(
         float(pads.pad_length[p]),
         float(pads.axial_length[p]),
         float(pads.arc_length_rad[0]),
-        np.ascontiguousarray(nodal_pressure, dtype=np.float64),
-        float(press_cavitate),
+        np.ascontiguousarray(cavitated, dtype=np.bool_),
         int(mesh.total_nodes),
         np.ascontiguousarray(mesh.n_index, dtype=np.int64),
         np.ascontiguousarray(mesh.x, dtype=np.float64),
@@ -232,38 +230,68 @@ def _solve_pert_pressure(
     pads,
     vis_effect_3d,
     h_n,
-    press_cavitate,
-    nodal_pressure,
+    cavitated,
     element_source_all,
     helpers,
 ):
     """Solve one perturbed Reynolds problem and return nodal perturbed pressure.
 
-    Shared backbone of the damping (:func:`damping_press_dxdot` /
-    :func:`damping_press_dydot` / :func:`damping_press_dtiltdot`) and stiffness
-    (:func:`stiffness_press`) perturbation solves.  The
-    perturbation only changes the per-element source term ``Q`` (and, for the
-    short-bearing oil-seal case, whether the circumferential conduction term
-    is zeroed and whether ``Q``
-    drops its circumferential term).  ``element_source_all`` computes ``Q`` for
-    **all** elements at once — it is called exactly once per solve as
-    ``element_source_all(elem, ni_arr, nj_arr, nk_arr, nl_arr, gamma, g_e_arr,
-    theta_e_arr, oil_seal)`` with the pre-gathered element ids, local node ids,
-    per-pad ``gamma`` nodal array, per-element averages ``g_E`` / ``theta_E``
-    and the oil-seal flag, and must return the length-``total_e_reynolds``
-    source array (C-family: a vectorized numpy expression; K-family: the fused
-    ``stiffness_source_all_jit`` kernel).
+    A single right-hand side of :func:`_solve_pert_pressures`.
 
     Returns
     -------
     n_press_pert : ndarray, shape (dim_xz,)
         Perturbed nodal pressure (only Reynolds nodes are set).
     """
-    e_index_reynolds = mesh.e_index
-    node_i_reynolds = mesh.node_i
-    node_j_reynolds = mesh.node_j
-    node_k_reynolds = mesh.node_k
-    node_l_reynolds = mesh.node_l
+    return _solve_pert_pressures(
+        mesh,
+        pad_index,
+        film_onset,
+        pads,
+        vis_effect_3d,
+        h_n,
+        cavitated,
+        [element_source_all],
+        helpers,
+    )[0]
+
+
+def _solve_pert_pressures(
+    mesh,
+    pad_index,
+    film_onset,
+    pads,
+    vis_effect_3d,
+    h_n,
+    cavitated,
+    element_sources,
+    helpers,
+):
+    """Solve the perturbed Reynolds problems of one pad with one factorisation.
+
+    Shared backbone of the damping (:func:`damping_press_dxdot` /
+    :func:`damping_press_dydot` / :func:`damping_press_dtiltdot`) and stiffness
+    (:func:`stiffness_press`) perturbation solves. The perturbations of a pad
+    share the matrix (film thickness, cross-film ``Gamma``, the prescribed
+    nodes, and for the short-bearing oil-seal case the zeroed circumferential
+    conduction) and differ only in the per-element source term ``Q``. The
+    matrix is assembled and LU-factored once; each source gives one
+    right-hand side, solved with the same factors (the earlier versions
+    refactored the matrix per right-hand side, with the same result).
+
+    Each ``element_sources[k]`` computes ``Q`` for **all** elements at once
+    as ``element_source_all(elem, ni_arr, nj_arr, nk_arr, nl_arr, gamma,
+    g_e_arr, theta_e_arr, oil_seal)`` with the pre-gathered element ids,
+    local node ids, per-pad ``gamma`` nodal array, per-element averages
+    ``g_E`` / ``theta_E`` and the oil-seal flag, and returns the
+    length-``total_e_reynolds`` source array (C-family: a vectorized numpy
+    expression; K-family: the fused ``stiffness_source_all_jit`` kernel).
+
+    Returns
+    -------
+    list of ndarray, shape (dim_xz,)
+        Perturbed nodal pressure of each source (only Reynolds nodes set).
+    """
     p = pad_index
     total_column_reynolds = 2 * mesh.bandwidth - 1
     oil_seal = abs(pads.arc_length_rad[0] - 2.0 * PI) < 1.0e-6
@@ -273,8 +301,7 @@ def _solve_pert_pressure(
         pad_index,
         film_onset,
         pads,
-        nodal_pressure,
-        press_cavitate,
+        cavitated,
     )
 
     gamma, g = gamma_g_pert(
@@ -285,19 +312,15 @@ def _solve_pert_pressure(
         vis_effect_3d,
     )
 
-    global_matrix_p, global_column_p = helpers.zero_pressure_system(
-        mesh.dim_xz, mesh.total_nodes, total_column_reynolds
-    )
-
     # Gather the per-element topology once (vectorized) and compute every
-    # element's source value in a single ``element_source_all`` call — one
-    # fused JIT call (K-family) or one vectorized numpy expression (C-family)
-    # instead of one Python callback / JIT crossing per element.
-    e_index_reynolds = np.ascontiguousarray(e_index_reynolds, dtype=np.int64)
-    node_i_reynolds = np.ascontiguousarray(node_i_reynolds, dtype=np.int64)
-    node_j_reynolds = np.ascontiguousarray(node_j_reynolds, dtype=np.int64)
-    node_k_reynolds = np.ascontiguousarray(node_k_reynolds, dtype=np.int64)
-    node_l_reynolds = np.ascontiguousarray(node_l_reynolds, dtype=np.int64)
+    # element's source value in a single call per source.
+    e_index_reynolds = np.ascontiguousarray(mesh.e_index, dtype=np.int64)
+    node_i_reynolds = np.ascontiguousarray(mesh.node_i, dtype=np.int64)
+    node_j_reynolds = np.ascontiguousarray(mesh.node_j, dtype=np.int64)
+    node_k_reynolds = np.ascontiguousarray(mesh.node_k, dtype=np.int64)
+    node_l_reynolds = np.ascontiguousarray(mesh.node_l, dtype=np.int64)
+    e_length = np.ascontiguousarray(mesh.e_length, dtype=np.float64)
+    e_width = np.ascontiguousarray(mesh.e_width, dtype=np.float64)
     elem = e_index_reynolds[: int(mesh.total_elements)]
     ni_arr = node_i_reynolds[elem]
     nj_arr = node_j_reynolds[elem]
@@ -310,13 +333,29 @@ def _solve_pert_pressure(
         + mesh.x_rad[p, nk_arr]
         + mesh.x_rad[p, nl_arr]
     ) / 4.0
-    q_per_element = np.ascontiguousarray(
-        element_source_all(
-            elem, ni_arr, nj_arr, nk_arr, nl_arr, gamma, g_e_arr, theta_e_arr, oil_seal
-        ),
-        dtype=np.float64,
-    )
+    sources = [
+        np.ascontiguousarray(
+            source(
+                elem,
+                ni_arr,
+                nj_arr,
+                nk_arr,
+                nl_arr,
+                gamma,
+                g_e_arr,
+                theta_e_arr,
+                oil_seal,
+            ),
+            dtype=np.float64,
+        )
+        for source in element_sources
+    ]
 
+    # Matrix and the first right-hand side in one pass; the other
+    # right-hand sides by the column part of the same assembly.
+    global_matrix_p, first_column = helpers.zero_pressure_system(
+        mesh.dim_xz, mesh.total_nodes, total_column_reynolds
+    )
     pert_press_assemble_all_jit(
         p,
         int(mesh.total_elements),
@@ -327,37 +366,60 @@ def _solve_pert_pressure(
         node_l_reynolds,
         np.ascontiguousarray(gamma, dtype=np.float64),
         np.ascontiguousarray(h_n, dtype=np.float64),
-        np.ascontiguousarray(mesh.e_length, dtype=np.float64),
-        np.ascontiguousarray(mesh.e_width, dtype=np.float64),
-        q_per_element,
+        e_length,
+        e_width,
+        sources[0],
         bool(oil_seal),
         int(mesh.bandwidth),
         global_matrix_p,
-        global_column_p,
+        first_column,
     )
+    columns = [first_column]
+    for q_per_element in sources[1:]:
+        column = np.zeros(first_column.shape, dtype=np.float64)
+        pert_press_rhs_all_jit(
+            p,
+            int(mesh.total_elements),
+            e_index_reynolds,
+            node_i_reynolds,
+            node_j_reynolds,
+            node_k_reynolds,
+            node_l_reynolds,
+            e_length,
+            e_width,
+            q_per_element,
+            column,
+        )
+        columns.append(column)
 
-    global_matrix_p, global_column_p = helpers.include_press(
-        global_matrix_p,
-        global_column_p,
-        mesh.bandwidth,
-        total_bc,
-        press_bc_index,
-        prescribed_press,
-        mesh.total_nodes,
-    )
-
-    a, a_lower, index1, _d = banded.lu_factor(
-        global_matrix_p, mesh.total_nodes, mesh.bandwidth
-    )
-    global_column_p = banded.lu_solve(
-        a, mesh.total_nodes, mesh.bandwidth, a_lower, index1, global_column_p
-    )
-
-    n_press_pert = np.zeros(mesh.dim_xz, dtype=np.float64)
-    for i in range(mesh.total_nodes):
-        nid = int(mesh.n_index[i])
-        n_press_pert[nid] = global_column_p[nid]
-    return n_press_pert
+    # The prescribed nodes change the matrix the same way for every
+    # right-hand side; each column gets its own pass on a copy of the
+    # assembled matrix, so the column operations are those of a single solve.
+    assembled = global_matrix_p.copy() if len(columns) > 1 else global_matrix_p
+    idx = np.asarray(mesh.n_index, dtype=np.int64)[: int(mesh.total_nodes)]
+    results = []
+    factors = None
+    for k, column in enumerate(columns):
+        matrix = global_matrix_p if k == 0 else assembled.copy()
+        matrix, column = helpers.include_press(
+            matrix,
+            column,
+            mesh.bandwidth,
+            total_bc,
+            press_bc_index,
+            prescribed_press,
+            mesh.total_nodes,
+        )
+        if factors is None:
+            factors = banded.lu_factor(matrix, mesh.total_nodes, mesh.bandwidth)
+        a, a_lower, index1, _d = factors
+        column = banded.lu_solve(
+            a, mesh.total_nodes, mesh.bandwidth, a_lower, index1, column
+        )
+        n_press_pert = np.zeros(mesh.dim_xz, dtype=np.float64)
+        n_press_pert[idx] = column[idx]
+        results.append(n_press_pert)
+    return results
 
 
 def _integrate_forces(
@@ -408,6 +470,39 @@ def _integrate_forces(
 # ---------------------------------------------------------------------------
 # Damping: velocity-perturbation pressure solves
 # ---------------------------------------------------------------------------
+def _damping_sources(pads, pad_index, tilting=True):
+    """Element sources of the velocity perturbations of one pad.
+
+    Returns the ``element_source_all`` callables of the x-velocity
+    (``Q = -cos(leading_angle + theta_E)``), y-velocity
+    (``Q = -sin(leading_angle + theta_E)``) and, when ``tilting``, the
+    tilt-velocity (``Q = -(R + t) sin(theta_E - theta_pivot)``)
+    perturbations, in that order.
+    """
+    p = pad_index
+
+    def source_dx(
+        elem, ni_arr, nj_arr, nk_arr, nl_arr, gamma, g_e_arr, theta_e_arr, oil_seal
+    ):
+        return -np.cos(pads.leading_angle_rad[p] + theta_e_arr)
+
+    def source_dy(
+        elem, ni_arr, nj_arr, nk_arr, nl_arr, gamma, g_e_arr, theta_e_arr, oil_seal
+    ):
+        return -np.sin(pads.leading_angle_rad[p] + theta_e_arr)
+
+    def source_dtilt(
+        elem, ni_arr, nj_arr, nk_arr, nl_arr, gamma, g_e_arr, theta_e_arr, oil_seal
+    ):
+        return -(pads.journal_radius + pads.pad_thickness) * np.sin(
+            theta_e_arr - pads.x_pivot_rad[p]
+        )
+
+    if tilting:
+        return [source_dx, source_dy, source_dtilt]
+    return [source_dx, source_dy]
+
+
 def damping_press_dxdot(
     mesh,
     pad_index,
@@ -415,8 +510,7 @@ def damping_press_dxdot(
     pads,
     vis_effect_3d,
     h_n,
-    press_cavitate,
-    nodal_pressure,
+    cavitated,
     helpers,
 ):
     """Solve the x-velocity perturbed Reynolds equation (damping ``Cxx/Cyx``).
@@ -433,12 +527,7 @@ def damping_press_dxdot(
         Pivot-moment x damping contribution.
     """
     _require_helpers(helpers)
-    p = pad_index
-
-    def source_all(
-        elem, ni_arr, nj_arr, nk_arr, nl_arr, gamma, g_e_arr, theta_e_arr, oil_seal
-    ):
-        return -np.cos(pads.leading_angle_rad[p] + theta_e_arr)
+    source_all = _damping_sources(pads, pad_index)[0]
 
     n_press_pert = _solve_pert_pressure(
         mesh,
@@ -447,8 +536,7 @@ def damping_press_dxdot(
         pads,
         vis_effect_3d,
         h_n,
-        press_cavitate,
-        nodal_pressure,
+        cavitated,
         source_all,
         helpers,
     )
@@ -468,8 +556,7 @@ def damping_press_dydot(
     pads,
     vis_effect_3d,
     h_n,
-    press_cavitate,
-    nodal_pressure,
+    cavitated,
     helpers,
 ):
     """Solve the y-velocity perturbed Reynolds equation (damping ``Cxy/Cyy``).
@@ -482,12 +569,7 @@ def damping_press_dydot(
         Cross y->x, direct y, and pivot-moment y damping contributions.
     """
     _require_helpers(helpers)
-    p = pad_index
-
-    def source_all(
-        elem, ni_arr, nj_arr, nk_arr, nl_arr, gamma, g_e_arr, theta_e_arr, oil_seal
-    ):
-        return -np.sin(pads.leading_angle_rad[p] + theta_e_arr)
+    source_all = _damping_sources(pads, pad_index)[1]
 
     n_press_pert = _solve_pert_pressure(
         mesh,
@@ -496,8 +578,7 @@ def damping_press_dydot(
         pads,
         vis_effect_3d,
         h_n,
-        press_cavitate,
-        nodal_pressure,
+        cavitated,
         source_all,
         helpers,
     )
@@ -517,8 +598,7 @@ def damping_press_dtiltdot(
     pads,
     vis_effect_3d,
     h_n,
-    press_cavitate,
-    nodal_pressure,
+    cavitated,
     helpers,
 ):
     """Solve the pad-tilt velocity perturbed Reynolds equation (damping tilt DOF).
@@ -532,14 +612,7 @@ def damping_press_dtiltdot(
         Tilt-induced x, y forces and the tilt-tilt damping for this pad.
     """
     _require_helpers(helpers)
-    p = pad_index
-
-    def source_all(
-        elem, ni_arr, nj_arr, nk_arr, nl_arr, gamma, g_e_arr, theta_e_arr, oil_seal
-    ):
-        return -(pads.journal_radius + pads.pad_thickness) * np.sin(
-            theta_e_arr - pads.x_pivot_rad[p]
-        )
+    source_all = _damping_sources(pads, pad_index)[2]
 
     n_press_pert = _solve_pert_pressure(
         mesh,
@@ -548,8 +621,7 @@ def damping_press_dtiltdot(
         pads,
         vis_effect_3d,
         h_n,
-        press_cavitate,
-        nodal_pressure,
+        cavitated,
         source_all,
         helpers,
     )
@@ -570,7 +642,7 @@ def damping(
     pads,
     vis_effect_3d,
     h_n,
-    nodal_pressure,
+    cavitated,
     unloaded,
     helpers,
 ):
@@ -599,8 +671,9 @@ def damping(
         Viscosity-effect field of the 3-D mesh.
     h_n : ndarray, shape (total_pads, dim_xz)
         Nodal film thickness, m.
-    nodal_pressure : ndarray, shape (total_pads, dim_xz)
-        Zeroth-order nodal pressure, Pa.
+    cavitated : ndarray of bool, shape (total_pads, dim_xz)
+        Nodes held at the cavitation pressure by the zeroth-order solve; the
+        perturbation solves hold them fixed.
     unloaded : ndarray of bool, shape (total_pads,)
         Per-pad unloaded flag.
     helpers : object
@@ -633,40 +706,25 @@ def damping(
         "spray_bar_tilting_pad",
     )
     for pad_index in range(total_pads):
-        cxx_i, cyx_i, cdeltax_i = damping_press_dxdot(
+        # One factorisation per pad for its two or three velocity
+        # perturbations.
+        n_press = _solve_pert_pressures(
             mesh,
             pad_index,
             film_onset,
             pads,
             vis_effect_3d,
             h_n,
-            operating.press_cavitate,
-            nodal_pressure,
+            cavitated,
+            _damping_sources(pads, pad_index, tilting),
             helpers,
         )
-        cxy_i, cyy_i, cdeltay_i = damping_press_dydot(
-            mesh,
-            pad_index,
-            film_onset,
-            pads,
-            vis_effect_3d,
-            h_n,
-            operating.press_cavitate,
-            nodal_pressure,
-            helpers,
-        )
+        cxx_i, cyx_i, cdeltax_i = _integrate_forces(mesh, pad_index, n_press[0], pads)
+        cxy_i, cyy_i, cdeltay_i = _integrate_forces(mesh, pad_index, n_press[1], pads)
 
         if tilting:
-            cxdelta_i, cydelta_i, cdeltadelta_i = damping_press_dtiltdot(
-                mesh,
-                pad_index,
-                film_onset,
-                pads,
-                vis_effect_3d,
-                h_n,
-                operating.press_cavitate,
-                nodal_pressure,
-                helpers,
+            cxdelta_i, cydelta_i, cdeltadelta_i = _integrate_forces(
+                mesh, pad_index, n_press[2], pads
             )
         else:
             cdeltax_i = cdeltay_i = cxdelta_i = cydelta_i = cdeltadelta_i = 0.0
@@ -769,52 +827,21 @@ def _stiffness_source_terms(
     )
 
 
-def stiffness_press(
-    direction,
-    mesh,
-    pad_index,
-    pads,
-    operating,
-    vis_effect_3d,
-    film_onset,
-    h_n,
-    nodal_pressure,
-    dpdx_n,
-    dpdz_n,
-    helpers,
-):
-    """Shared body of the three stiffness perturbation solves.
+def _stiffness_source(direction, pad_index, pads, operating, h_n, dpdx_n, dpdz_n, mesh):
+    """Element source of one displacement perturbation of a pad.
 
     ``direction`` selects the angular function and scaling of the Jacobian
-    source terms:
-
-    ``"dx"``
-        cosine, offset by the pad leading angle.
-    ``"dy"``
-        sine, offset by the pad leading angle.
-    ``"dtilt"``
-        sine, offset by ``-x_pivot``, scaled by the pivot radius
-        ``journal_radius + pad_thickness``.
-
-    For the oil-seal short-bearing case ``k_x`` is zeroed and ``q`` drops its
-    first term.
-
-    Returns
-    -------
-    fx, fy, moment : float
-        Direct, cross and pivot-moment stiffness contributions.
+    source terms: ``"dx"`` (cosine, offset by the pad leading angle),
+    ``"dy"`` (sine, same offset) or ``"dtilt"`` (sine, offset by
+    ``-x_pivot``, scaled by the pivot radius ``journal_radius +
+    pad_thickness``). Returns the ``element_source_all`` callable of
+    :func:`_solve_pert_pressures`.
     """
-    dx_reynolds = mesh.dx
-    dz_reynolds = mesh.dz
-    x_reynolds_rad = mesh.x_rad
-    _require_helpers(helpers)
     p = pad_index
-
-    # ``stiffness_source_all_jit`` requires contiguous float64 inputs; convert
-    # once here (``gamma`` is built contiguous inside ``_solve_pert_pressure``).
-    dx_reynolds = np.ascontiguousarray(dx_reynolds, dtype=np.float64)
-    dz_reynolds = np.ascontiguousarray(dz_reynolds, dtype=np.float64)
-    x_reynolds_rad = np.ascontiguousarray(x_reynolds_rad, dtype=np.float64)
+    # ``stiffness_source_all_jit`` requires contiguous float64 inputs.
+    dx_reynolds = np.ascontiguousarray(mesh.dx, dtype=np.float64)
+    dz_reynolds = np.ascontiguousarray(mesh.dz, dtype=np.float64)
+    x_reynolds_rad = np.ascontiguousarray(mesh.x_rad, dtype=np.float64)
     h_n = np.ascontiguousarray(h_n, dtype=np.float64)
     dpdx_n = np.ascontiguousarray(dpdx_n, dtype=np.float64)
     dpdz_n = np.ascontiguousarray(dpdz_n, dtype=np.float64)
@@ -861,6 +888,48 @@ def stiffness_press(
             bool(oil_seal),
         )
 
+    return source_all
+
+
+def stiffness_press(
+    direction,
+    mesh,
+    pad_index,
+    pads,
+    operating,
+    vis_effect_3d,
+    film_onset,
+    h_n,
+    cavitated,
+    dpdx_n,
+    dpdz_n,
+    helpers,
+):
+    """One stiffness perturbation solve of a pad.
+
+    ``direction`` selects the perturbation (see :func:`_stiffness_source`):
+
+    ``"dx"``
+        cosine, offset by the pad leading angle.
+    ``"dy"``
+        sine, offset by the pad leading angle.
+    ``"dtilt"``
+        sine, offset by ``-x_pivot``, scaled by the pivot radius
+        ``journal_radius + pad_thickness``.
+
+    For the oil-seal short-bearing case ``k_x`` is zeroed and ``q`` drops its
+    first term. :func:`jacobian` solves the directions of a pad together
+    with one factorisation.
+
+    Returns
+    -------
+    fx, fy, moment : float
+        Direct, cross and pivot-moment stiffness contributions.
+    """
+    _require_helpers(helpers)
+    source_all = _stiffness_source(
+        direction, pad_index, pads, operating, h_n, dpdx_n, dpdz_n, mesh
+    )
     n_press_pert = _solve_pert_pressure(
         mesh,
         pad_index,
@@ -868,8 +937,7 @@ def stiffness_press(
         pads,
         vis_effect_3d,
         h_n,
-        operating.press_cavitate,
-        nodal_pressure,
+        cavitated,
         source_all,
         helpers,
     )
@@ -890,7 +958,7 @@ def jacobian(
     pads,
     vis_effect_3d,
     h_n,
-    nodal_pressure,
+    cavitated,
     dpdx_n,
     dpdz_n,
     unloaded,
@@ -919,8 +987,9 @@ def jacobian(
         Viscosity-effect field of the 3-D mesh.
     h_n : ndarray, shape (total_pads, dim_xz)
         Nodal film thickness, m.
-    nodal_pressure : ndarray, shape (total_pads, dim_xz)
-        Zeroth-order nodal pressure, Pa.
+    cavitated : ndarray of bool, shape (total_pads, dim_xz)
+        Nodes held at the cavitation pressure by the zeroth-order solve; the
+        perturbation solves hold them fixed.
     dpdx_n, dpdz_n : ndarray, shape (total_pads, dim_xz)
         Zeroth-order nodal pressure gradients.
     unloaded : ndarray of bool, shape (total_pads,)
@@ -954,50 +1023,32 @@ def jacobian(
         "inlet_groove_tilting_pad",
         "spray_bar_tilting_pad",
     )
+    directions = ("dx", "dy", "dtilt") if tilting else ("dx", "dy")
     for pad_index in range(total_pads):
-        kxx_i, kyx_i, kdeltax_i = stiffness_press(
-            "dx",
+        # One factorisation per pad for its two or three displacement
+        # perturbations.
+        n_press = _solve_pert_pressures(
             mesh,
             pad_index,
-            pads,
-            operating,
-            vis_effect_3d,
             film_onset,
+            pads,
+            vis_effect_3d,
             h_n,
-            nodal_pressure,
-            dpdx_n,
-            dpdz_n,
+            cavitated,
+            [
+                _stiffness_source(
+                    direction, pad_index, pads, operating, h_n, dpdx_n, dpdz_n, mesh
+                )
+                for direction in directions
+            ],
             helpers,
         )
-        kxy_i, kyy_i, kdeltay_i = stiffness_press(
-            "dy",
-            mesh,
-            pad_index,
-            pads,
-            operating,
-            vis_effect_3d,
-            film_onset,
-            h_n,
-            nodal_pressure,
-            dpdx_n,
-            dpdz_n,
-            helpers,
-        )
+        kxx_i, kyx_i, kdeltax_i = _integrate_forces(mesh, pad_index, n_press[0], pads)
+        kxy_i, kyy_i, kdeltay_i = _integrate_forces(mesh, pad_index, n_press[1], pads)
 
         if tilting:
-            kxdelta_i, kydelta_i, kdeltadelta_i = stiffness_press(
-                "dtilt",
-                mesh,
-                pad_index,
-                pads,
-                operating,
-                vis_effect_3d,
-                film_onset,
-                h_n,
-                nodal_pressure,
-                dpdx_n,
-                dpdz_n,
-                helpers,
+            kxdelta_i, kydelta_i, kdeltadelta_i = _integrate_forces(
+                mesh, pad_index, n_press[2], pads
             )
         else:
             kdeltax_i = kdeltay_i = kxdelta_i = kydelta_i = kdeltadelta_i = 0.0
@@ -1039,351 +1090,3 @@ def jacobian(
         kxyi,
         kyyi,
     )
-
-
-# ---------------------------------------------------------------------------
-# Dynamic reduction over the pad tilt degrees of freedom
-# ---------------------------------------------------------------------------
-def dynamic_reduction(
-    total_pads,
-    stiffness,
-    damping_block,
-    pads,
-    pad_density,
-    excit_rad,
-    ip,
-    k_rotate,
-):
-    """Condense the pad tilt DOFs (pivot stiffness *not* included).
-
-    Forms the complex dynamic stiffness ``D(s) = Kuu + s Cuu - A1 A3^{-1} A4``
-    at ``s = i * excit_rad`` where the tilt block ``A3`` is diagonal, and
-    returns the real/imag parts as reduced 2x2 ``K``/``C``.
-
-    Parameters
-    ----------
-    total_pads : int
-        Number of pads.
-    stiffness, damping_block : CoefficientBlock
-        Journal 2x2 block plus the tilt-DOF coupling/diagonal blocks, as
-        returned by :func:`jacobian` and :func:`damping`.
-    pads : PadGeometry
-        Pad geometry (``pad_length``, ``pad_thickness``, ``axial_length``).
-    pad_density : float
-        Pad material density, kg/m^3.
-    excit_rad : float
-        Excitation frequency, rad/s.
-    ip : ndarray, shape (total_pads,)
-        Pad polar moment of inertia buffer (recomputed, returned).
-    k_rotate : ndarray, shape (total_pads,)
-        Per-pad rotational stiffness added to the tilt diagonal.
-
-    Returns
-    -------
-    kxx_reduced, kxy_reduced, kyx_reduced, kyy_reduced : float
-    cxx_reduced, cxy_reduced, cyx_reduced, cyy_reduced : float
-    ip : ndarray, shape (total_pads,)
-        Updated pad polar moments of inertia.
-
-    Examples
-    --------
-    With no tilt coupling (all ``delta`` blocks zero) the reduced
-    coefficients equal the journal ones:
-
-    >>> import numpy as np
-    >>> from types import SimpleNamespace
-    >>> from ross.bearings.fluid_film.state import CoefficientBlock
-    >>> z = np.zeros(1)
-    >>> k = CoefficientBlock(xx=10.0, yx=1.0, xy=2.0, yy=20.0, deltax=z,
-    ...                      deltay=z, xdelta=z, ydelta=z, deltadelta=z)
-    >>> c = CoefficientBlock(xx=3.0, yx=0.5, xy=0.5, yy=6.0, deltax=z,
-    ...                      deltay=z, xdelta=z, ydelta=z, deltadelta=z)
-    >>> pads = SimpleNamespace(
-    ...     pad_length=np.array([1.0]), pad_thickness=0.1,
-    ...     axial_length=np.array([1.0]),
-    ... )
-    >>> out = dynamic_reduction(1, k, c, pads, 0.3, 377.0, np.array([1.0]), z)
-    >>> round(float(out[0]), 6), round(float(out[3]), 6)
-    (10.0, 20.0)
-    >>> round(float(out[4]), 6), round(float(out[7]), 6)
-    (3.0, 6.0)
-    """
-    ip = np.array(ip, dtype=np.float64, copy=True)
-    s = complex(0.0, excit_rad)
-    t = s * s
-
-    mass_pad = np.zeros(total_pads, dtype=np.float64)
-    for k in range(total_pads):
-        mass_pad[k] = (
-            pads.pad_length[k] * pads.pad_thickness * pads.axial_length[k] * pad_density
-        )
-        ip[k] = mass_pad[k] * (pads.pad_thickness**2 + pads.pad_length[k] ** 2) / 12.0
-
-    kuu = np.array(
-        [[stiffness.xx, stiffness.xy], [stiffness.yx, stiffness.yy]], dtype=complex
-    )
-    cuu = np.array(
-        [[damping_block.xx, damping_block.xy], [damping_block.yx, damping_block.yy]],
-        dtype=complex,
-    )
-
-    kudelta = np.zeros((2, total_pads), dtype=complex)
-    cudelta = np.zeros((2, total_pads), dtype=complex)
-    kdeltau = np.zeros((total_pads, 2), dtype=complex)
-    cdeltau = np.zeros((total_pads, 2), dtype=complex)
-    kdeldel = np.zeros((total_pads, total_pads), dtype=complex)
-    cdeldel = np.zeros((total_pads, total_pads), dtype=complex)
-    mass_ip = np.zeros((total_pads, total_pads), dtype=complex)
-
-    for k in range(total_pads):
-        kudelta[0, k] = stiffness.xdelta[k]
-        kudelta[1, k] = stiffness.ydelta[k]
-        cudelta[0, k] = damping_block.xdelta[k]
-        cudelta[1, k] = damping_block.ydelta[k]
-        kdeltau[k, 0] = stiffness.deltax[k]
-        kdeltau[k, 1] = stiffness.deltay[k]
-        cdeltau[k, 0] = damping_block.deltax[k]
-        cdeltau[k, 1] = damping_block.deltay[k]
-        kdeldel[k, k] = stiffness.deltadelta[k] + k_rotate[k]
-        cdeldel[k, k] = damping_block.deltadelta[k]
-        mass_ip[k, k] = ip[k]
-
-    a1 = s * cudelta + kudelta
-    a3 = t * mass_ip + s * cdeldel + kdeldel
-    # A3 is diagonal: invert element-wise.
-    a3_inverse = np.zeros((total_pads, total_pads), dtype=complex)
-    for k in range(total_pads):
-        a3_inverse[k, k] = 1.0 / a3[k, k]
-    a4 = s * cdeltau + kdeltau
-    a5 = a1 @ a3_inverse
-    a6 = a5 @ a4
-    a7 = s * cuu + kuu
-    ds = a7 - a6
-
-    kxx_reduced = ds[0, 0].real
-    kxy_reduced = ds[0, 1].real
-    kyx_reduced = ds[1, 0].real
-    kyy_reduced = ds[1, 1].real
-    cxx_reduced = ds[0, 0].imag / excit_rad
-    cxy_reduced = ds[0, 1].imag / excit_rad
-    cyx_reduced = ds[1, 0].imag / excit_rad
-    cyy_reduced = ds[1, 1].imag / excit_rad
-
-    return (
-        kxx_reduced,
-        kxy_reduced,
-        kyx_reduced,
-        kyy_reduced,
-        cxx_reduced,
-        cxy_reduced,
-        cyx_reduced,
-        cyy_reduced,
-        ip,
-    )
-
-
-def dynamic_reduction_pivot(
-    total_pads,
-    pads,
-    pad_density,
-    ip,
-    stiffness,
-    damping_block,
-    k_pivot,
-    excit_rad,
-    k_rotate,
-):
-    """Condense pad tilt *and* pivot-translation DOFs (pivot flexibility on).
-
-    Builds the ``2`` x ``2*total_pads`` coupling matrices and the
-    ``2*total_pads`` x ``2*total_pads`` tilt/pivot blocks (tilt DOFs first,
-    pivot-translation DOFs second), then performs the same complex condensation
-    using a dense (Gauss) inverse of ``A3``.
-
-    Parameters
-    ----------
-    total_pads : int
-        Number of pads.
-    pads : PadGeometry
-        Per-pad geometry (``leading_angle_rad``, ``x_pivot_rad``,
-        ``pad_length``, ``axial_length``, ``pad_thickness``).
-    pad_density : float
-        Pad material density, kg/m^3.
-    ip : ndarray, shape (total_pads,)
-        Pad polar moment of inertia (recomputed in place, returned).
-    stiffness, damping_block : CoefficientBlock
-        Journal 2x2 block, tilt-DOF coupling blocks and the per-pad direct
-        blocks (``xxi``..``yyi``) from :func:`jacobian` / :func:`damping`.
-    k_pivot : ndarray, shape (total_pads,)
-        Per-pad pivot translational stiffness, N/m.
-    excit_rad : float
-        Excitation frequency, rad/s.
-    k_rotate : ndarray, shape (total_pads,)
-        Per-pad rotational stiffness added to the tilt diagonal.
-
-    Returns
-    -------
-    kxx_reduced, kxy_reduced, kyx_reduced, kyy_reduced : float
-    cxx_reduced, cxy_reduced, cyx_reduced, cyy_reduced : float
-    ip : ndarray, shape (total_pads,)
-        Updated pad polar moments of inertia.
-    """
-    ip = np.array(ip, dtype=np.float64, copy=True)
-    n = 2 * total_pads
-
-    kuu = np.array(
-        [[stiffness.xx, stiffness.xy], [stiffness.yx, stiffness.yy]], dtype=complex
-    )
-    cuu = np.array(
-        [[damping_block.xx, damping_block.xy], [damping_block.yx, damping_block.yy]],
-        dtype=complex,
-    )
-
-    kutp = np.zeros((2, n), dtype=complex)
-    cutp = np.zeros((2, n), dtype=complex)
-    ktpu = np.zeros((n, 2), dtype=complex)
-    ctpu = np.zeros((n, 2), dtype=complex)
-    ktptp = np.zeros((n, n), dtype=complex)
-    ctptp = np.zeros((n, n), dtype=complex)
-    mass_matrix = np.zeros((n, n), dtype=complex)
-    mass_pad = np.zeros(total_pads, dtype=np.float64)
-
-    for k in range(total_pads):
-        mass_pad[k] = (
-            pads.pad_length[k] * pads.pad_thickness * pads.axial_length[k] * pad_density
-        )
-        ip[k] = mass_pad[k] * (pads.pad_thickness**2 + pads.pad_length[k] ** 2) / 12.0
-        theta_pi = pads.leading_angle_rad[k] + pads.x_pivot_rad[k]
-        c = np.cos(theta_pi)
-        sn = np.sin(theta_pi)
-
-        # Kutp / Cutp (2 x n): tilt columns then pivot columns.
-        kutp[0, k] = stiffness.xdelta[k]
-        kutp[1, k] = stiffness.ydelta[k]
-        kutp[0, total_pads + k] = -stiffness.xxi[k] * c - stiffness.xyi[k] * sn
-        kutp[1, total_pads + k] = -stiffness.yxi[k] * c - stiffness.yyi[k] * sn
-        cutp[0, k] = damping_block.xdelta[k]
-        cutp[1, k] = damping_block.ydelta[k]
-        cutp[0, total_pads + k] = -damping_block.xxi[k] * c - damping_block.xyi[k] * sn
-        cutp[1, total_pads + k] = -damping_block.yxi[k] * c - damping_block.yyi[k] * sn
-
-        # Ktpu / Ctpu (n x 2).
-        ktpu[k, 0] = stiffness.deltax[k]
-        ktpu[k, 1] = stiffness.deltay[k]
-        ktpu[total_pads + k, 0] = -stiffness.xxi[k] * c - stiffness.yxi[k] * sn
-        ktpu[total_pads + k, 1] = -stiffness.xyi[k] * c - stiffness.yyi[k] * sn
-        ctpu[k, 0] = damping_block.deltax[k]
-        ctpu[k, 1] = damping_block.deltay[k]
-        ctpu[total_pads + k, 0] = -damping_block.xxi[k] * c - damping_block.yxi[k] * sn
-        ctpu[total_pads + k, 1] = -damping_block.xyi[k] * c - damping_block.yyi[k] * sn
-
-        # Diagonal tilt/pivot blocks (same-pad entries only).
-        ktptp[k, k] = stiffness.deltadelta[k] + k_rotate[k]
-        ktptp[k, total_pads + k] = -stiffness.deltax[k] * c - stiffness.deltay[k] * sn
-        ktptp[total_pads + k, k] = -stiffness.xdelta[k] * c - stiffness.ydelta[k] * sn
-        ktptp[total_pads + k, total_pads + k] = (
-            c * (stiffness.xxi[k] * c + stiffness.xyi[k] * sn)
-            + sn * (stiffness.yxi[k] * c + stiffness.yyi[k] * sn)
-            + k_pivot[k]
-        )
-        ctptp[k, k] = damping_block.deltadelta[k]
-        ctptp[k, total_pads + k] = (
-            -damping_block.deltax[k] * c - damping_block.deltay[k] * sn
-        )
-        ctptp[total_pads + k, k] = (
-            -damping_block.xdelta[k] * c - damping_block.ydelta[k] * sn
-        )
-        ctptp[total_pads + k, total_pads + k] = c * (
-            damping_block.xxi[k] * c + damping_block.xyi[k] * sn
-        ) + sn * (damping_block.yxi[k] * c + damping_block.yyi[k] * sn)
-        mass_matrix[k, k] = ip[k]
-        mass_matrix[total_pads + k, total_pads + k] = mass_pad[k]
-
-    s = complex(0.0, excit_rad)
-    t = s * s
-
-    a1 = s * cutp + kutp
-    a3 = t * mass_matrix + s * ctptp + ktptp
-    a3_inverse = _inverse_complex(a3)
-    a4 = s * ctpu + ktpu
-    a5 = a1 @ a3_inverse
-    a6 = a5 @ a4
-    a7 = s * cuu + kuu
-    ds = a7 - a6
-
-    kxx_reduced = ds[0, 0].real
-    kxy_reduced = ds[0, 1].real
-    kyx_reduced = ds[1, 0].real
-    kyy_reduced = ds[1, 1].real
-    cxx_reduced = ds[0, 0].imag / excit_rad
-    cxy_reduced = ds[0, 1].imag / excit_rad
-    cyx_reduced = ds[1, 0].imag / excit_rad
-    cyy_reduced = ds[1, 1].imag / excit_rad
-
-    return (
-        kxx_reduced,
-        kxy_reduced,
-        kyx_reduced,
-        kyy_reduced,
-        cxx_reduced,
-        cxy_reduced,
-        cyx_reduced,
-        cyy_reduced,
-        ip,
-    )
-
-
-def _inverse_complex(a):
-    """Invert a complex matrix by naive Gauss elimination (no pivoting).
-
-    Deliberately not ``numpy.linalg.inv``: the no-pivot algorithm is
-    kept so that near-singular behaviour matches the pinned regression
-    fixtures.
-
-    Parameters
-    ----------
-    a : ndarray, shape (n, n)
-        Complex matrix to invert (not modified).
-
-    Returns
-    -------
-    ndarray, shape (n, n)
-        The inverse.
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> m = np.array([[2.0 + 0j, 1.0], [1.0, 3.0]])
-    >>> inv = _inverse_complex(m)
-    >>> bool(np.allclose(m @ inv, np.eye(2)))
-    True
-    """
-    n = a.shape[0]
-    lu = np.array(a, dtype=complex, copy=True)
-
-    # Gauss elimination (store multipliers in lower triangle).
-    for i in range(n - 1):
-        for j in range(i + 1, n):
-            xmult = lu[j, i] / lu[i, i]
-            for k in range(i + 1, n):
-                lu[j, k] = lu[j, k] - xmult * lu[i, k]
-            lu[j, i] = xmult
-
-    y = np.zeros((n, n), dtype=complex)
-    for col in range(n):
-        b = np.zeros(n, dtype=complex)
-        b[col] = 1.0
-        # Forward update of the RHS.
-        for i in range(n - 1):
-            for j in range(i + 1, n):
-                b[j] = b[j] - lu[j, i] * b[i]
-        # Back substitution.
-        x = np.zeros(n, dtype=complex)
-        x[n - 1] = b[n - 1] / lu[n - 1, n - 1]
-        for i in range(n - 2, -1, -1):
-            ssum = b[i]
-            for j in range(i + 1, n):
-                ssum = ssum - lu[i, j] * x[j]
-            x[i] = ssum / lu[i, i]
-        y[:, col] = x
-    return y

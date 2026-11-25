@@ -1,4 +1,4 @@
-__version__ = "3.2.0.dev0"
+__version__ = "3.3.0.dev0"
 import sys
 from plotly import io as _pio
 
@@ -34,6 +34,7 @@ from ross.seals.labyrinth_seal import *
 from ross.seals.holepattern_seal import *
 from ross.seals.hybrid_seal import *
 from ross.motors.motor_element import *
+from ross.motors.parameter_estimation import *
 from ross.motors.results import *
 
 _pio.templates.default = "ross"
