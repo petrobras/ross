@@ -586,12 +586,7 @@ def test_static_load_beyond_the_controller_raises():
 
 
 def test_static_load_is_projected_on_the_control_axes():
-    """At 45 deg, a vertical load splits equally; a diagonal one loads one axis.
-
-    The angle is passed as pi / 4: the default sensors_axis_rotation
-    (0.78539816) is rounded, so a vertical load splits with a relative
-    difference of about 7e-9 between the axes.
-    """
+    """At 45 deg, a vertical load splits equally; a diagonal one loads one axis."""
     params = {
         "kp": 3.0 * KP_THRESHOLD,
         "ki_pid": 100.0,
@@ -608,6 +603,29 @@ def test_static_load_is_projected_on_the_control_axes():
     assert_allclose(_pair_force(0.0, ic_v), np.sqrt(2.0), rtol=1e-12)
     assert_allclose(ic_w, 0.0, atol=1e-12)
     assert abs(diagonal.K(0)[0, 1]) > 1e-6 * abs(diagonal.K(0)[0, 0])
+
+
+@pytest.mark.parametrize("load_factor", [0.5, 2.0], ids=["both coils", "one coil"])
+def test_default_sensors_axis_rotation_splits_a_vertical_load_equally(load_factor):
+    """With the default angle, a vertical load gives the same ki and ks on both axes.
+
+    The default sensors_axis_rotation is pi / 4, so a load along y projects
+    equally on the control axes v and w. The former default, 0.78539816, made
+    the two projections differ by about 7e-9 (relative), and the axes came out
+    with different ks (and different ki once a single coil holds the load).
+    """
+    amb = _amb(
+        0,
+        kp=3.0 * KP_THRESHOLD,
+        ki_pid=100.0,
+        static_load=(0.0, -load_factor * F_SWITCH),
+    )
+    ki, ks = np.broadcast_to(amb.ki, 2), np.broadcast_to(amb.ks, 2)
+
+    # Round-off only: sin(pi / 4) and cos(pi / 4) differ in the last digit.
+    # The rounded default gave relative differences of 1e-9 to 7e-9.
+    assert_allclose(ks[0], ks[1], rtol=1e-12)
+    assert_allclose(ki[0], ki[1], rtol=1e-12)
 
 
 def test_static_load_survives_save_and_load(tmp_path):
