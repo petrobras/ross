@@ -79,9 +79,9 @@ rigidez: Stiffness {
 
   translacional: "Translational [N/m]" {
     tooltip: |
-      kt_x: translational stiffness in x
-      kt_y: translational stiffness in y
-      kt_z: translational stiffness in z (axial)
+      k_x: translational stiffness in x
+      k_y: translational stiffness in y
+      k_z: translational stiffness in z (axial)
       Resistance to relative displacement
     |
     style: {
@@ -168,7 +168,7 @@ matrizes: Element Matrices {
   K: K() {
     tooltip: |
       Stiffness matrix [8×8]
-      Combines kt_x/y/z and kr_x/y/z
+      Combines k_x/y/z and kr_x/y/z
       Couples the two coupling nodes
     |
     style: {

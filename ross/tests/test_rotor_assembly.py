@@ -35,6 +35,195 @@ def get_dofs(ndof):
     return dofs_4, dofs_6
 
 
+def test_rotational_bearing_global_assembly():
+    shaft = ShaftElement(0.5, 0.0, 0.05, material=steel)
+    bearing = BearingElement(
+        n=0,
+        kxx=1e6,
+        cxx=1e3,
+        kr_xx=[2e4, 3e4],
+        cr_xx=3e1,
+        Ixx=1e-3,
+        Iyy=2e-3,
+        Izz=3e-3,
+        speed=[0.0, 100.0],
+    )
+    rotor = Rotor([shaft], bearing_elements=[bearing])
+
+    assert_allclose(rotor.M(0)[3, 3] - rotor.M0[3, 3], 1e-3)
+    assert_allclose(rotor.K(0)[3, 3] - rotor.K0[3, 3], 2e4)
+    assert_allclose(rotor.K(0, 100)[3, 3] - rotor.K0[3, 3], 3e4)
+    assert_allclose(rotor.C(0)[3, 3] - rotor.C0[3, 3], 3e1)
+    assert_allclose(rotor.G()[3, 4] - rotor.G0[3, 4], 3e-3)
+    assert_allclose(rotor.G()[4, 3] - rotor.G0[4, 3], -3e-3)
+
+
+def test_rotational_linked_support_assembly():
+    shaft = ShaftElement(0.5, 0.0, 0.05, material=steel)
+    bearing = BearingElement(
+        n=0,
+        n_link=2,
+        kxx=1e6,
+        cxx=1e3,
+        kr_xx=2e4,
+        Ixx=1e-3,
+        Iyy=2e-3,
+        Izz=3e-3,
+    )
+    support = PointMass(2, m=1.0, Ixx=0.1, Iyy=0.2, Izz=0.3)
+    with pytest.warns(UserWarning, match="missing direct rotational stiffness"):
+        rotor = Rotor(
+            [shaft], bearing_elements=[bearing], point_mass_elements=[support]
+        )
+
+    assert rotor.ndof == 18
+    assert rotor.M(0).shape == (18, 18)
+    assert_allclose(rotor.G(), -rotor.G().T)
+
+
+def test_rotational_point_mass_warns_when_support_stiffness_is_missing():
+    shaft = ShaftElement(0.5, 0.0, 0.05, material=steel)
+    linked_bearing = BearingElement(n=0, n_link=2, kxx=1e6, cxx=0)
+    support_bearing = BearingElement(n=2, kxx=1e6, cxx=0)
+    support = PointMass(n=2, m=1.0, Ixx=0.1, Iyy=0.2, Izz=0.3)
+
+    with pytest.warns(
+        UserWarning,
+        match=r"node 2.*kr_xx, kr_yy, kr_zz",
+    ):
+        rotor = Rotor(
+            [shaft],
+            bearing_elements=[linked_bearing, support_bearing],
+            point_mass_elements=[support],
+        )
+
+    assert rotor.ndof == 18
+
+
+def test_rotational_point_mass_warns_for_each_missing_support_diagonal():
+    shaft = ShaftElement(0.5, 0.0, 0.05, material=steel)
+    linked_bearing = BearingElement(n=0, n_link=2, kxx=1e6, cxx=0)
+    support_bearing = BearingElement(
+        n=2,
+        kxx=1e6,
+        cxx=0,
+        kr_xx=1e4,
+        kr_xy=2e3,
+        kr_yx=2e3,
+    )
+    support = PointMass(n=2, m=1.0, Ixx=0.1, Iyy=0.2, Izz=0.3)
+
+    with pytest.warns(UserWarning, match=r"kr_yy, kr_zz"):
+        Rotor(
+            [shaft],
+            bearing_elements=[linked_bearing, support_bearing],
+            point_mass_elements=[support],
+        )
+
+
+def test_rotational_point_mass_does_not_warn_when_support_diagonals_are_present():
+    shaft = ShaftElement(0.5, 0.0, 0.05, material=steel)
+    linked_bearing = BearingElement(n=0, n_link=2, kxx=1e6, cxx=0)
+    support_bearing = BearingElement(
+        n=2,
+        kxx=1e6,
+        cxx=0,
+        kr_xx=1e4,
+        kr_yy=2e4,
+        kr_zz=3e4,
+    )
+    support = PointMass(n=2, m=1.0, Ixx=0.1, Iyy=0.2, Izz=0.3)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        rotor = Rotor(
+            [shaft],
+            bearing_elements=[linked_bearing, support_bearing],
+            point_mass_elements=[support],
+        )
+
+    assert rotor.ndof == 18
+
+
+def test_rotational_point_mass_aggregates_stiffness_across_support_bearings():
+    shaft = ShaftElement(0.5, 0.0, 0.05, material=steel)
+    linked_bearing = BearingElement(n=0, n_link=2, kxx=1e6, cxx=0)
+    support_bearings = [
+        BearingElement(n=2, kxx=1e6, cxx=0, kr_xx=1e4),
+        BearingElement(n=2, kxx=1e6, cxx=0, kr_yy=2e4),
+        BearingElement(n=2, kxx=1e6, cxx=0, kr_zz=3e4),
+    ]
+    support = PointMass(n=2, m=1.0, Ixx=0.1, Iyy=0.2, Izz=0.3)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        rotor = Rotor(
+            [shaft],
+            bearing_elements=[linked_bearing, *support_bearings],
+            point_mass_elements=[support],
+        )
+
+    assert rotor.ndof == 18
+
+
+def test_three_dof_point_mass_with_support_rotational_stiffness_has_actionable_error():
+    shaft = ShaftElement(0.5, 0.0, 0.05, material=steel)
+    linked_bearing = BearingElement(n=0, n_link=2, kxx=1e6, cxx=0)
+    support_bearing = BearingElement(n=2, kxx=1e6, cxx=0, kr_yy=2e4)
+    support = PointMass(n=2, m=1.0)
+
+    with pytest.raises(
+        ValueError, match=r"PointMass at support node 2.*Ixx, Iyy, and Izz"
+    ):
+        Rotor(
+            [shaft],
+            bearing_elements=[linked_bearing, support_bearing],
+            point_mass_elements=[support],
+        )
+
+
+def test_three_dof_linked_point_mass_without_rotational_stiffness_runs_modal():
+    shaft = ShaftElement(0.5, 0.0, 0.05, material=steel)
+    bearings = [
+        BearingElement(n=0, n_link=2, kxx=1e6, cxx=0),
+        BearingElement(n=1, kxx=1e6, cxx=0),
+        BearingElement(n=2, kxx=1e7, cxx=0),
+    ]
+    support = PointMass(n=2, m=1.0)
+
+    rotor = Rotor([shaft], bearing_elements=bearings, point_mass_elements=[support])
+
+    assert rotor.ndof == 15
+    assert rotor.run_modal(speed=0, sparse=False).wn.size > 0
+
+
+def test_point_mass_at_shaft_node_uses_existing_dofs_only():
+    shaft = ShaftElement(0.5, 0.0, 0.05, material=steel)
+    point_mass = PointMass(n=0, mx=2.0, my=3.0, mz=4.0)
+
+    rotor = Rotor([shaft], point_mass_elements=[point_mass])
+
+    assert rotor.ndof == 12
+    assert rotor.M().shape == (12, 12)
+    expected_mass = np.zeros((12, 12))
+    expected_mass[:3, :3] = point_mass.M()
+    assert_allclose(rotor.M0 - shaft.M(), expected_mass)
+
+
+def test_rotational_point_mass_at_shaft_link_node_does_not_warn():
+    shaft = ShaftElement(0.5, 0.0, 0.05, material=steel)
+    linked_bearing = BearingElement(n=1, n_link=0, kxx=1e6, cxx=0)
+    point_mass = PointMass(n=0, m=1.0, Ixx=0.1, Iyy=0.2, Izz=0.3)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        rotor = Rotor(
+            [shaft], bearing_elements=[linked_bearing], point_mass_elements=[point_mass]
+        )
+
+    assert rotor.ndof == 12
+
+
 @pytest.fixture
 def rotor1():
     #  Rotor without damping with 2 shaft elements - no disks and no bearings
@@ -3455,8 +3644,10 @@ def test_reduced_dof_matrices_accept_speed(rotor_2d_seal):
     assert_allclose(
         rotor_4dof.M(50.0, 300.0), rotor_4dof.M(frequency=50.0, speed=300.0)
     )
+    assert rotor_4dof.A(speed=100.0).shape == (2 * rotor_4dof.ndof, 2 * rotor_4dof.ndof)
     rotor_t = convert_6dof_to_torsional(rotor_2d_seal)
     assert rotor_t.C(50.0, 300.0).shape == (rotor_t.ndof, rotor_t.ndof)
+    assert rotor_t.A(speed=100.0).shape == (2 * rotor_t.ndof, 2 * rotor_t.ndof)
 
 
 def test_run_modal_fixed_frequency_matches_synchronous(rotor_2d_seal):
@@ -3620,7 +3811,7 @@ def test_refine_tapered_and_housing(rotor_tapered_housing):
 
 
 def test_refine_keeps_couplings():
-    coupling = CouplingElement(m_l=10, m_r=10, Ip_l=0.1, Ip_r=0.1, kt_x=1e6, kr_x=1e6)
+    coupling = CouplingElement(m_l=10, m_r=10, Ip_l=0.1, Ip_r=0.1, k_x=1e6, kr_x=1e6)
     shaft_elements = [
         ShaftElement(L=0.25, idl=0, odl=0.05, material=steel),
         coupling,
