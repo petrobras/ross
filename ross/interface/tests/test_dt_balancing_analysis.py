@@ -513,6 +513,15 @@ def test_without_rossml_the_analysis_is_refused(measured, monkeypatch):
         balancing_analysis.run_balancing(measured.id)
 
 
+@pytest.mark.parametrize("installed", [True, False])
+def test_the_screen_is_told_whether_the_balancing_can_run(monkeypatch, installed):
+    monkeypatch.setattr(rossml_balancing, "available", lambda: installed)
+    client = create_app().test_client()
+    assert client.get("/api/dt/features").status_code == 403
+    answer = client.get("/api/dt/features", headers=HEADERS)
+    assert answer.get_json() == {"balancing": installed}
+
+
 def test_the_settings_are_whole_numbers_in_range(measured, fake_rossml):
     for iterations in (-1, 21, "two", 1.5, True):
         with pytest.raises(ValueError):

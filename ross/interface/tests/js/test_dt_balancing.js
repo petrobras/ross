@@ -8,7 +8,7 @@
 // Python test: the routes answered the right nodes both times. So the claims
 // here are about the screen -- the options the `<select>` ends up with, and
 // where the sensor cards are put.
-import { check, clearDom, node, shutDown } from './fake_dom.js';
+import { check, clearDom, node, registerSelector, shutDown } from './fake_dom.js';
 import { registerExtensionImports } from './extension_imports.mjs';
 
 registerExtensionImports();
@@ -40,6 +40,8 @@ const PARAMETER_VALUES = { number_points: null, w_f0: null, direct_P: null, indi
 const startingParameters = () => ({ values: { ...PARAMETER_VALUES }, fields: PARAMETER_FIELDS });
 let parameters = startingParameters();
 const asked = [];
+// Whether the server has rossml, as `/api/dt/features` answers.
+let withRossml = true;
 
 globalThis.fetch = async (path, options = {}) => {
     const route = String(path);
@@ -49,6 +51,7 @@ globalThis.fetch = async (path, options = {}) => {
         ok: true,
         status: 200,
         json: async () => {
+            if (route.includes('/api/dt/features')) return { balancing: withRossml };
             if (route.includes('/api/dt/session')) return { id: 'a'.repeat(16), name: 'S' };
             if (route.includes('/api/dt/planes')) {
                 planes = { measuring: body.measuring, balancing: body.balancing };
@@ -167,9 +170,25 @@ const settle = () => new Promise(done => setTimeout(done, 20));
 const options = id => (document.getElementById(id).innerHTML.match(/value="(\d+)"/g) || [])
     .map(found => found.slice(7, -1));
 
+// The step buttons and the panel titles, as screens.html has them. The fake
+// DOM answers selectors only as declared here.
+const STEPS = [
+    ['equipment', 'dtStepEquipment'], ['process', 'dtStepProcess'],
+    ['model', 'dtStepModel'], ['balancing', 'dtStepBalancing'],
+];
+const stepTitle = tab => node(`sel:[data-panel-group="dt"][data-panel="${tab}"] .panel-title`);
+const stepButton = tab => node(`dt-tab-${tab}`);
+
 function prepare() {
     clearDom();
     node('screen-dt');
+    registerSelector('.tab-btn[data-tab-group="dt"]', STEPS.map(([tab, key]) => {
+        const button = stepButton(tab);
+        button.dataset.tab = tab;
+        button.dataset.i18n = key;
+        stepTitle(tab).dataset.i18n = key;
+        return button;
+    }));
     planes = { measuring: [], balancing: [] };
     ran = null;
     applied = new Set();
@@ -412,5 +431,29 @@ switchScreen('screen-dt');
 await settle();
 check('reopening the screen lists the rotors added meanwhile',
       options('dt-equipment').join(',') === '0,1');
+
+// --- The steps are numbered as shown, and the balancing needs rossml ---------
+// Without the pre-established models the process data step is hidden, so the
+// model is step 2 and the balancing step 3, not 3 and 4.
+
+check('the steps shown are numbered without the hidden process data',
+      stepButton('equipment').textContent === `1. ${t('dtStepEquipment')}`
+      && stepButton('model').textContent === `2. ${t('dtStepModel')}`
+      && stepButton('balancing').textContent === `3. ${t('dtStepBalancing')}`);
+check('each panel title takes the number of its step',
+      stepTitle('model').textContent === `2. ${t('dtStepModel')}`
+      && stepTitle('balancing').textContent === `3. ${t('dtStepBalancing')}`);
+check('with rossml the balancing step is shown',
+      stepButton('balancing').style.display === '');
+
+withRossml = false;
+prepare();
+await settle();
+check('without rossml the balancing step is not shown',
+      stepButton('balancing').style.display === 'none');
+check('and the steps left are numbered 1 and 2',
+      stepButton('equipment').textContent === `1. ${t('dtStepEquipment')}`
+      && stepButton('model').textContent === `2. ${t('dtStepModel')}`);
+withRossml = true;
 
 shutDown();

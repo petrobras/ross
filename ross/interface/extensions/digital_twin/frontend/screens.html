@@ -20,15 +20,15 @@
 
         <div class="modeling-layout">
             <div class="sidebar" id="dt-sidebar">
-                <button class="tab-btn active" data-action="dt-panel" data-tab-group="dt" data-tab="equipment" data-i18n="dtStepEquipment">1. Equipamento</button>
-                <button class="tab-btn" id="dt-tab-process" data-action="dt-panel" data-tab-group="dt" data-tab="process" data-i18n="dtStepProcess">2. Dados de Processo</button>
-                <button class="tab-btn" data-action="dt-panel" data-tab-group="dt" data-tab="model" data-i18n="dtStepModel">3. Modelo</button>
-                <button class="tab-btn" data-action="dt-panel" data-tab-group="dt" data-tab="balancing" data-i18n="dtStepBalancing">4. Balanceamento</button>
+                <button class="tab-btn active" data-action="dt-panel" data-tab-group="dt" data-tab="equipment" data-i18n="dtStepEquipment">Equipamento</button>
+                <button class="tab-btn" id="dt-tab-process" data-action="dt-panel" data-tab-group="dt" data-tab="process" data-i18n="dtStepProcess">Dados de Processo</button>
+                <button class="tab-btn" data-action="dt-panel" data-tab-group="dt" data-tab="model" data-i18n="dtStepModel">Modelo</button>
+                <button class="tab-btn" id="dt-tab-balancing" data-action="dt-panel" data-tab-group="dt" data-tab="balancing" data-i18n="dtStepBalancing">Balanceamento</button>
             </div>
 
             <div class="dynamic-panel">
                 <div data-panel-group="dt" data-panel="equipment">
-                    <h3 class="panel-title" data-i18n="dtStepEquipment">1. Equipamento</h3>
+                    <h3 class="panel-title" data-i18n="dtStepEquipment">Equipamento</h3>
                     <div class="form-box">
                         <div class="input-group" id="dt-platform-group"><label data-i18n="dtPlatform">Plataforma</label><select id="dt-platform"></select></div>
                         <div class="input-group"><label id="dt-equipment-label" data-i18n="dtEquipment">Equipamento</label><select id="dt-equipment"></select></div>
@@ -44,7 +44,7 @@
                 </div>
 
                 <div data-panel-group="dt" data-panel="process" style="display: none;">
-                    <h3 class="panel-title" data-i18n="dtStepProcess">2. Dados de Processo</h3>
+                    <h3 class="panel-title" data-i18n="dtStepProcess">Dados de Processo</h3>
                     <div class="form-box">
                         <div style="display: flex; gap: 10px;">
                             <div class="input-group"><label data-i18n="dtDate">Data</label><input id="dt-date" type="date"></div>
@@ -63,7 +63,7 @@
                 </div>
 
                 <div data-panel-group="dt" data-panel="model" style="display: none;">
-                    <h3 class="panel-title" data-i18n="dtStepModel">3. Modelo</h3>
+                    <h3 class="panel-title" data-i18n="dtStepModel">Modelo</h3>
                     <div class="form-box">
                         <p class="panel-hint" data-i18n="dtModelHint">O modelo é construído a partir dos dados de processo da etapa 2.</p>
                         <div id="dt-settings"></div>
@@ -73,7 +73,7 @@
                 </div>
 
                 <div data-panel-group="dt" data-panel="balancing" style="display: none;">
-                    <h3 class="panel-title" data-i18n="dtStepBalancing">4. Balanceamento</h3>
+                    <h3 class="panel-title" data-i18n="dtStepBalancing">Balanceamento</h3>
                     <p class="panel-hint" id="dt-planes-need-model" data-i18n="dtPlanesNeedModel">Crie o modelo (etapa 3) para escolher os planos.</p>
                     <div id="dt-planes-form" style="display: none;">
                         <div class="form-box">

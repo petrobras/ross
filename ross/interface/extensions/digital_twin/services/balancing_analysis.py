@@ -280,7 +280,7 @@ def _refusal(current):
     if not rossml_balancing.available():
         return rossml_balancing.MISSING
     if current.rotor is None:
-        return "Create the model (step 3) before the analysis."
+        return "Create the model before the analysis."
     step = measurement.describe(current)
     if not step["complete"]:
         return (

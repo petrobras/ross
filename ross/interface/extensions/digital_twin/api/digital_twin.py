@@ -3,7 +3,11 @@
 
 from flask import Blueprint, jsonify, request
 
-from ross.interface.extensions.digital_twin.domain import equipment, session
+from ross.interface.extensions.digital_twin.domain import (
+    equipment,
+    rossml_balancing,
+    session,
+)
 from ross.interface.extensions.digital_twin.services.digital_twin import (
     create_model,
     create_user_model,
@@ -30,6 +34,12 @@ def _body():
     if not isinstance(payload, dict):
         raise ValueError("Send the request as JSON.")
     return payload
+
+
+@digital_twin.route("/api/dt/features")
+def features():
+    """Tell which steps can run here: the balancing needs rossml installed."""
+    return jsonify({"balancing": rossml_balancing.available()})
 
 
 @digital_twin.route("/api/dt/equipment")

@@ -16,7 +16,7 @@ import { setStatus } from '../components/status.js';
 import { apiJson } from '../core/api.js';
 import { useModel } from './dt_analyses.js';
 import { useMeasurement } from './measurement.js';
-import { openPanel } from './panels.js';
+import { numberSteps, openPanel } from './panels.js';
 
 const state = {
     platforms: [],
@@ -27,6 +27,7 @@ const state = {
     settings: [],
     hasModel: false,
     build: 0,
+    balancing: true,
 };
 
 const USE_PRE_ESTABLISHED = false;
@@ -42,11 +43,28 @@ export function startDigitalTwin() {
     document.getElementById('dt-create').addEventListener('click', createModel);
     document.getElementById('dt-to-hub').addEventListener('click', openInHub);
     onLanguageChanged(redrawTexts);
+    onLanguageChanged(() => numberSteps('dt'));
     if (USE_PRE_ESTABLISHED) {
         loadEquipment();
     } else {
         startUserRotors();
     }
+    numberSteps('dt');
+    checkFeatures();
+}
+
+// The balancing step needs rossml. Without it the tab is not shown, rather
+// than shown with a button that can never be pressed.
+async function checkFeatures() {
+    let body;
+    try {
+        body = await apiJson('/api/dt/features');
+    } catch (error) {
+        return;
+    }
+    state.balancing = body.balancing;
+    document.getElementById('dt-tab-balancing').style.display = body.balancing ? '' : 'none';
+    numberSteps('dt');
 }
 
 function startUserRotors() {
@@ -140,7 +158,7 @@ async function createUserModel(openBalancing = true) {
         if (build !== state.build) return;
         showModel(body);
         setStatus('dt-status', `${t('dtCreated')} ${body.session.model}.toml`, 'ok');
-        if (openBalancing) openPanel('dt', 'balancing');
+        if (openBalancing && state.balancing) openPanel('dt', 'balancing');
     } catch (error) {
         if (build !== state.build) return;
         setStatus('dt-status', '');

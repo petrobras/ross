@@ -62,6 +62,7 @@ def test_every_route_of_the_extension_is_registered():
         assert blueprint.name.startswith("dt_")
     assert {
         "/api/dt/equipment",
+        "/api/dt/features",
         "/api/dt/session",
         "/api/dt/process-data",
         "/api/dt/model",

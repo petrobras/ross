@@ -194,7 +194,7 @@ def waveform_path(current, node, plane):
 def _with_rotor(identifier):
     current = session.get(identifier)
     if current.rotor is None:
-        raise ValueError("Create the model (step 3) before choosing the planes.")
+        raise ValueError("Create the model before choosing the planes.")
     return current
 
 

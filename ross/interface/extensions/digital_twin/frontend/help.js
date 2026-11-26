@@ -7,69 +7,69 @@ const HELP = {
         pt: {
             title: 'Digital Twin',
             body: `
-                <h4>1. Equipamento</h4>
+                <h4>Equipamento</h4>
                 <ul>
                     <li>Escolha a <b>plataforma</b> e o <b>equipamento</b>. Um equipamento marcado como indisponível usa um modelo que importa um pacote não instalado (por exemplo, <code>rossxl</code> ou <code>rossml</code>); a nota abaixo da lista diz qual.</li>
                     <li>O <b>sentido de rotação</b> é visto do acionador para o acionado.</li>
                 </ul>
-                <h4>2. Dados de Processo</h4>
+                <h4>Dados de Processo</h4>
                 <ul>
                     <li>Escolha a data, a hora inicial e a <b>origem dos dados</b>, e clique em <b>Carregar dados</b>. A tabela aparece no painel à direita.</li>
                     <li><b>PI Data</b> lê a janela de 15 minutos no servidor PI; precisa do pacote <code>pandaspi</code> e das variáveis de ambiente <code>USER_SWAGGER</code> e <code>SWAGGER_PASSWORD</code>. <b>Dados de amostra</b> lê o arquivo .parquet que acompanha o modelo.</li>
                     <li>Células marcadas como <b>vazio</b> são valores nulos e podem comprometer o modelo.</li>
                 </ul>
-                <h4>3. Modelo</h4>
+                <h4>Modelo</h4>
                 <ul>
                     <li>As <b>configurações adicionais</b> (folga radial dos mancais, temperatura do óleo, ...) vêm preenchidas com os valores do modelo.</li>
                     <li><b>Criar modelo</b> monta o rotor a partir dos dados de processo e salva o arquivo <b>.toml</b> na sessão.</li>
                     <li><b>Abrir no Rotor Hub</b> adiciona o rotor à biblioteca da interface, onde ele pode ser editado e analisado como qualquer outro.</li>
                     <li>A primeira criação demora alguns segundos enquanto o ROSS é importado.</li>
                 </ul>
-                <h4>4. Balanceamento</h4>
+                <h4>Balanceamento</h4>
                 <ul>
                     <li>Os <b>planos de medição</b> são os nós onde há sensores. Cada um recebe dois sensores, X e Y, e o sensor Y fica 90° depois do X, então só o ângulo do X é informado. São necessários pelo menos dois planos.</li>
                     <li>Um <b>plano de balanceamento</b> é um nó e o <b>raio</b>, em milímetros, onde a massa de correção será colocada: a estimativa é massa × raio, e o raio a transforma em massa.</li>
                     <li>No cartão <b>Sensores</b>, envie o sinal de cada sensor em <b>.csv</b> e clique em <b>Aplicar</b>. O arquivo deve ser o exportado pelo sistema de medição, com o cabeçalho que traz a velocidade e as unidades: é de lá que a análise lê a rotação dos sinais.</li>
                     <li><b>Executar análise</b> estima o desbalanceamento com o filtro de Kalman do <code>rossml</code> e mostra, por plano, a massa de correção e a fase. A fase da correção é a do desbalanceamento mais 180°.</li>
-                    <li>Os <b>parâmetros da análise</b> são escolhidos numa lista: os padrões do <code>rossml</code> ou os parâmetros de uma máquina do app do Digital Twin, quando ele está neste computador. Um modelo pré-estabelecido começa pelos da sua máquina. Em <b>Ajustar valores</b>, cada valor (sinal, filtro de Kalman, limites da força resultante, fatores do filtro e seus limites de busca) pode ser mudado; um campo vazio usa o padrão do <code>rossml</code>.</li>
+                    <li>Em <b>Parâmetros da análise</b>, cada valor que o <code>rossml</code> usa (pontos do sinal, <code>w_f0</code>, fatores do filtro e seus limites de busca) pode ser mudado; um campo vazio usa o padrão do <code>rossml</code>, mostrado nele.</li>
                     <li><b>Iterações extras</b> e <b>população</b> controlam o otimizador; as iterações padrão são 24 × (1 + extras). A <b>otimização de planos</b> escolhe o subconjunto de planos que melhor explica os sinais e triplica o tempo.</li>
                     <li>O cartão <b>Resultado do balanceamento</b> traz a tabela por plano e o <b>gráfico polar</b>: azul é o desbalanceamento estimado, verde é a correção. O gráfico é orientado pelo ângulo de um sensor, então escolha o <b>sensor de referência</b>. A fase da tabela acompanha o sensor escolhido; a massa não depende dele.</li>
                     <li>Em <b>Gráfico</b> escolha o que ver da mesma execução: a <b>correção decomposta</b> em duas posições (ângulo e raio de cada uma, depois <b>Decompor</b>), as <b>forças estimadas</b> em cada plano de balanceamento (tempo e órbita) e o <b>sensoriamento virtual</b>, os deslocamentos que o filtro reconstrói nos planos de balanceamento e de medição (tempo e órbita) e ao longo do rotor (3D).</li>
-                    <li>A análise precisa do pacote <code>rossml</code> instalado. Sem ele, o botão fica desabilitado e o painel diz o que falta.</li>
+                    <li>A análise precisa do pacote <code>rossml</code> instalado. Sem ele, a aba de balanceamento não aparece.</li>
                 </ul>`,
         },
         en: {
             title: 'Digital Twin',
             body: `
-                <h4>1. Equipment</h4>
+                <h4>Equipment</h4>
                 <ul>
                     <li>Choose the <b>platform</b> and the <b>equipment</b>. Equipment marked unavailable uses a model that imports a package that is not installed (for example <code>rossxl</code> or <code>rossml</code>); the note below the list says which.</li>
                     <li>The <b>rotation direction</b> is seen from the driver towards the driven machine.</li>
                 </ul>
-                <h4>2. Process Data</h4>
+                <h4>Process Data</h4>
                 <ul>
                     <li>Choose the date, the start time and the <b>data source</b>, and click <b>Load data</b>. The table appears in the right panel.</li>
                     <li><b>PI Data</b> reads the 15-minute window from the PI server; it needs the <code>pandaspi</code> package and the <code>USER_SWAGGER</code> and <code>SWAGGER_PASSWORD</code> environment variables. <b>Sample data</b> reads the .parquet file kept with the model.</li>
                     <li>Cells marked <b>empty</b> are null values and may compromise the model.</li>
                 </ul>
-                <h4>3. Model</h4>
+                <h4>Model</h4>
                 <ul>
                     <li>The <b>additional settings</b> (bearing radial clearance, oil temperature, ...) start with the model's values.</li>
                     <li><b>Create model</b> builds the rotor from the process data and saves the <b>.toml</b> file in the session.</li>
                     <li><b>Open in Rotor Hub</b> adds the rotor to the interface's library, where it is edited and analysed like any other.</li>
                     <li>The first creation takes a few seconds while ROSS is imported.</li>
                 </ul>
-                <h4>4. Balancing</h4>
+                <h4>Balancing</h4>
                 <ul>
                     <li>The <b>measuring planes</b> are the nodes with sensors. Each one takes two sensors, X and Y, and the Y sensor sits 90° after the X sensor, so only the X angle is given. At least two planes are needed.</li>
                     <li>A <b>balancing plane</b> is a node and the <b>radius</b>, in millimetres, where the correction mass goes: the estimate is a mass times a radius, and the radius turns it into a mass.</li>
                     <li>In the <b>Sensors</b> card, send each sensor's signal as a <b>.csv</b> and click <b>Apply</b>. The file must be the one the measuring system exports, with the header that carries the speed and the units: that is where the analysis reads the speed of the signals from.</li>
                     <li><b>Run analysis</b> estimates the unbalance with the Kalman filter of <code>rossml</code> and shows, per plane, the correction mass and its phase. The correction's phase is the unbalance's plus 180°.</li>
-                    <li>The <b>analysis parameters</b> are chosen from a list: the <code>rossml</code> defaults, or the parameters of a machine of the Digital Twin app when it is on this computer. A pre-established model starts from its machine's. Under <b>Adjust values</b>, each value (signal, Kalman filter, resultant force limits, filter factors and their search bounds) can be changed; an empty field uses the <code>rossml</code> default.</li>
+                    <li>Under <b>Analysis parameters</b>, each value <code>rossml</code> uses (signal points, <code>w_f0</code>, filter factors and their search bounds) can be changed; an empty field uses the <code>rossml</code> default shown in it.</li>
                     <li><b>Extra iterations</b> and <b>population</b> drive the optimizer; its own iterations are 24 × (1 + extra). The <b>plane optimization</b> picks the subset of planes that explains the signals best and triples the running time.</li>
                     <li>The <b>Balancing result</b> card carries the table per plane and the <b>polar chart</b>: blue is the estimated unbalance, green the correction. The chart is turned to one sensor's angle, so choose the <b>reference sensor</b>. The phase in the table follows the sensor chosen; the mass does not depend on it.</li>
                     <li>In <b>Chart</b>, choose what to see from the same run: the <b>correction split</b> into two positions (the angle and radius of each, then <b>Split</b>), the <b>estimated forces</b> on each balancing plane (time and orbit) and the <b>virtual sensing</b>, the displacements the filter reconstructs on the balancing and measuring planes (time and orbit) and along the rotor (3D).</li>
-                    <li>The analysis needs the <code>rossml</code> package installed. Without it the button stays off and the panel says what is missing.</li>
+                    <li>The analysis needs the <code>rossml</code> package installed. Without it the balancing tab is not shown.</li>
                 </ul>`,
         },
     },
@@ -118,14 +118,14 @@ const HELP = {
             <ul>
                 <li>Escolha a análise no painel escuro e clique em <b>Adicionar Painel</b>. O painel calcula com os valores padrão assim que aparece.</li>
                 <li>Altere os campos abaixo do gráfico e clique em <b>Atualizar</b> para recalcular.</li>
-                <li>Todas as análises usam o modelo criado na etapa 3. Criar o modelo de novo apaga os painéis, porque eles passariam a descrever outro rotor.</li>
+                <li>Todas as análises usam o modelo criado na aba Modelo. Criar o modelo de novo apaga os painéis, porque eles passariam a descrever outro rotor.</li>
             </ul>` },
         en: { title: 'Analyses', body: `
             <h4>Dashboards</h4>
             <ul>
                 <li>Pick the analysis in the dark panel and click <b>Add Dashboard Card</b>. The card computes with the default values as soon as it appears.</li>
                 <li>Change the fields under the chart and click <b>Update</b> to compute again.</li>
-                <li>Every analysis uses the model created in step 3. Creating the model again removes the cards, since they would describe another rotor.</li>
+                <li>Every analysis uses the model created in the Model tab. Creating the model again removes the cards, since they would describe another rotor.</li>
             </ul>` },
     },
     campbell: {
