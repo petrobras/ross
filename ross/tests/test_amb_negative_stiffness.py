@@ -70,10 +70,10 @@ def _p_only_rotor(kp, **amb_kwargs):
     return Rotor(shaft, [disk], bearings)
 
 
-def _closed_loop(rotor):
+def _closed_loop(rotor, speed=0.0):
     """Build AmbTimeResponse without running the simulation."""
     t = np.linspace(0.0, 1e-3, 3)
-    sim = AmbTimeResponse(rotor, t=t, speed=0, weight=False)
+    sim = AmbTimeResponse(rotor, t=t, speed=speed, weight=False)
     sim.process_rotor()
     sim.setup_modal_domain()
     sim.build_matrices()
@@ -384,6 +384,109 @@ def test_levitation_threshold_is_checked_per_axis(i0_axes, levitates):
         assert bool(max_real < SMALL_EIGENVALUE) == levitates
 
 
+# Rotation and control axes in the time-domain paths. Rotor.A(speed) adds the
+# gyroscopic coupling speed * G to the damping, and MagneticBearingElement
+# rotates its stiffness by sensors_axis_rotation. AmbTimeResponse and the
+# Newmark controller must do the same.
+
+
+def _assert_contains_eigenvalues(closed_loop, reference):
+    scale = np.max(np.abs(reference))
+    for eigenvalue in reference:
+        distance = np.min(np.abs(closed_loop - eigenvalue))
+        assert distance <= 1e-6 * abs(eigenvalue) + 1e-9 * scale, eigenvalue
+
+
+@pytest.mark.parametrize("speed", [500.0, 2000.0])
+def test_lsim_closed_loop_matches_frequency_domain_in_rotation(speed):
+    """A_cl must contain the eigenvalues of Rotor.A(speed), gyroscopic term included."""
+    rotor = _p_only_rotor(3.0 * KP_THRESHOLD)
+
+    reference = np.linalg.eigvals(rotor.A(speed=speed))
+    reference = reference[np.abs(reference) > SMALL_EIGENVALUE]
+    at_rest = np.linalg.eigvals(rotor.A(speed=0))
+
+    # The rotation must split the modes, otherwise the test cannot tell a
+    # model with the gyroscopic term from one without it.
+    split = max(np.min(np.abs(at_rest - eigenvalue)) for eigenvalue in reference)
+    assert split > 1e-3 * np.max(np.abs(reference))
+
+    closed_loop = np.linalg.eigvals(_closed_loop(rotor, speed=speed).A_cl)
+    _assert_contains_eigenvalues(closed_loop, reference)
+
+
+@pytest.mark.parametrize("kp", [0.9, 3.0])
+def test_lsim_closed_loop_uses_the_sensors_axis_rotation(kp):
+    """With different axes, the angle changes K in x, y; both paths must use it."""
+    rotor = _p_only_rotor(
+        kp * KP_THRESHOLD,
+        i0=[1.0, 0.8],
+        k_amp=[1.0, 2.0],
+        sensors_axis_rotation=0.3,
+    )
+
+    reference = np.linalg.eigvals(rotor.A(speed=0))
+    reference = reference[np.abs(reference) > SMALL_EIGENVALUE]
+    closed_loop = np.linalg.eigvals(_closed_loop(rotor).A_cl)
+    _assert_contains_eigenvalues(closed_loop, reference)
+
+
+def test_newmark_controller_uses_the_sensors_axis_rotation():
+    """The Newmark force is -K(0) x, with K rotated by sensors_axis_rotation."""
+    rotor = _p_only_rotor(
+        3.0 * KP_THRESHOLD,
+        i0=[1.0, 0.8],
+        k_amp=[1.0, 2.0],
+        sensors_axis_rotation=0.3,
+    )
+    magnetic_bearings = [
+        brg for brg in rotor.bearing_elements if isinstance(brg, MagneticBearingElement)
+    ]
+    for amb in magnetic_bearings:
+        amb.build_controller(dt=1e-4)
+
+    disp = np.zeros(rotor.ndof)
+    x_y = np.array([2e-5, -1e-5])
+    for amb in magnetic_bearings:
+        disp[6 * amb.n : 6 * amb.n + 2] = x_y
+
+    force = rotor.magnetic_bearing_controller(0, magnetic_bearings, 1e-4, disp)
+
+    for amb in magnetic_bearings:
+        expected = -amb.K(0)[:2, :2] @ x_y
+        assert_allclose(force[6 * amb.n : 6 * amb.n + 2], expected, rtol=1e-9)
+
+
+def test_newmark_and_lsim_agree_in_rotation():
+    """Both time-domain paths give the same response at a constant speed.
+
+    A synchronous rotating force near AMB 1 excites the conical motion, where
+    the gyroscopic coupling changes the response by about 80 %. The Newmark
+    controller is discrete and uses the displacement of the previous step, so
+    the paths differ by about 0.5 % with dt = 1e-5 s, halving with dt.
+    """
+    rotor = _p_only_rotor(3.0 * KP_THRESHOLD)
+    speed, node = 1000.0, 5
+    t = np.arange(0.0, 0.05, 1e-5)
+    F = np.zeros((len(t), rotor.ndof))
+    F[:, 6 * node + 0] = np.cos(speed * t)
+    F[:, 6 * node + 1] = np.sin(speed * t)
+
+    lateral = [6 * n + k for n in range(rotor.ndof // 6) for k in (0, 1)]
+    newmark = rotor.run_time_response(speed, F.copy(), t, method="newmark").yout
+    lsim = rotor.run_time_response(speed, F.copy(), t).yout
+    without_gyroscopic = rotor.run_time_response(0.0, F.copy(), t).yout
+
+    scale = np.max(np.abs(lsim[:, lateral]))
+    difference = np.max(np.abs(newmark[:, lateral] - lsim[:, lateral]))
+    gyroscopic_effect = np.max(
+        np.abs(lsim[:, lateral] - without_gyroscopic[:, lateral])
+    )
+
+    assert difference <= 1e-2 * scale
+    assert gyroscopic_effect >= 0.5 * scale
+
+
 # Operating point under a static load. Reference: the nonlinear force of the
 # differential pair with unipolar amplifiers (Schweitzer and Maslen, 2009),
 #     F(x, ic) = k [(i0 + ic)+^2 / (g0 - x)^2 - (i0 - ic)+^2 / (g0 + x)^2],
@@ -483,12 +586,7 @@ def test_static_load_beyond_the_controller_raises():
 
 
 def test_static_load_is_projected_on_the_control_axes():
-    """At 45 deg, a vertical load splits equally; a diagonal one loads one axis.
-
-    The angle is passed as pi / 4: the default sensors_axis_rotation
-    (0.78539816) is rounded, so a vertical load splits with a relative
-    difference of about 7e-9 between the axes.
-    """
+    """At 45 deg, a vertical load splits equally; a diagonal one loads one axis."""
     params = {
         "kp": 3.0 * KP_THRESHOLD,
         "ki_pid": 100.0,
@@ -505,6 +603,29 @@ def test_static_load_is_projected_on_the_control_axes():
     assert_allclose(_pair_force(0.0, ic_v), np.sqrt(2.0), rtol=1e-12)
     assert_allclose(ic_w, 0.0, atol=1e-12)
     assert abs(diagonal.K(0)[0, 1]) > 1e-6 * abs(diagonal.K(0)[0, 0])
+
+
+@pytest.mark.parametrize("load_factor", [0.5, 2.0], ids=["both coils", "one coil"])
+def test_default_sensors_axis_rotation_splits_a_vertical_load_equally(load_factor):
+    """With the default angle, a vertical load gives the same ki and ks on both axes.
+
+    The default sensors_axis_rotation is pi / 4, so a load along y projects
+    equally on the control axes v and w. The former default, 0.78539816, made
+    the two projections differ by about 7e-9 (relative), and the axes came out
+    with different ks (and different ki once a single coil holds the load).
+    """
+    amb = _amb(
+        0,
+        kp=3.0 * KP_THRESHOLD,
+        ki_pid=100.0,
+        static_load=(0.0, -load_factor * F_SWITCH),
+    )
+    ki, ks = np.broadcast_to(amb.ki, 2), np.broadcast_to(amb.ks, 2)
+
+    # Round-off only: sin(pi / 4) and cos(pi / 4) differ in the last digit.
+    # The rounded default gave relative differences of 1e-9 to 7e-9.
+    assert_allclose(ks[0], ks[1], rtol=1e-12)
+    assert_allclose(ki[0], ki[1], rtol=1e-12)
 
 
 def test_static_load_survives_save_and_load(tmp_path):

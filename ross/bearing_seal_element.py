@@ -2388,8 +2388,7 @@ class MagneticBearingElement(BearingElement):
         Angular rotation between the rotor x–y axes and the sensor/actuator
         axes (radians). This angle is used to transform the equivalent
         isotropic stiffness and damping into the anisotropic matrices
-        in the rotor coordinates. Default is 0.78539816
-        (approximately 45°).
+        in the rotor coordinates. Default is pi/4 (45°).
     sensor_node : int, optional
         Node where the displacement used for feedback is measured.
         If not provided, it defaults to the actuator node ``n``,
@@ -2579,7 +2578,7 @@ class MagneticBearingElement(BearingElement):
         ki_pid=0,
         n_f=10_000,
         controller_transfer_function=None,
-        sensors_axis_rotation=0.78539816,
+        sensors_axis_rotation=np.pi / 4,
         sensor_node=None,
         static_load=None,
         tag=None,
