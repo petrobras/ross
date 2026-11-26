@@ -1684,19 +1684,23 @@ def is_scalar_or_list(parameter, list_len, parameter_name):
     ValueError
         If the parameter is neither a scalar nor a list with the specified number of elements.
     """
-    raise_ex = False
-    if not is_scalar(parameter, parameter_name):
-        raise_ex = True
+    if isinstance(parameter, np.ndarray) and parameter.ndim == 0:
+        parameter = parameter.item()
 
-    if isinstance(parameter, list) and len(parameter) != list_len:
-        raise_ex = True
+    if not isinstance(parameter, (list, tuple, np.ndarray)):
+        return is_scalar(parameter, parameter_name)
 
-    if raise_ex:
+    is_number = [
+        isinstance(value, (int, float, np.integer, np.floating))
+        and not isinstance(value, (bool, np.bool_))
+        for value in parameter
+    ]
+    if len(parameter) != list_len or not all(is_number):
         raise ValueError(
             f"{parameter_name} must be scalar or a list with {list_len} items."
         )
 
-    return np.array(parameter)
+    return np.array(parameter, dtype=float)
 
 
 def is_transfer_function_or_none(parameter, parameter_name):
