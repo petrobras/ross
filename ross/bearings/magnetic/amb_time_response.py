@@ -192,9 +192,8 @@ class AmbTimeResponse:
                 self.c_c.append(k_amp * C_s.C)
                 self.d_c.append(k_amp * C_s.D * k_sense)
 
-            # Constants
-            self.k_i.extend([amb.ki, amb.ki])
-            self.k_s.extend([amb.ks, amb.ks])
+            self.k_i.extend([amb.axis_gain(amb.ki, axis) for axis in range(2)])
+            self.k_s.extend([amb.axis_gain(amb.ks, axis) for axis in range(2)])
             self.node.extend([amb.n, amb.n])
 
         # Removing AMBs from model
