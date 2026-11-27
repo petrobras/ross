@@ -23,7 +23,8 @@
 //      and takes the material. "Create" adds the row.
 //
 // Esc steps back: out of the diameter box, out of the circle being drawn, out
-// of the tool.
+// of the tool. It does so from the view and from the panel alike, since after
+// typing a value the focus is in the panel, not on the view.
 import { escapeHtml } from '../core/dom.js';
 import { t } from '../core/i18n.js';
 import { state } from '../core/state.js';
@@ -105,6 +106,7 @@ function openSketch(kit, face) {
     labels.setAttribute('aria-hidden', 'true');
     kit.container.appendChild(labels);
     kit.container.appendChild(panel);
+    panel.addEventListener('keydown', panelKey);
     session = {
         kit, face, extent, palette, plane, panel, labels,
         phase: 'sketch',
@@ -219,6 +221,16 @@ function sketchDown(event) {
     const box = session.kit.container.getBoundingClientRect();
     openDimensionBox(-1, drawing.d, event.clientX - box.left, event.clientY - box.top);
     return true;
+}
+
+// Esc pressed in the panel: the same step back as from the view. Only Esc --
+// Enter in the panel belongs to the button or the box it is pressed in.
+function panelKey(event) {
+    if (!session || event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (session.phase === 'sketch') sketchKey(event);
+    else extrudeKey(event);
 }
 
 function sketchKey(event) {
@@ -392,6 +404,14 @@ export function finishSketch() {
         onRotor: () => closeSketch(),
     });
     renderExtrudePanel();
+    // The button pressed to get here is gone with the old panel: the focus
+    // goes to the length, the next thing to type, where Enter creates the
+    // element and Esc leaves the tool.
+    const length = session.panel.querySelector('.extrude-length');
+    if (length) {
+        length.focus();
+        length.select();
+    }
     flyToExtrusion();
 }
 
