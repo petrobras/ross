@@ -111,7 +111,7 @@ function tabButton(category, key) {
     b.dataset.i18n = key;
     return b;
 }
-registerSelector('.tab-btn', [tabButton('shafts', 'catShaft'),
+registerSelector('#screen-modeling .tab-btn', [tabButton('shafts', 'catShaft'),
                               tabButton('materials', 'catMaterial')]);
 
 setSchemaLanguage('pt');

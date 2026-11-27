@@ -6,7 +6,6 @@ import { categoryName, getEffectiveNodes, getTabNodes, markEditedRow, renderList
 import { placeFormWindow } from '../components/floating_form.js';
 import { setThreeDShown, threeDShown } from '../core/visibility.js';
 import { shownIndexes } from '../core/list_filter.js';
-import { reapplyHelp } from '../components/help.js';
 import { openCustomAlert, openCustomConfirm } from '../components/modals.js';
 import { apiFetch, apiFetchLatest, wasCancelled, projectForServer } from '../core/api.js';
 import { busySpinner, escapeHtml } from '../core/dom.js';
@@ -16,7 +15,7 @@ import { applySnapshot, canRedo, canUndo, redo, undo } from '../core/history.js'
 import { afterInsertion, afterRemoval } from '../core/editing.js';
 import { elementsUsing, materialsOffered, renameMaterial, rossMaterialName } from '../core/material_names.js';
 import { themedLayout } from '../core/theme.js';
-import { applyLanguage, rememberLanguage, t } from '../core/i18n.js';
+import { announceLanguageChanged, applyLanguage, rememberLanguage, t } from '../core/i18n.js';
 import { formSubtypes, loadElementSchema, schemaReady } from '../core/schema.js';
 import { projectFromFile } from '../core/project_file.js';
 import { newProbeId } from '../core/probes.js';
@@ -287,10 +286,10 @@ export async function changeLanguage(language) {
     // analysis cards are assembled by the JS: without redrawing, they stayed in the
     // language they were created in and the screen came out half in each.
     renderRotorHub();
-    reapplyHelp();
     await redrawAnalyses();
     // The 3D view's legend is written by the JS, like the Hub.
     relabelRotor3d();
+    announceLanguageChanged();
 
     if (!state.currentTab) return;
     refreshTabTitle();
@@ -366,7 +365,7 @@ export function openTab(category) {
     state.currentTab = category;
     document.getElementById('empty-message').style.display = 'none';
     document.getElementById('list-area').style.display = 'block';
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#screen-modeling .tab-btn').forEach(b => b.classList.remove('active'));
     
     const activeBtn = tabButton(category);
     if (activeBtn) {

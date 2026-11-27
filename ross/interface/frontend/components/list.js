@@ -123,7 +123,7 @@ export function categoryName(category, button) {
 // out of the `onclick` text -- which is how this slice would have broken the
 // title and the highlight the moment the buttons started calling `pickTab`.
 export function tabButton(category) {
-    return Array.from(document.querySelectorAll('.tab-btn'))
+    return Array.from(document.querySelectorAll('#screen-modeling .tab-btn'))
         .find(b => b.dataset && b.dataset.tab === category);
 }
 

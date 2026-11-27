@@ -54,15 +54,22 @@ That is 120 MB of plotting library, image library, machine learning and Arrow
 that `import ross` requires **at import time**, on any machine, for any use.
 Nothing here can cut them; only the libraries above can.
 
-Still no `hiddenimports`. Adding submodules "just in case" feels safe and is a
-guess; there has been no failure asking for one. A spec full of entries nobody
-can explain is how packaging becomes folklore.
+`hiddenimports` holds one thing: the built-in extensions. `api/extensions.py`
+imports each module named in its `BUILT_IN` with `import_module`, which
+PyInstaller cannot follow, and the executable died at start with
+`ModuleNotFoundError: ross.interface.extensions.digital_twin.extension`. The
+spec reads `BUILT_IN` from that file instead of copying the names, so a new
+built-in extension is bundled without editing this file. Their frontend files
+already come with ROSS's data. Adding other submodules "just in case" would be
+a guess; a spec full of entries nobody can explain is how packaging becomes
+folklore.
 
 `console=True` for the same reason: while the executable is young, a window
 that prints the traceback is worth more than a window that looks tidy.
 `--selftest` also writes to that console.
 """
 
+import ast
 import io
 import os
 import re
@@ -121,6 +128,19 @@ def dependency_closure(roots):
                 continue
             queue.append(canonical(re.split(r"[<>=!\[;@\s(]", line, 1)[0]))
     return seen
+
+
+def built_in_extensions():
+    """The modules `api/extensions.py` imports by name, from its `BUILT_IN`."""
+    path = os.path.join(HERE, "api", "extensions.py")
+    with io.open(path, encoding="utf-8") as handle:
+        tree = ast.parse(handle.read())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == (
+            "BUILT_IN"
+        ):
+            return [target.split(":")[0] for target in ast.literal_eval(node.value)]
+    raise ValueError("%s no longer declares BUILT_IN" % path)
 
 
 def importable_names(distributions):
@@ -183,7 +203,7 @@ analysis = Analysis(  # noqa: F821
     pathex=[HERE],
     binaries=[],
     datas=datas,
-    hiddenimports=[],
+    hiddenimports=built_in_extensions(),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

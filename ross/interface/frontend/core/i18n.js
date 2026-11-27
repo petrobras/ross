@@ -726,6 +726,32 @@ export function t(key) {
     return dictionary[key] || UI_TEXT.en[key] || key;
 }
 
+// Texts an extension brings, as `{ en: {...}, pt: {...} }`. A key that already
+// exists is refused rather than overwritten: an extension renaming a button of
+// the interface would otherwise be settled by load order.
+export function addTexts(texts) {
+    Object.keys(texts).forEach(language => {
+        const dictionary = UI_TEXT[language] || (UI_TEXT[language] = {});
+        Object.keys(texts[language]).forEach(key => {
+            if (key in dictionary) throw new Error('text "' + key + '" is defined twice');
+            dictionary[key] = texts[language][key];
+        });
+    });
+}
+
+// Who redraws texts the JS wrote, after the language changes. The
+// interface's own screens are redrawn by `changeLanguage` in
+// features/modeling.js; an extension's screens subscribe here.
+const LANGUAGE_LISTENERS = [];
+
+export function onLanguageChanged(listener) {
+    LANGUAGE_LISTENERS.push(listener);
+}
+
+export function announceLanguageChanged() {
+    LANGUAGE_LISTENERS.forEach(listener => listener(SCHEMA_LANGUAGE));
+}
+
 // Apply the current language to the marked-up HTML.
 //
 // `index.html` carries `data-i18n` on the element whose **entire** content is

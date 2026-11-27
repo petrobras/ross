@@ -1141,6 +1141,32 @@ def test_every_exclusion_was_measured():
     )
 
 
+def test_the_bundle_carries_every_built_in_extension():
+    """The spec hands PyInstaller the modules `discover()` imports by name.
+
+    `import_module` is invisible to PyInstaller, so without them the executable
+    starts and dies on `ModuleNotFoundError` before serving a page.
+    """
+    import ast
+
+    from ross.interface.api.extensions import BUILT_IN
+
+    with io.open(os.path.join(ROOT, "ross-interface.spec"), encoding="utf-8") as handle:
+        tree = ast.parse(handle.read())
+    function = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "built_in_extensions"
+    )
+    scope = {"HERE": ROOT, "ast": ast, "io": io, "os": os}
+    exec(compile(ast.Module([function], []), "ross-interface.spec", "exec"), scope)
+
+    assert scope["built_in_extensions"]() == [
+        target.split(":")[0] for target in BUILT_IN
+    ]
+    assert "hiddenimports=built_in_extensions()" in ast.unparse(tree).replace(" ", "")
+
+
 def _scripts_that_run_them_all():
     """Every file outside `tests/` that asks the catalogue for default parameters.
 

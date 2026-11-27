@@ -613,6 +613,10 @@ DELIBERATE = (
     "`quando` until the translation",
     "`quando[A-Z]` pattern",
     "still using `eixo`",
+    # Names of an equipment tag and its rotor model in the Digital Twin app's
+    # settings.json: data the Digital Twin extension reads, not our wording.
+    "LMEST-2-DISCOS",
+    "lmest_2discos",
 )
 
 TRANSLATED_CONTENT = (

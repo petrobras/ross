@@ -17,6 +17,7 @@ from flask import Flask
 from .analysis import analysis
 from .errors import register_handlers
 from .export import export
+from .extensions import discover, register_extensions
 from .paths import FRONTEND_DIR, HOST, PORT
 from .rotor import rotor_api
 from .schema import schema
@@ -28,14 +29,22 @@ from .worker import worker_api
 BLUEPRINTS = (system, schema, rotor_api, analysis, export, worker_api)
 
 
-def create_app():
-    """Build the application. A function, so tests can build their own."""
+def create_app(extensions=None):
+    """Build the application. A function, so tests can build their own.
+
+    Parameters
+    ----------
+    extensions : list of Extension, optional
+        The extensions to load. By default, the ones installed in the
+        environment (see `api/extensions.py`); tests pass their own, or `[]`.
+    """
     app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path="")
 
     register_handlers(app)
     register_guard(app, HOST, PORT)
     for blueprint in BLUEPRINTS:
         app.register_blueprint(blueprint)
+    register_extensions(app, discover() if extensions is None else extensions)
 
     return app
 
