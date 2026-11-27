@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """The worker: the half that can be tested without a process.
 
-Slice 6a moved the computation of an analysis behind a boundary. Two very
+The computation of an analysis sits behind a boundary. Two very
 different things can go wrong at a boundary -- the answer is wrong, or the pipe
 broke -- and this file covers the first, plus the structural properties of the
 second that can be read from the source.
@@ -34,9 +34,8 @@ def _source(*parts):
 def _without_prose(text):
     """The code, with comments and docstrings taken out.
 
-    Three guards in this project have gone red at the comment that explained
-    them (lesson 10). A sweep that reads source has to discount the text that
-    talks *about* the source.
+    A guard that reads source goes red at the comment that explains it. A sweep
+    that reads source has to discount the text that talks *about* the source.
     """
     tree = ast.parse(text)
     for node in ast.walk(tree):
@@ -302,14 +301,13 @@ def test_the_orbit_angle_that_moved_between_processes_is_a_difference():
 
 
 def test_the_report_says_which_arrays_differ_and_which_agree():
-    """Stopping at the first difference is what made me misread this case.
+    """Stopping at the first difference makes this case easy to misread.
 
-    The check reported `modes` differing at `customdata[0]` and stopped, so
-    nothing in the output said whether the plotted deflection `y` had moved as
-    well -- and I told Leonardo the picture had changed when what had changed
-    was the hover annotation. The sweep now runs to the end of the numbers, and
-    the report has to name both halves: which array is out, and how many are
-    not.
+    A check that reports `modes` differing at `customdata[0]` and stops says
+    nothing about whether the plotted deflection `y` moved as well -- and a
+    changed hover annotation reads as a changed picture. The sweep runs to the
+    end of the numbers, and the report has to name both halves: which array is
+    out, and how many are not.
     """
     from ross.interface.services.worker.compare import DIFFERENT, compare
 
@@ -326,11 +324,10 @@ def test_the_worst_difference_wins_even_when_it_comes_last():
     """Control: a sweep that quietly kept stopping early would report the first.
 
     The arrays here are **binary**, not JSON lists, and that is the whole point
-    of the control. The first version of this test used lists, and a mutation
-    that put the early stop back inside the base64 loop passed it untouched --
-    the two representations are two different code paths, and a real chart uses
-    the one the test was not exercising. Lesson 10's shape again: the guard
-    covered the example and not the category.
+    of the control. With lists, a mutation that put the early stop back inside
+    the base64 loop would pass untouched -- the two representations are two
+    different code paths, and a real chart uses the binary one. The guard has to
+    cover the category, not the example.
     """
     from ross.interface.services.worker.compare import compare
 
@@ -550,8 +547,7 @@ def test_two_threads_never_share_the_pipe():
 
     Two overlapping conversations swap each other's answers, and on a chart
     route that means someone looking at the result of a question they did not
-    ask, with nothing on screen to say so -- FE-05 of the audit, on the server
-    side this time.
+    ask, with nothing on screen to say so.
     """
     fake = _Fake(delay=0.02)
     resident = _resident()
@@ -675,8 +671,7 @@ def test_the_route_hands_the_work_over_instead_of_doing_it():
     each of ROSS's refusals into a 500 about an internal error.
 
     The routes are found by their decorator rather than counted, because the
-    count is the thing slice 6c changed: two routes became three when the
-    waiting moved out of the request.
+    count changes whenever a route is added.
     """
     tree = ast.parse(_source("api", "analysis.py"))
 
@@ -740,8 +735,8 @@ def test_a_detour_leaves_a_line_in_the_log():
 
     The detour is correct -- the chart still arrives -- which is exactly what
     makes it dangerous: on a machine where the worker never starts, nothing on
-    screen and nothing in the output would ever say so, and the whole of slice 6
-    would be doing nothing at all.
+    screen and nothing in the output would ever say so, and the worker would be
+    doing nothing at all.
     """
     import logging
 
@@ -947,15 +942,12 @@ def _expecting_a_chart_from_the_request():
 
 
 def test_nothing_expects_a_chart_from_the_request_that_asks_for_one():
-    """Since 6c a POST to those routes answers a job. It never answers a chart.
+    """A POST to those routes answers a job. It never answers a chart.
 
-    This guard exists twice over. First because five tests in four files went on
-    expecting the old contract and I only looked in the file I was editing --
-    the project's sixth lesson, in a new place. Then because the version written
-    for *that* swept `tests/` only, and the caller it missed was `selftest.py`:
-    bundled into the executable, run by CI to decide whether a build works, and
-    reading the old contract all along. Twelve analyses reported as failed, the
-    package job down on three systems, and every local check green.
+    A caller expecting a chart may be anywhere -- `selftest.py`, for one, is
+    bundled into the executable and run by CI to decide whether a build works,
+    and reading the wrong contract there fails every analysis while every local
+    check stays green.
 
     So the sweep is the repository, not a folder. `tests/`, `tools/`, the
     selftest, anything: whoever posts must wait, and `api/waiting.py` is the one
@@ -1039,7 +1031,7 @@ def test_the_check_compares_charts_through_the_comparator():
     )
 
 
-# --- killing a worker on purpose (slice 6c-2) ---------------------------------
+# --- killing a worker on purpose ---------------------------------------------
 
 
 class _Killable(object):
@@ -1185,21 +1177,16 @@ def test_interrupting_does_not_wait_for_the_computation_it_is_interrupting():
 
 
 def test_a_resident_given_a_worker_never_starts_one_of_its_own():
-    """Found while writing the route guard for the stop button, and it was
-    already there.
+    """`use()` promises a worker "without starting a process", even after it dies.
 
-    `use()` promises a worker "without starting a process", and it kept that
-    promise exactly until the worker died. Then the replacement rule -- right for
-    the application, which asked for a worker -- started a **real** child in a
-    suite that never asked for one: `tests/test_requests.py` installs a fake that
-    raises `WorkerGone`, and every run of that test was spawning a process that
-    imported ROSS for nine seconds and died on a closed pipe. Green, invisible,
-    on the machine of whoever ran the suite and in CI.
+    The replacement rule -- right for the application, which asked for a worker
+    -- would otherwise start a **real** child in a suite that never asked for
+    one: `tests/test_requests.py` installs a fake that raises `WorkerGone`, and
+    every run of that test would spawn a process that imports ROSS for seconds
+    and dies on a closed pipe. Green and invisible.
 
-    It is the same defect as `_resident`'s default `build` (lesson 24), in the
-    file I did not look at. The rule now says what it always meant: **the
-    resident starts a process only when somebody asked it to start one**, and
-    that somebody is `start_in_background`.
+    The rule: **the resident starts a process only when somebody asked it to
+    start one**, and that somebody is `start_in_background`.
     """
     built = []
 

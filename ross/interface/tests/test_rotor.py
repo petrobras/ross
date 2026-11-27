@@ -19,7 +19,7 @@ except Exception:  # pragma: no cover
 
 needs_ross = pytest.mark.skipif(not HAS_ROSS, reason="requires ROSS installed")
 
-# BE-12: dressing the figure left the backend and went to the screen.
+# Dressing the figure is the screen's business, not the backend's.
 APPEARANCE = ("margin", "paper_bgcolor", "plot_bgcolor", "autosize", "legend")
 
 PROJECT_REQUEST = {
@@ -47,13 +47,13 @@ def _auth():
     return {"X-ROSS-Token": SESSION_TOKEN}
 
 
-# Since slice 4 app.py is only the entry point. Each name below comes from its
+# app.py is only the entry point. Each name below comes from its
 # own layer -- and this explicit import is the documentation of that.
 from ross.interface.app import app
 from ross.interface.api.security import SESSION_TOKEN
 
 # Every API route requires the session token (see require_session_token in app.py).
-# Since Phase 2 the project goes inside an envelope ({'project': ...}), so that
+# The project goes inside an envelope ({'project': ...}), so that
 # the interface can send only what describes the rotor -- with no saved charts.
 AUTH = {"X-ROSS-Token": SESSION_TOKEN}
 
@@ -260,20 +260,17 @@ def test_the_backend_no_longer_dresses_the_figure(key):
 
 # What the screen still dresses, and what it stopped dressing.
 #
-# BE-12 (Phase 3) moved margin, size and legend off the server and onto the
-# screen, and this test used to require all three to be in `ROTOR_APPEARANCE`.
-# **That half of BE-12 is reversed here**, and the reason is not a change of
-# taste: ROSS 3's `plot_rotor` began computing height, margin and legend
+# Margin, size and legend are left to ROSS, not to `ROTOR_APPEARANCE`, and the
+# reason is not taste: ROSS 3's `plot_rotor` computes height, margin and legend
 # position as one interdependent set -- the height from a nominal width and the
 # `scaleanchor` lock, the bottom margin as fixed bands so the axes indicator
 # does not resize the figure, the legend on a line below the title so a narrow
 # container wraps it downward. Measured, it asks for `height: 332`,
-# `margin {l:70, r:25, t:100, b:102}`, `legend.y = 1.4615`; the screen was
-# overriding them with 80, 80 and 1.05, values that knew nothing about each
-# other.
+# `margin {l:70, r:25, t:100, b:102}`, `legend.y = 1.4615`; overriding them
+# with values of its own, the screen would set values that know nothing about
+# each other.
 #
-# The other half of BE-12 stands and is still guarded above: `api/rotor.py`
-# does not dress the figure. What changed is who the screen defers to.
+# And, as guarded above, `api/rotor.py` does not dress the figure either.
 SCREENS_BUSINESS = ("paper_bgcolor", "plot_bgcolor")
 
 ROSSES_BUSINESS = ("height", "margin", "legend")

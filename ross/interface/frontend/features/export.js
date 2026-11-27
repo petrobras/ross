@@ -11,10 +11,10 @@ export async function generatePythonFile(project, analyses) {
     const target = project || state.projectData;
     const chosen = analyses !== undefined ? analyses : collectActiveAnalyses();
 
-    // This used to come from the selector on the analysis screen, the same value
-    // for every card -- including the ones that had been computed under another
-    // conversion. The script came out with numbers that did not match the figures,
-    // with nothing to warn about it.
+    // Not from the selector on the analysis screen: that is one value for every
+    // card, including the ones computed under another conversion, and the script
+    // would come out with numbers that do not match the figures, with nothing to
+    // warn about it.
     const conversion = unanimousConversion(chosen);
     if (conversion === null) {
         await openCustomAlert(t('mixedConversions'));

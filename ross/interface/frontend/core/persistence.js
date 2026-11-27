@@ -5,8 +5,7 @@ import { withEveryCategory } from './project_file.js';
 import { state } from './state.js';
 // --- Persistence ------------------------------------------------------------
 //
-// Until Phase 3 the interface stored nothing: closing the tab lost the whole
-// project (FE-09). `localStorage` was used only to remember the language.
+// Closing the tab must not lose the project, so it is kept in `localStorage`.
 //
 // **We store the model, not the charts.** A Plotly figure of a Campbell runs
 // past 15 KB; half a dozen saved analyses would blow the localStorage quota in
@@ -40,7 +39,7 @@ let lastStateWritten = null;
 let persistenceOff = false;
 
 // An analysis becomes configuration: title, type, parameters and conversion.
-// The chart is left out by decision, not by oversight.
+// The chart is left out on purpose, not by oversight.
 function analysisWithoutChart(analysis) {
     return {
         title: analysis.title,

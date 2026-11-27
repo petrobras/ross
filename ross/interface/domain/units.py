@@ -1,8 +1,8 @@
 """Single source of the domain's units.
 
-Before Phase 1 this dictionary existed twice, word for word: in app.py and in
-frontend/app.js. Any drift between the copies produced an exported Python
-script that did not reproduce what the screen was showing.
+There is one copy, read by the builder and by the exported script: any drift
+between two copies would produce an exported Python script that does not
+reproduce what the screen is showing.
 """
 
 # The unit each field is typed in, by ROSS class. ROSS works in SI
@@ -265,19 +265,18 @@ INT_PARAMETERS = frozenset(
     }
 )
 
-# Historical note: PLOT_ONLY_KEYS used to live here -- the list of parameters
-# that only affected the drawing. It was a global approximation of a property
-# that is per-analysis: `frequency_type` is a computation parameter in Campbell
-# (run_campbell takes it) and a plotting one in Modal (plot_mode_2d takes it),
-# and a single list cannot be right about both. Since Phase 2 each runner
+# There is no global list of the parameters that only affect the drawing: that
+# is a per-analysis property. `frequency_type` is a computation parameter in
+# Campbell (run_campbell takes it) and a plotting one in Modal (plot_mode_2d
+# takes it), and a single list cannot be right about both. Each runner
 # declares its own in PLOT_PARAMS, and a test checks that none of them reaches
 # the computation. See services/analysis/base.py.
 
 
 # Units a field used to have and no longer has. A row saved with one still
 # carries its `*_unit`, which would go on converting a number that has no unit:
-# TiltingPad's journal position is a fraction of the clearance, and was mapped
-# to mm until this was found by users. The unit is ignored for these.
+# TiltingPad's journal position is a fraction of the clearance, which a saved
+# unit would turn into mm. The unit is ignored for these.
 DROPPED_UNITS = {"TiltingPad": frozenset({"xj", "yj"})}
 
 

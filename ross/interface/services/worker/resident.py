@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """The application's one worker, and what happens when it is not there.
 
-Slice 6a proved a second process can be started, talked to and killed --
-including from inside a PyInstaller bundle. This is the piece that makes it
-*useful*: the route stops computing and asks here instead.
+A second process can be started, talked to and killed -- including from inside
+a PyInstaller bundle. This is the piece that makes it *useful*: the route does
+not compute, it asks here instead.
 
 Four decisions, and each one is a place where this could go wrong in silence.
 
@@ -38,15 +38,13 @@ detour is counted, and the reason is kept for whoever asks.
 ## 3. One pipe, one conversation at a time
 
 Flask serves on threads. Two requests writing to the same stdin and reading from
-the same answer queue would swap each other's charts -- FE-05 of the audit, the
-out-of-order response overwriting the right chart, reproduced on the server
-side. A lock makes the conversation serial.
+the same answer queue would swap each other's charts -- an out-of-order
+response overwriting the right chart. A lock makes the conversation serial.
 
 Serial is not a compromise here: the work is CPU-bound in one child, so two
 overlapping analyses could not go faster anyway. What the lock costs is that a
-long analysis makes the next request wait -- which is exactly what happens
-today, in one process, and is the problem slice 6c exists to solve with a queue
-and a screen that does not block.
+long analysis makes the next request wait, which the job queue
+(`services/worker/jobs.py`) and a screen that does not block take care of.
 
 ## 4. A worker that dies takes only its own request down
 
@@ -56,7 +54,7 @@ background. The user gets their chart; the next analysis gets a worker again.
 
 ## 5. A worker that was killed on purpose must *not* take that detour
 
-Slice 6c-2 gives the user a button that kills the worker mid-computation, which
+The stop button kills the worker mid-computation, which
 is the only way to stop something already inside ROSS. Without this decision the
 button would do the opposite of what it says: the pipe would go quiet, decision
 4 would call it a death, and this process would helpfully recompute -- for the
@@ -167,12 +165,12 @@ class Resident(object):
         This is how the suite drives every path through here -- a fake worker
         answers and the route is exercised for real, with no child anywhere.
 
-        "Without starting a process" used to hold only until that worker died:
-        the replacement rule would then start a **real** child, because wanting a
-        worker and being allowed to start one were the same flag. A suite that
-        installs a dying fake -- and one does, to prove the detour works -- was
-        spawning a process that imported ROSS for nine seconds and died on a
-        closed pipe, every run, invisibly. A resident starts a process only when
+        "Without starting a process" holds even when that worker dies: wanting a
+        worker and being allowed to start one are separate flags, or the
+        replacement rule would start a **real** child. A suite that installs a
+        dying fake -- and one does, to prove the detour works -- would spawn a
+        process that imports ROSS for nine seconds and dies on a closed pipe,
+        every run, invisibly. A resident starts a process only when
         somebody asked it to; that somebody is `start_in_background`.
         """
         with self._lock:

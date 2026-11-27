@@ -1,15 +1,15 @@
 // The element form as a window of its own, over the modeling screen.
 //
-// WHY A WINDOW AND NOT A BOX IN THE LIST. The form used to open inside the
-// element list, under the row it edited. Three things came from living there:
+// WHY A WINDOW AND NOT A BOX IN THE LIST. Opened inside the element list, under
+// the row it edits, the form would bring three things with it:
 //
-//   * a long form -- a bearing's coefficient tables, a seal's -- pushed the
+//   * a long form -- a bearing's coefficient tables, a seal's -- pushes the
 //     list out of sight, in a panel 360 px wide;
-//   * every redraw of the list had to lift the form out first, or emptying the
-//     list deleted it from the page (the "lists vanished" of an earlier week),
-//     and Sortable counted it as a row until told not to;
-//   * the list could not stay hidden while editing, so editing from the figure
-//     always paid 360 px of it.
+//   * every redraw of the list has to lift the form out first, or emptying the
+//     list deletes it from the page, and Sortable counts it as a row unless
+//     told not to;
+//   * the list cannot stay hidden while editing, so editing from the figure
+//     always pays 360 px of it.
 //
 // Out of the list, all three go: the list keeps only its rows, the form scrolls
 // on its own, and the list stays as the person left it.
@@ -48,7 +48,7 @@ export function keepInside(place, width, viewport) {
 
 // The first place, before the person has put it anywhere: beside the list and
 // under the bar with the rotor's mass -- the corner of the figure nearest to
-// where the form used to open.
+// the list.
 export function firstPlace(figurePanel, infoBar) {
     const top = infoBar && infoBar.bottom > figurePanel.top ? infoBar.bottom : figurePanel.top;
     return { left: figurePanel.left + MARGIN, top: top + MARGIN / 2 };

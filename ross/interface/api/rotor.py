@@ -6,9 +6,11 @@ import json
 from flask import Blueprint, jsonify, request
 
 from ross.interface.domain.concatenation import concatenated_project
+from ross.interface.domain.inserting import insert_shaft
 from ross.interface.domain.meshing import BAD_METHOD, mesh_by_convergence, mesh_shafts
 from ross.interface.domain.requests import (
     CONCATENATE_REQUEST,
+    INSERT_REQUEST,
     MESH_REQUEST,
     ROSS_FILE_REQUEST,
     ROTOR_REQUEST,
@@ -27,13 +29,13 @@ def build_rotor():
     """Draw the rotor described in the body {"project": {...}}.
 
     The project arrives inside an envelope, not loose at the root, so the
-    interface can send only what describes the rotor. It used to send the whole
-    projectData -- savedAnalyses included, with the already-rendered Plotly
-    figures -- on every keystroke.
+    interface can send only what describes the rotor -- not the whole
+    projectData, savedAnalyses included with their already-rendered Plotly
+    figures, on every keystroke.
 
-    BE-12, resolved in Phase 3 slice 5: margin, background, size, legend
-    position and menu position left here and went to the screen, which is what
-    knows the size of the panel the figure has to fit.
+    Margin, background, size, legend position and menu position are not set
+    here: the screen sets them, since it is what knows the size of the panel the
+    figure has to fit.
 
     What stayed is not presentation: `fix_shapes` repairs the `xref` of the
     lines ROSS draws anchored to the paper, and for that it needs the rotor's
@@ -97,8 +99,7 @@ def build_rotor():
     # `MultiRotor.__init__` always assign `m` and `Ip` (rotor_assembly.py:495
     # and :511), so the old net -- `except Exception: mass = 0.0` -- covered a
     # case that does not exist and, if it ever did, would show zero mass on
-    # screen as though it were measured. That is BE-05's shape: a wrong number
-    # in place of an error.
+    # screen as though it were measured: a wrong number in place of an error.
     answer["plot_json"] = json.dumps(fig_dict)
     return jsonify(answer)
 
@@ -165,6 +166,26 @@ def split_shaft_route():
             "status": "success",
             "projectData": split_shaft(
                 payload["project"], payload["index"], payload["offset"]
+            ),
+        }
+    )
+
+
+@rotor_api.route("/api/rotor/insert_shaft", methods=["POST"])
+def insert_shaft_route():
+    """Add a shaft on a face of another and answer the project of the result.
+
+    The sketch's extrusion (frontend/features/sketch3d.js). A project in and a
+    project out, like the split, and in Python for the same reason: the nodes
+    past the face move as ROSS numbers them, and `tests/test_inserting.py`
+    checks the result against the rotor ROSS builds.
+    """
+    payload = INSERT_REQUEST.read(request.get_json(silent=True))
+    return jsonify(
+        {
+            "status": "success",
+            "projectData": insert_shaft(
+                payload["project"], payload["index"], payload["side"], payload["row"]
             ),
         }
     )

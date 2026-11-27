@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """Round trip through a native ROSS file.
 
-This is the route that slice 4 moved **and** changed the behaviour of, and the
-only one with no end-to-end coverage. Before, `/load_ross_file` answered **200
-with status "error"** when something went wrong: a client looking only at the
-HTTP code would think it had worked. Now the central handler gives back 400.
+When something goes wrong, `/load_ross_file` answers through the central
+handler with 400, not **200 with status "error"**: a client looking only at the
+HTTP code would think it had worked.
 
-And its body -- translating a ROSS file into the screen's project -- moved to
+Its body -- translating a ROSS file into the screen's project -- is
 `domain/ross_import.py`. That function converts each quantity from the SI base
 unit to the unit the form uses, and a mistake there would not show up as an
 error: it would show up as a rotor with the wrong dimensions.
@@ -121,11 +120,10 @@ def test_a_file_that_is_neither_toml_nor_json_is_refused(client):
 
 
 def test_a_failure_is_no_longer_answered_with_200(client):
-    """The behaviour change of slice 4, pinned by a test.
+    """A failure is not answered with 200.
 
-    The old route did `return jsonify({"status": "error", ...})` with no code,
-    that is, **200**. A client looking only at the HTTP code would conclude it
-    had worked."""
+    `return jsonify({"status": "error", ...})` with no code is **200**, and a
+    client looking only at the HTTP code would conclude it had worked."""
     response = client.post("/load_ross_file", json={"content": "[["}, headers=AUTH)
     assert response.status_code != 200
     assert response.json["status"] == "error"

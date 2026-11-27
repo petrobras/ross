@@ -1,24 +1,14 @@
 // Reading a project file that the interface itself wrote.
 //
-// WHY THIS IS NOT A REBUILD. `loadRotor` used to construct the loaded rotor
-// from eight keys named by hand:
-//
-//     let newLoadedRotor = {
-//         materials: loaded.materials || loaded.materiais || [],
-//         shafts:    loaded.shafts    || loaded.eixos     || [],
-//         ...
-//     };
-//
-// Everything outside that list was dropped in silence -- which is what happened
-// to the MultiRotor. `saveRotor` writes the whole `projectData`, so the file
-// carries `isMultiRotor`, `driving_rotor`, `driven_rotor` and `multi_params`;
-// none of the four is in the list, so a saved MultiRotor came back as an
-// **empty ordinary rotor** with the file's name on it. Not a refusal: a rotor
-// that looks loaded and is not.
+// WHY THIS IS NOT A REBUILD. A loaded rotor built from a hand-written list of
+// keys drops everything outside that list in silence. `saveRotor` writes the
+// whole `projectData`, so the file carries `isMultiRotor`, `driving_rotor`,
+// `driven_rotor` and `multi_params`; a list that missed them would bring a
+// saved MultiRotor back as an **empty ordinary rotor** with the file's name on
+// it -- not a refusal, a rotor that looks loaded and is not.
 //
 // So this takes the object as the project and works on it, instead of listing
-// what to keep. Adding a key to a project now costs nothing here, which is the
-// point: the next `multi_params` will not go missing.
+// what to keep. Adding a key to a project costs nothing here.
 
 // The categories a project is expected to have.
 //

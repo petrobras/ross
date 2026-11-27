@@ -88,10 +88,9 @@ IDENTICAL = "identical"
 CLOSE = "close"
 DIFFERENT = "different"
 
-# The two thresholds, written once. They used to be default arguments in two
-# places -- the class and the function -- which is one place too many: changing
-# the tolerance in one of them would have left the other quietly deciding the
-# verdicts, and no test would have noticed.
+# The two thresholds, written once -- not as default arguments of both the class
+# and the function: changing the tolerance in one would leave the other quietly
+# deciding the verdicts, and no test would notice.
 RTOL = 1e-9
 ATOL = 1e-12
 
@@ -160,16 +159,13 @@ class Comparison(object):
     two versions of the same drawing, and continuing would only pile up
     consequences of the first fact.
 
-    **A numeric difference does not.** The first version of this class stopped
-    at the first number out of tolerance too, and that cost a wrong answer.
-    `modes` was reported as differing at `customdata[0]` and the report stopped
-    there -- so I read the first array I saw as the mode shape and told Leonardo
-    the picture had changed. It had not: `customdata` in `plot_mode_2d` is
-    ROSS's `angle_0`, the orbit angle for the hover box, and whether the
-    plotted deflection `y` also differed was a question the report had stopped
-    before reaching. "Which parts of the drawing disagree" is exactly what a
-    human needs and exactly what stopping early throws away, so the numeric
-    sweep now runs to the end and reports per array: how many values are out of
+    **A numeric difference does not.** Stopping at the first number out of
+    tolerance misleads: `modes` differing at `customdata[0]` reads as "the mode
+    shape changed", when `customdata` in `plot_mode_2d` is ROSS's `angle_0`,
+    the orbit angle for the hover box, and whether the plotted deflection `y`
+    also differs is a question a report that stopped never reaches. "Which
+    parts of the drawing disagree" is exactly what a human needs and exactly
+    what stopping early throws away, so the numeric sweep runs to the end and reports per array: how many values are out of
     tolerance, the worst one, and which arrays agree.
     """
 

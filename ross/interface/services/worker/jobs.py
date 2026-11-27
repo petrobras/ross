@@ -1,23 +1,22 @@
 # -*- coding: utf-8 -*-
 """The line of work, and the right to leave it.
 
-Slice 6b moved the computation into another process. It did not change **when**
-the answer arrives: the route still waits, holding the pipe, and everyone behind
-it waits too. This is the piece that breaks that.
+The computation runs in another process, but a route that waits for it holds
+the pipe, and everyone behind it waits too. This is the piece that breaks that.
 
-## The defect this exists to remove, and it is already there
+## The defect this exists to remove
 
 `apiFetchLatest` in the browser aborts the previous request on a card when the
 user changes a parameter and runs again. Aborting a `fetch` **does not stop the
-computation**: the server thread carries on to the end, and -- since 6b -- it
-holds the resident's lock while it does. So today, changing a card's parameters
-twice makes the second analysis wait for the first, which nobody is waiting for,
-with nothing on screen to say so. The cancellation is a client-side illusion.
+computation**: the server thread would carry on to the end, holding the
+resident's lock while it does, so changing a card's parameters twice would make
+the second analysis wait for the first, which nobody is waiting for, with
+nothing on screen to say so. A client-side cancellation alone is an illusion.
 
 A queue makes it real, and the first half costs almost nothing: a job that has
 not started yet can simply be taken out of the line.
 
-## What "cancel" means here, decided with Leonardo
+## What "cancel" means here
 
 * **Superseded** -- a new job arrives for the same subject (the same card). If
   the old one is still waiting, it never runs. If it has already started, it
@@ -25,7 +24,7 @@ not started yet can simply be taken out of the line.
   already inside ROSS means killing the process, and that has a price (the next
   analysis pays the eight to twelve seconds of importing ROSS again, plus up to
   sixteen of numba on the campbell and the crack, all measured).
-* **Cancelled** -- slice 6c-2's button, the other half. The user asked for
+* **Cancelled** -- the stop button, the other half. The user asked for
   everything to stop and was told the price first. The line is emptied and the
   worker is killed, which is the only way to stop a computation that is already
   inside ROSS. The job that was running keeps the ending it was given: whatever
@@ -126,8 +125,8 @@ class Jobs(object):
 
         A `key` is the subject the job belongs to -- one card on the screen.
         Submitting a second job for the same subject takes the first out of the
-        line if it has not started. That is the honest version of what the
-        browser has been pretending to do since Phase 2.
+        line if it has not started -- what aborting a request in the browser
+        cannot do on its own.
         """
         job = Job(next(self._numbers), message, key)
         with self._lock:
@@ -155,10 +154,9 @@ class Jobs(object):
     def report(self, job):
         """What the job says about itself, plus what only the line can say.
 
-        `ahead` is the measurement slice 6c-2 was built around. On screen,
-        *computing* and *waiting for another card* looked identical -- both cards
-        said "updating" -- and Leonardo read two analyses taking turns as two
-        analyses running at once. They are not distinguishable by anything the
+        Without `ahead`, *computing* and *waiting for another card* look identical
+        on screen -- both cards say "updating" -- and two analyses taking turns
+        read as two analyses running at once. They are not distinguishable by anything the
         job knows about itself: a job is queued or running, and how long that
         will last is a fact about everybody else.
         """

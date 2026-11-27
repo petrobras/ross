@@ -112,7 +112,7 @@ def main():
                 "project": PROJECT_REQUEST,
             }
             try:
-                # The route answers a job since slice 6c; `api/waiting.py` is the
+                # The route answers a job; `api/waiting.py` is the
                 # one place that knows how to wait for one.
                 response = answer_for(
                     client,

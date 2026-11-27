@@ -2,16 +2,13 @@
 """Generate the Python script that reproduces, outside the interface, what the
 screen shows.
 
-This generator used to live in frontend/app.js, assembled from the DOM. That
-forced the JavaScript to keep its own copies of three things the backend
-already knows -- node numbering, the unit map and the ROSS class names -- and
-the copies drifted apart silently: the chart came out of one path and the
-exported script out of another. Here the script is born from the same sources
-that build the rotor.
+The script is born from the same sources that build the rotor -- node
+numbering, the unit map and the ROSS class names -- so the chart and the
+exported script cannot come out of two paths that drift apart.
 
-The port is literal by decision: the old function and the new one are compared
-output against output in the tests. The intentional differences are listed
-in DEVIATIONS.
+The reference scripts in tests/golden/export_scripts.json are compared output
+against output. The intentional differences from them are listed in
+DEVIATIONS.
 """
 
 import re
@@ -36,16 +33,16 @@ from .schema import unit_map_by_class
 from .seal_stages import folded
 from .units import DROPPED_UNITS, typed_unit
 
-# Deliberate differences from the old app.js generator:
-#   1. material names go into the script as an escaped literal. Before, a
-#      material named O'Brien produced a .py file that would not even open.
+# Deliberate differences from the reference scripts:
+#   1. material names go into the script as an escaped literal. Unescaped, a
+#      material named O'Brien produces a .py file that will not even open.
 #   2. values coming from a <select> are escaped too. For any normal value
 #      the output is byte for byte the same.
-#   3. an explicitly null field counts as absent. Before it became the word
-#      `null` in the middle of the script -- a NameError on first run.
+#   3. an explicitly null field counts as absent, rather than becoming the
+#      word `null` in the middle of the script -- a NameError on first run.
 #   4. a material's name loses its spaces (domain/material_names.py): ROSS
-#      refuses them, so the old script raised on its first `rs.Material`. It
-#      changed the one reference case with a space in a name,
+#      refuses them, so a script with them raises on its first `rs.Material`.
+#      It changes the one reference case with a space in a name,
 #      `material_com_apostrofo`.
 DEVIATIONS = (
     "material_name_escaping",
@@ -236,9 +233,9 @@ def _base_unit(unit):
 def _with_node_arg(element, args, effective_node):
     """Prefix n= when the element has no explicit node.
 
-    This used to test args.includes('n='), which matched any key ending in 'n'
-    -- cavitation=, gas_composition=, orientation= -- and the element came out
-    without a node.
+    It looks for an `n=` argument of its own: testing for the text 'n=' would
+    match any key ending in 'n' -- cavitation=, gas_composition=, orientation=
+    -- and the element would come out without a node.
     """
     raw = element.get("n")
     has_explicit_node = raw is not None and str(raw).strip() != ""
@@ -639,7 +636,6 @@ def _analysis_block(position, analysis):
         # this block still read the old single `bearing_speed_range` and
         # would have quietly stopped emitting the argument: the interface would
         # compute one thing and the exported script another, with nobody told.
-        # The clearance correction paid for that lesson once already.
         # Half a range is not handled here because it cannot arrive: the runner
         # refuses one end without the other, so no analysis of this version can
         # be saved holding it, and no analysis of an older version has these

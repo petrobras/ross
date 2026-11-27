@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """Entry point of the ROSS interface.
 
-What used to be a 1190-line file -- routes, rotor assembly, expression
-evaluator, cache, the twelve analyses and reading ROSS files, all together --
-became three layers:
+Routes, rotor assembly, the expression evaluator, the cache, the twelve
+analyses and reading ROSS files live in three layers:
 
     api/       transport: routes, envelope, token, error handling
     services/  what the application does: the analysis runners, the evaluator

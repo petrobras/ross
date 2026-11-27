@@ -138,7 +138,7 @@ check('the name field starts empty, so the default can be used', node('cc-name')
 // This half of the module had no battery at all: the sentence was covered, the
 // trip to the server was covered only by the Python route tests and by somebody
 // remembering to click. The `fetch` double is the one `test_requests.js` already
-// uses, and it turns "I tried it and it worked" into something that stays true.
+// uses, and it turns "it worked when tried" into something that stays true.
 
 let sent = null;
 

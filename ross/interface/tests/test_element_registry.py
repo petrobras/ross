@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """The map between what the screen calls an element and the ROSS class.
 
-Before Phase 1 this map existed in three different, incompatible shapes. The
-guard that matters is the regression one: every registered class has to exist
+The guard that matters is the regression one: every registered class has to exist
 in the installed ROSS, so that a rename in a library update shows up as a
 failure here, and not as an empty form on the user's screen."""
 

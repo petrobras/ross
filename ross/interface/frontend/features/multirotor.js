@@ -24,11 +24,11 @@ export const switchMultiRotorTarget = function(target) {
 // `rs.MultiRotor` couples the two rotors through a **gear on each coupled
 // node**, and refuses anything else: measured, with no gear, or with gears on
 // nodes other than the ones typed, it raises "Each rotor needs a GearElement in
-// the coupled nodes!". The modal used to offer "0, 0" and say nothing, so the
-// MultiRotor was saved without complaint and only failed later, on the
+// the coupled nodes!". A modal that offered "0, 0" and said nothing would let
+// the MultiRotor be saved without complaint and fail only later, on the
 // modelling screen.
 //
-// So the modal now says where each rotor's gears are, and fills the coupled
+// So the modal says where each rotor's gears are, and fills the coupled
 // nodes in when there is only one way to fill them. The *rule* is not copied
 // here: `saveMultiRotor` asks the server to build the MultiRotor before keeping
 // it, and ROSS is the one that answers.
@@ -71,7 +71,7 @@ export function describeCoupling() {
     hint.innerHTML = gearSentence(driving) + '<br>' + gearSentence(driven);
 
     // One gear on each side: there is exactly one coupling ROSS will accept, so
-    // it is typed in. Anything else is the person's choice to make.
+    // it is typed in. Anything else is for the person to choose.
     const first = gearNodes(driving);
     const second = gearNodes(driven);
     if (first && second && first.length === 1 && second.length === 1) {
@@ -154,9 +154,9 @@ export async function saveMultiRotor() {
     
     // Built once by the server before it is kept. A MultiRotor that ROSS will
     // not build -- no gear on a coupled node, a mesh stiffness it cannot work
-    // out -- used to be saved anyway and fail on the modelling screen, far from
-    // the fields that caused it. Now ROSS's own sentence is shown here, with
-    // the modal still open on those fields.
+    // out -- would otherwise be saved anyway and fail on the modelling screen,
+    // far from the fields that caused it. ROSS's own sentence is shown here,
+    // with the modal still open on those fields.
     let answer;
     try {
         answer = await apiFetch('/build_rotor', {

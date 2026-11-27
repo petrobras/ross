@@ -208,8 +208,8 @@ export function couplingShaftEnds(THREE, part, edges) {
 // foot to each side, where SYMBOL.bearing puts them -- extruded along the
 // shaft, its edges bevelled, with a bore of radius `bore`, and a bolt in each
 // foot. The pillow block's (rotor3d_parts.js), and every bearing's of the
-// geometry bank (rotor3d_shapes.js): Leonardo asked for theirs to meet the
-// base as the pillow block's does, and one outline for all of them is what
+// geometry bank (rotor3d_shapes.js): they all meet the base as the pillow
+// block's does, and one outline for all of them is what
 // keeps them standing alike on the bench's pedestals. `footTop` is where the
 // feet end, for what else sits on them.
 export function bearingHousing(THREE, part, bore, edges) {

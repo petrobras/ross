@@ -1,8 +1,8 @@
 // The Campbell diagram with mode shape: clicking a point asks the backend for the
 // 3D figure of that mode and draws it alongside.
 //
-// This used to be an iframe pointing at a Dash server on a random port, which the
-// backend discovered by spying on its own sys.stdout (BE-04).
+// The mode shape comes from the server (`/api/campbell/mode_shape`) and is drawn
+// with Plotly, like any other chart: no Dash server and no iframe.
 import { ANALYSES } from '../core/analysis_store.js';
 import { runJob, wasCancelled, projectForServer } from '../core/api.js';
 import { busySpinner, escapeHtml } from '../core/dom.js';

@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """The envelope of each route: what it accepts, and what it refuses by name.
 
-Until Phase 2 each route read the body with loose `.get()` calls. A wrong field
-name -- `analysisType` instead of `analysis_type` -- raised nothing: it became
-`None` and the analysis carried on with the default value. The user saw a
-result, only of another configuration.
+A route that reads the body with loose `.get()` calls raises nothing on a wrong
+field name -- `analysisType` instead of `analysis_type`: it becomes `None` and
+the analysis carries on with the default value. The user sees a result, only of
+another configuration.
 
 The envelope declares the fields it accepts and **refuses any key that is not
-declared**. The pre-Phase-2 format, with the project loose at the root, is now
+declared**. The old format, with the project loose at the root, is
 recognised by the name of its own keys -- with no special case, and with a
 message that talks about the contract instead of complaining about the rotor."""
 
@@ -104,6 +104,7 @@ def test_the_sweep_finds_every_envelope_there_is():
         "/api/campbell/mode_shape",
         "/api/export/python",
         "/api/rotor/concatenate",
+        "/api/rotor/insert_shaft",
         "/api/rotor/mesh_shafts",
         "/api/rotor/split_shaft",
         "/api/units/convert",
@@ -187,9 +188,9 @@ def test_the_figure_is_asked_for_with_a_boolean():
 def test_the_old_flat_payload_is_refused_by_name(client):
     """The contract changed: say that, instead of complaining about the rotor.
 
-    Sending the project loose at the root -- the pre-Phase-2 format -- the backend
-    read an empty project and answered 'Add at least one Shaft!'. The message
-    talked about the rotor when the problem was the envelope, and sent whoever
+    Sending the project loose at the root -- the old format -- the backend would
+    read an empty project and answer 'Add at least one Shaft!'. The message
+    would talk about the rotor when the problem is the envelope, and send whoever
     read it looking in the wrong place."""
     old_one = dict(
         PROJECT_REQUEST, analysis_type="static", params={}, conversion_type=""
@@ -207,8 +208,8 @@ def test_an_empty_envelope_is_not_mistaken_for_the_old_format(client):
     """Control: a body with nothing structural must not fall into the refusal above.
 
     The envelope accepts this one -- `project` simply defaults to empty -- so
-    the refusal is the rotor's, and since slice 6c it arrives with the job
-    rather than with the request.
+    the refusal is the rotor's, and it arrives with the job rather than with the
+    request.
     """
     response = answer_for(
         client,
@@ -229,20 +230,19 @@ def test_the_analysis_route_survives_an_empty_body(client):
     assert response.json["status"] == "error"
 
 
-# --- the work: where it is computed, and when (slices 6b and 6c) --------------
+# --- the work: where it is computed, and when ---------------------------------
 #
-# The route stopped computing in 6b and stopped waiting in 6c. These are the
-# guards that say both moves were invisible from outside: the same chart, the
-# same status codes, the same messages -- and an application that still works
-# when the worker does not.
+# The route neither computes nor waits: the worker computes, and the answer is a
+# job. These are the guards that say neither is visible from outside: the same
+# chart, the same status codes, the same messages -- and an application that
+# still works when the worker does not.
 
 
 class _FakeWorker(object):
     """A worker with no process behind it, installed into the real resident.
 
     `holds` makes it answer only when the test says so, which is how a job is
-    kept running long enough for another one to queue behind it -- the state the
-    screen could not describe before slice 6c-2.
+    kept running long enough for another one to queue behind it.
     """
 
     def __init__(self, answer=None, raises=None, holds=False):
@@ -360,7 +360,7 @@ def test_a_failure_that_is_not_a_refusal_is_a_500_that_names_it(client, worker):
 
     Without this, a transport that turned *every* answer into a 400 would pass
     the guard above -- and the status code would stop telling the truth about
-    whose fault it is, which is the whole point of BE-10."""
+    whose fault it is."""
     worker(answer={"ok": False, "failure": "KeyError", "error": "'odl'"})
     answer = answer_for(
         client,
@@ -434,7 +434,7 @@ def test_a_job_nobody_has_heard_of_is_a_404(client):
     assert "j-nonsense" in response.json["message"]
 
 
-# The screen of slice 6c-2: which of the two states a card is in, and the one
+# The screen: which of the two states a card is in, and the one
 # button that can end the work. The arithmetic of the line is driven with no
 # process and no HTTP in `tests/test_jobs.py`; what these guards are for is that
 # it reaches the browser at all, and that pressing the button does what the

@@ -4,28 +4,22 @@
 Some defects only show up in the browser's behaviour: the form that disappears
 when the list is redrawn, the old request that overwrites the chart, the screen
 that ends up half in each language. The batteries build minimal stand-ins (DOM,
-`fetch`, `localStorage`) and **import the real modules** -- since Phase 3 they
-no longer read the source as text.
+`fetch`, `localStorage`) and **import the real modules**, not the source read
+as text.
 
-## The silence that cost dearly
+## Why skipping is not enough
 
 These batteries are the only guards in the project that measure the SCREEN
-rather than the text of the code. Even so they went months without running, and
-the failure mode is the lesson:
+rather than the text of the code, and they can go silent:
 
 * the `skipif` below skips everything when `node` is not on the PATH -- and it
-  is not, on the Windows Python where the suite runs day to day;
-* a `pytest` that skips 14 tests is a green `pytest`: the default output does
-  not even list the skips;
-* in that silence, two batteries rotted. `test_formbox.js` and
-  `test_requests.js` read `frontend/app.js` with `require()`, and the file
-  stopped existing in the move to modules, while the `package.json` of
-  `tests/js/` became `"type": "module"`. Both blew up on their first line for
-  months. The `test_requests.js` one covered FE-05 of the audit -- an
-  out-of-order answer overwriting the chart -- so the coverage of a critical
-  defect already fixed vanished with nobody seeing.
+  is not, on many Windows Pythons;
+* a `pytest` that skips tests is a green `pytest`: the default output does not
+  even list the skips;
+* in that silence a battery can rot -- blowing up on its first line -- and the
+  coverage of a defect already fixed vanishes with nobody seeing.
 
-That is why the bridge now **fails, instead of skipping, when the environment
+That is why the bridge **fails, instead of skipping, when the environment
 says it should have node**: in CI, or when `ROSS_INTERFACE_REQUIRE_NODE` is set.
 Skipping is still right on a machine that only wants to run the backend; what
 must not happen is the absence going unnoticed where it matters."""
@@ -148,17 +142,14 @@ def test_every_battery_is_a_module_and_not_the_old_commonjs():
     for battery in BATTERIES:
         with io.open(os.path.join(JS_DIR, battery), encoding="utf-8") as handle:
             js = handle.read()
-        # Without stripping the comments, the guard accuses the header that EXPLAINS
-        # the defect -- which is what happened on its first run, and is the same trap
-        # as `pytest.ini` in the previous slice. Reading code as text always means
-        # discounting the text that talks about the code.
+        # Without stripping the comments, the guard accuses a header that EXPLAINS
+        # the defect. Reading code as text always means discounting the text that
+        # talks about the code.
         source = re.sub(r"/\*[\s\S]*?\*/|//[^\n]*", "", js)
         if "require(" in source:
             problems.append("%s: uses require() in an ES module" % battery)
         if "app.js" in source:
-            problems.append(
-                "%s: reads app.js, which has not existed since Phase 3" % battery
-            )
+            problems.append("%s: reads app.js, which does not exist" % battery)
         # On Windows, `new URL(...).pathname` gives back `/C:/Users/...` -- with the
         # leading slash. Passing that to `path.join` produces `C:\C:\Users\...` and an
         # ENOENT. It was the only defect that showed up when the suite first ran

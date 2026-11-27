@@ -15,8 +15,8 @@ const { VERTICAL_SCALES, withVerticalScale } =
 // Read defensively on purpose. The claim this file exists to defend is that a
 // stretch cannot happen without a label, and a check for it has to **fail by
 // name** when the label goes -- not bring the battery down with a TypeError on
-// an axis that has no title. A mutation that removes `stretchTitle` used to do
-// exactly that: detected, but unreadable.
+// an axis that has no title -- a mutation that removes `stretchTitle` would
+// otherwise be detected, but unreadable.
 function titleOf(layout) {
     const axis = (layout && layout.yaxis) || {};
     const title = axis.title;
@@ -203,10 +203,10 @@ check('with nothing added to the axis', titleOf(onScreen()) === 'Shaft radius (m
 
 // --- the box grows with the figure ----------------------------------------------
 //
-// Stretched 5x, ROSS's figure is over a thousand pixels tall. The box it is
-// drawn in had `height: 100%` -- the panel's -- and the figure hung out of its
-// own border, the buttons with it (Leonardo). The box may only set a least
-// height; its height is the figure's.
+// Stretched 5x, ROSS's figure is over a thousand pixels tall. With `height:
+// 100%` -- the panel's -- the box would leave the figure hanging out of its
+// own border, the buttons with it. The box may only set a least height; its
+// height is the figure's.
 const css = fs.readFileSync(new URL('../../frontend/style.css', import.meta.url), 'utf8');
 const box = (css.match(/\n\.live-plot-area \{([^}]*)\}/) || [])[1] || '';
 check('the figure\'s box has a rule', box.length > 0);

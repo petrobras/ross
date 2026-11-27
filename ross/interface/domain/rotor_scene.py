@@ -22,8 +22,8 @@ Why here and not in the browser:
   click on a part opens the row that describes it.
 
 Most elements have no shape in ROSS. A disk is a mass and two inertias; a
-bearing is stiffness and damping at a node. Decided with Leonardo: a disk is
-drawn as the **equivalent steel disk** -- the one with the same mass and polar
+bearing is stiffness and damping at a node. A disk is drawn as the
+**equivalent steel disk** -- the one with the same mass and polar
 inertia, bored to the shaft it sits on -- so its size on screen means something
 physical, and it is flagged as equivalent.
 

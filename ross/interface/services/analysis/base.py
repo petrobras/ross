@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 """The shape of an analysis runner.
 
-Until Phase 2 the twelve analyses lived in a 460-line `if/elif` inside the
-route, repeating the same sequence twelve times: read the parameters, build the
-kwargs, check the cache, run, build the plotting kwargs, plot. Beyond the size,
-that blocked Phase 4 -- a job queue needs one callable per analysis, not a
-branch of an `if`.
+Every analysis goes through the same sequence: read the parameters, build the
+kwargs, check the cache, run, build the plotting kwargs, plot. A runner holds
+one analysis's part of it, so a job queue has one callable per analysis.
 
 ## The separation that matters
 
@@ -18,11 +16,11 @@ Each runner has three halves:
 
 The point is that **`compute` receives only the `spec`, never the `params`**.
 That is not style: the cache key is the fingerprint of the `spec` itself, so a
-computation cannot depend on anything left out of the key. The key used to be
-"the params minus a hand-kept list of plotting keys", and the list was wrong:
-Campbell read `plot_type` during the computation (to clip the speeds to 15 in
-mode-shape mode) while `plot_type` sat outside the key. Opening Mode Shape and
-going back to Default returned a 15-point diagram with the form still saying
+computation cannot depend on anything left out of the key. A key made of "the
+params minus a hand-kept list of plotting keys" is only as good as the list:
+Campbell reads `plot_type` during the computation (to clip the speeds to 15 in
+mode-shape mode), so with `plot_type` outside the key, opening Mode Shape and
+going back to Default would return a 15-point diagram with the form still saying
 50 -- and no error on screen.
 
 `plot`, by contrast, receives the whole `params`: choosing an axis unit or a
@@ -46,11 +44,10 @@ class Runner:
     # up there -- if one did, picking another chart option would return the
     # result of a different configuration, silently.
     #
-    # Until slice 4 this was a tuple written by hand in each runner, next to a
-    # form declaring the same names in another language. The two lists drifted
-    # apart: `probes`, `inps` and `outs` are read in `plot` and were in no
-    # tuple at all, so the guard above did not cover them. Now it comes from
-    # the catalog, which is where the field is declared.
+    # It comes from the catalog, which is where the field is declared, and not
+    # from a tuple written by hand next to a form declaring the same names: two
+    # lists drift apart, and a field read in `plot` but missing from the tuple
+    # (`probes`, `inps`, `outs`) is not covered by the guard above.
     @property
     def PLOT_PARAMS(self):
         return plot_parameters(self.name)
@@ -176,15 +173,13 @@ class Runner:
         `fallback` is the row used when the table is empty; `mag_default` and
         `phase_default` are each cell's default. The two are distinct on
         purpose -- the unbalance response and the fault analyses use different
-        values, and the previous version of this code already did so.
+        values.
 
-        The fallback is not for everyone. Clearance used to switch it off, with
-        an `analysis=` argument that made an empty table raise: the unbalance IS
-        the excitation measured against the gap, and inventing one would have
-        answered a question the user did not ask. Since ROSS #1377 an empty
-        table there means the API 617 placement, so the runner reads the table
-        only when it has rows and never reaches this fallback; the argument
-        left with its last caller.
+        The fallback is not for everyone. In clearance the unbalance IS the
+        excitation measured against the gap, and inventing one would answer a
+        question the user did not ask; there an empty table means the API 617
+        placement (ROSS #1377), so the runner reads the table only when it has
+        rows and never reaches this fallback.
         """
         lines = params.get("unbalances") or [fallback]
         nodes = [int(line.get("node", 0)) for line in lines]

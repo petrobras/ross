@@ -3,10 +3,8 @@ import { currentLanguage, t } from '../core/i18n.js';
 
 // The help content, in both languages.
 //
-// Until the i18n slice this was ~1240 words in English only -- the largest block
-// of text in the interface, and the one that most needs to be read in the
-// reader's own language. The English here is the same as before: it was
-// extracted by evaluating the module, not retyped.
+// The largest block of text in the interface, and the one that most needs to be
+// read in the reader's own language.
 const HelpContent = {
     general: {
         title: {

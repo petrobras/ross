@@ -87,7 +87,7 @@ def project(with_link=True):
     if with_link:
         # A point mass does not sit on a shaft node. It sits on a link node past
         # the last shaft node, reached by a bearing with `n_link`, and that link
-        # node needs a support of its own -- this project's lesson 1.
+        # node needs a support of its own.
         built["bearings"][1]["n_link"] = "4"
         built["bearings"].append(
             {"element_type": "BASIC", "n": "4", "kxx": "1e6", "cxx": "0"}

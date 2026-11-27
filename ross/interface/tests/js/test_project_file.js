@@ -128,9 +128,9 @@ check('the shafts arrive under their english name', old.shafts.length === 1);
 check('and the disks', old.disks.length === 1);
 check('and the bearings', old.bearings.length === 1);
 check('and the materials', old.materials.length === 1);
-// The one the old loader got wrong: it looked for `badges`, which is what an
-// automatic translation makes of `selos`, so an old project lost its seals.
-check('and the seals, which used to be lost', old.seals.length === 1);
+// `selos` translates to `seals`, not to `badges` (what an automatic translation
+// makes of it): looking for the wrong key loses an old project's seals.
+check('and the seals', old.seals.length === 1);
 check('no portuguese key is left behind', old.eixos === undefined && old.selos === undefined);
 
 // `badges` is accepted too, because which of the two an old file really carries

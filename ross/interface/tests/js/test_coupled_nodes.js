@@ -3,10 +3,10 @@
 //
 // WHY THIS BATTERY EXISTS. `coupled_nodes` is typed once, when the MultiRotor
 // is made, as two node numbers. Splitting the driving rotor's first shaft below
-// its gear moved the gear from node 2 to node 3 and left "2, 1" behind: the
-// MultiRotor then refused to build ("Each rotor needs a GearElement in the
-// coupled nodes!"), on a screen where nobody had touched the coupling. The
-// numbers below are that case: the `multirotor` golden of
+// its gear moves the gear from node 2 to node 3; left at "2, 1", the MultiRotor
+// would refuse to build ("Each rotor needs a GearElement in the coupled
+// nodes!"), on a screen where nobody touched the coupling. The numbers below
+// are that case: the `multirotor` golden of
 // tests/golden/rotor_scenes.json, its first driving shaft cut at 50 mm by
 // domain/splitting.py, which rewrites the gear's `n` from "2" to "3".
 import fs from 'node:fs';
