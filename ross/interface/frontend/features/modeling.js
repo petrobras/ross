@@ -893,12 +893,14 @@ async function _fetchRotorLive() {
         figureIsCurrent = false;
         lastScene = null;
         // A sketch under way (features/sketch3d.js) is drawing the first shaft
-        // on this empty view: what the view says stays out of its way.
-        if (toolInUse()) return;
-        hideRotor3d();
-        clearRotor3d();
-        say3d(t('addOneShaft'));
-        showFirstShaftButton(true);
+        // on the empty 3D view: what the 3D view says stays out of its way.
+        // The 2D figure and the readings still follow the project.
+        if (!toolInUse()) {
+            hideRotor3d();
+            clearRotor3d();
+            say3d(t('addOneShaft'));
+            showFirstShaftButton(true);
+        }
         showInsteadOfFigure(plotContainer, emptyFigureHtml());
         showReadings(infoContainer, false);
         return;
