@@ -106,8 +106,8 @@ def test_figure_to_json_handles_plain_python_lists():
 def test_run_analysis_serialisation_helpers_are_gone():
     """The three hand-written functions went away with the move to to_json().
 
-    After slice 4 they could not come back anywhere, so the search became the
-    whole of the server code."""
+    They must not come back anywhere, so the search is the whole of the server
+    code."""
     import glob
 
     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

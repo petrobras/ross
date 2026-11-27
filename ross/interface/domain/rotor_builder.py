@@ -2,8 +2,8 @@
 """Build the ROSS rotor from the project the interface describes.
 
 Nothing here belongs to Flask: this is the translation between the form and the
-library. It left app.py in Phase 2 so that the transport layer (api/) only
-transports, and so that this logic can be exercised without starting a server.
+library. It is apart from the transport layer (api/), so that the routes only
+transport and this logic can be exercised without starting a server.
 
 Elements already built live in a bounded, locked cache (domain/cache.py).
 Sharing them between rotors is safe for three reasons written in that module's
@@ -312,9 +312,9 @@ def build_rotor_from_ui(data):
 
 def assemble_rotor(data):
     """The rotor, together with which element came from which row."""
-    # Before anything is built: an element naming a material this rotor does
-    # not have used to be answered with the first material of the list, in
-    # silence (domain/material_names.py). A MultiRotor is checked half by half,
+    # Before anything is built: ROSS answers an element naming a material this
+    # rotor does not have with the first material of the list, in silence
+    # (domain/material_names.py). A MultiRotor is checked half by half,
     # through this same call.
     validate_materials(data)
 

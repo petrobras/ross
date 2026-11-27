@@ -1,11 +1,10 @@
 // The line of work as the screen sees it: who is computing, who is waiting, and
 // who is allowed to say the work is over.
 //
-// WHY THIS BATTERY EXISTS. Slice 6c-1 made the screen stop blocking, and the
-// first thing that came out of using it was a misreading: the Campbell and the
-// crack both showed "updating" at the same time, so they looked like two
-// analyses running at once. There is one worker and one thread -- they were
-// taking turns. Everything here is about the difference between those two
+// WHY THIS BATTERY EXISTS. The screen does not block while analyses run, and
+// the Campbell and the crack both showing "updating" at the same time would
+// look like two analyses running at once. There is one worker and one thread
+// -- they take turns. Everything here is about the difference between those two
 // sentences, and about the bar that can only exist because something keeps the
 // list in one place.
 import { check, node, shutDown } from './fake_dom.js';
@@ -66,7 +65,7 @@ setSchemaLanguage('pt');
 check('and it speaks the chosen language',
     describeWork([{ state: 'running' }]) === '1 calculando');
 
-// --- what the card says, which is the whole reason for the slice --------------
+// --- what the card says --------------------------------------------------------
 //
 // One sentence for two states is the defect. A card computing and a card
 // waiting behind another card looked identical, so two analyses taking turns

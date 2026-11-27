@@ -163,6 +163,8 @@
                     <p id="rotor-3d-message" class="rotor3d-message" hidden></p>
                     <!-- "Computing": over the canvas while ROSS builds the rotor (modeling.js). -->
                     <div id="rotor-3d-busy" class="rotor3d-busy" role="status" aria-live="polite" hidden></div>
+                    <!-- An empty project: its first shaft drawn here (features/sketch3d.js). -->
+                    <button type="button" id="rotor-3d-first-shaft" class="rotor3d-first-shaft btn-primary" data-action="sketch-first-shaft" hidden><i class="fas fa-drafting-compass"></i> <span data-i18n="sketchFirstShaft">Sketch the first shaft</span></button>
                     <div class="rotor3d-tools">
                         <button type="button" class="rotor3d-tool" data-action="toggle-pan" aria-pressed="false" title="Move the view: dragging moves it instead of turning it (also: right button, Shift + drag, arrow keys)" data-i18n-title="rotor3dPan"><i class="fas fa-up-down-left-right"></i></button>
                         <button type="button" class="rotor3d-tool" data-action="toggle-dimensions" aria-pressed="false" title="Show the node numbers and the dimensions" data-i18n-title="rotor3dDimensions"><i class="fas fa-ruler-combined"></i></button>

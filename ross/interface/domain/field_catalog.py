@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Editorial catalog of each element's fields.
 
-Generated from the curation that used to be embedded in app.js's FormTemplates:
-field order, label, and what counts as basic or advanced. That is engineering
+The curation of each form: field order, label, and what counts as basic or
+advanced. That is engineering
 judgement and does not derive from introspection -- which is why it lives here.
 
 What is NOT here, because domain/schema.py derives it at runtime:
@@ -62,8 +62,7 @@ SECTIONS = {
 
 # The hybrid seal's two stages, one field per key of the dictionary ROSS takes
 # for each (`hole_pattern_parameters`, `labyrinth_parameters`): typing a whole
-# dictionary into one box was what the users found hard to read and to get
-# right. `hp_` and `lab_` keep the names apart; domain/seal_stages.py folds
+# dictionary into one box is hard to read and to get right. `hp_` and `lab_` keep the names apart; domain/seal_stages.py folds
 # them back into the dictionaries. The dictionaries themselves stay, last in
 # the advanced fields, for projects typed that way: a field given wins over
 # the same key there.

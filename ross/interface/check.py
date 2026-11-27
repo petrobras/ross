@@ -60,12 +60,11 @@ PYTEST_PROGRESS = re.compile(r"^[.sxXFE]+(?:\s+\[\s*\d+%\])?$", re.M)
 def pytest_crashed_after_the_run(part):
     """Did pytest fail *after* every test had already passed?
 
-    Windows, 2026-09-20: the suite ran to 100% -- 955 passed, 1 skipped, nothing
-    failed -- and then the process died in `pytest_sessionfinish`, cleaning up
-    its own temporary directory:
+    On Windows the suite can run to 100% -- nothing failed -- and the process
+    then die in `pytest_sessionfinish`, cleaning up its own temporary directory:
 
         PermissionError: [WinError 5] Acesso negado:
-          '...\\Temp\\pytest-of-Leonardo\\pytest-current'
+          '...\\Temp\\pytest-of-<user>\\pytest-current'
 
     The asymmetry is pytest's own. Creating that symlink is best effort and says
     so (`_pytest/pathlib.py:204`, `except Exception: pass`); deleting it, forty
@@ -74,9 +73,9 @@ def pytest_crashed_after_the_run(part):
     session in which everything passed.
 
     None of which would matter if the summary had not said `pytest FAILED`,
-    which reads as "a test broke". That is the second pattern of this project --
-    an error answering a different question from the one that was asked -- in
-    the report we built to avoid exactly that. What the summary owes the reader
+    which reads as "a test broke": an error answering a different question from
+    the one that was asked, in the report meant to avoid exactly that. What the
+    summary owes the reader
     is not a verdict on pytest's exit code: it is what happened.
 
     Returns the count of passing tests when the run itself was clean, and None

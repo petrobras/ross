@@ -42,16 +42,12 @@ def test_the_lower_layers_do_not_know_about_flask(folder):
 def test_the_entry_point_declares_no_routes():
     """app.py starts the server, opens the browser and picks a mode. Nothing else.
 
-    The size limit counts **statements**, not lines, and that is a correction.
-    Counted in lines it stood at "under 60", and slice 6a took the file to 74 by
-    adding a mode -- of which fifteen lines are the comment explaining why the
-    mode has to be decided before the application is built. A limit that counts
-    prose punishes exactly the thing this project wants more of, and the way it
-    fails is by being raised: a ceiling that only ever moves up measures nothing
-    after the second time somebody moves it.
+    The size limit counts **statements**, not lines. A limit that counts prose
+    punishes the comments that explain why things are as they are, and the way
+    it fails is by being raised: a ceiling that only ever moves up measures
+    nothing after the second time somebody moves it.
 
-    Counted in statements the file has not grown much in three slices, which is
-    the property the limit was always trying to express: the entry point wires
+    Counted in statements, it expresses the property the limit is after: the entry point wires
     things together and computes nothing.
     """
     import ast

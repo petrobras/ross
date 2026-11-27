@@ -28,11 +28,10 @@ installed package, and this interface depends on two of those:
   ROSS's own `pyproject.toml` lists it under `include`, which is how we know it
   ships as data and not as code.
 
-And the list of *which* packages do that is not written here either. The first
-build proved why: it died on `ccp/config/new_units.txt`, inside
-`ccp-performance` -- a package this project never mentions, imported by ROSS
-from `seals/labyrinth_seal.py`. Three names I could think of, and the fourth
-was the one that mattered. So the spec derives the closure from what
+And the list of *which* packages do that is not written here either: a build
+dies on `ccp/config/new_units.txt`, inside `ccp-performance` -- a package this
+project never mentions, imported by ROSS from `seals/labyrinth_seal.py` -- if
+that package is not on a hand-written list. So the spec derives the closure from what
 `requirements.txt` declares and asks each installed package what it carries.
 
 ## What is cut, and how it was decided
@@ -95,10 +94,9 @@ def canonical(name):
 def dependency_closure(roots):
     """Every distribution the roots require, transitively.
 
-    The first build died on `ccp/config/new_units.txt` -- a data file inside
-    `ccp-performance`, which ROSS imports from `seals/labyrinth_seal.py` on
-    `import ross`. The spec was collecting data for plotly, ross and pint:
-    the three I could name. The fourth existed, and I could not name it.
+    A hand-written list misses packages nobody thinks of: `ccp-performance`,
+    which ROSS imports from `seals/labyrinth_seal.py` on `import ross`, carries
+    a data file (`ccp/config/new_units.txt`) the bundle needs.
 
     So the list is not written here. It is derived from the metadata of what is
     installed, starting at ROSS and its `interface` extra -- because a list of

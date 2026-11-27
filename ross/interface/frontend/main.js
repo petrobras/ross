@@ -4,10 +4,8 @@
 // the bootstrap. Everything else lives in `core/`, `components/` and
 // `features/`.
 //
-// Nothing is published on `window`. Until slice 15 this file ended in a
-// bridge block that hung on it every function an inline `onclick` of the HTML
-// called (73 names at its largest); every button now says `data-action="..."`
-// and one listener looks the name up (core/actions.js).
+// Nothing is published on `window`: every button says `data-action="..."` and
+// one listener looks the name up (core/actions.js).
 import { onReorder } from './components/list.js';
 import { startFormWindow } from './components/floating_form.js';
 import { startContextMenu } from './components/context_menu.js';
@@ -32,13 +30,13 @@ import { SHELL_ACTIONS } from './features/shell_actions.js';
 import { MODELING_ACTIONS } from './features/modeling_actions.js';
 import { ANALYSIS_ACTIONS } from './features/analysis_actions.js';
 import { DIALOG_ACTIONS } from './features/dialog_actions.js';
+import { SKETCH_ACTIONS } from './features/sketch3d.js';
 
 // --- Wiring between layers -------------------------------------------------
 //
 // The element list does not know the rotor: it announces that the order changed,
-// and whoever knows how to rebuild subscribes here. It was this inversion that
-// removed the only path from a component to a feature -- and it was the one I
-// created and forgot to connect, leaving dragging with no effect on the figure.
+// and whoever knows how to rebuild subscribes here, so that no component calls a
+// feature. Left unconnected, dragging would have no effect on the figure.
 onReorder(buildRotorLive);
 
 // The buttons grey out when there is nothing left to undo. The reason this is a
@@ -59,6 +57,7 @@ defineActions(SHELL_ACTIONS);
 defineActions(MODELING_ACTIONS);
 defineActions(ANALYSIS_ACTIONS);
 defineActions(DIALOG_ACTIONS);
+defineActions(SKETCH_ACTIONS);
 
 // The schema is loaded once at startup; openForm waits for it.
 document.addEventListener('DOMContentLoaded', () => {

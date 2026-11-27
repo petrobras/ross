@@ -2,10 +2,9 @@
 """One analysis, end to end: the unit of work, with no transport around it.
 
 Everything between "here is what the user asked for" and "here is the chart"
-used to live in the route. That was fine while there was exactly one caller.
-There are about to be two -- the route, and a worker process that owns the ROSS
-objects -- and two callers of the same steps is precisely the shape this
-refactoring exists to prevent: a copy kept by hand, diverging in silence.
+has two callers -- the route, and a worker process that owns the ROSS objects
+-- and two callers of the same steps invite a copy kept by hand, diverging in
+silence.
 
 So the steps live here, once, and both callers ask for the same function. The
 route keeps what is genuinely transport (reading the envelope, the token, the

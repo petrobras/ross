@@ -215,10 +215,9 @@ check('and there is nothing further back', canUndo() === false);
 
 // --- opening a rotor ---------------------------------------------------------------
 //
-// The bug this exists for, found by hand and not by this battery: entering
-// another rotor emptied the stacks and told nobody, so the buttons kept the
-// state they had under the previous model -- undo arrived alive in a rotor with
-// no history to walk.
+// The bug this exists for: entering another rotor empties the stacks, and if
+// nobody is told, the buttons keep the state they had under the previous model
+// -- undo alive in a rotor with no history to walk.
 //
 // The check is deliberately *not* calling `refreshHistoryButtons` itself. That
 // is what the first version did everywhere above, and it is exactly why the

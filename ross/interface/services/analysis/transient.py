@@ -108,7 +108,7 @@ class TimeResponseRunner(TransientRunner):
         forces = params.get("forces") or []
         if not forces:
             # With no force the response is zero at every node -- a flat chart that
-            # looks like a result. The same reasoning as BE-05, just below: a null
+            # looks like a result. The same reasoning as just below: a null
             # excitation must not pass for a computation.
             raise ValueError(
                 "Add at least one applied force F(t) to run the time response."
@@ -140,8 +140,8 @@ class TimeResponseRunner(TransientRunner):
             try:
                 forces[:, global_dof] += safe_expression_eval(expression, variables)
             except Exception as exc:
-                # BE-05: this used to be `except: pass` and the analysis ran with a null
-                # excitation -- a wrong result, with no warning.
+                # Not `except: pass`: the analysis would run with a null excitation
+                # -- a wrong result, with no warning.
                 raise ValueError(
                     f"Invalid force at node {node_index}, DoF {dof}: '{expression}' -- {exc}"
                 )
@@ -159,8 +159,8 @@ class MisalignmentRunner(TransientRunner):
     whatever is missing arrives as None and the arithmetic blows up inside with
     `unsupported operand type(s) for ** or pow(): 'NoneType' and 'int'` -- a
     message that does not say which field was left blank. That is why the
-    requirement lives here, naming the field, following the slice's own rule: a
-    physical parameter is mandatory.
+    requirement lives here, naming the field: a physical parameter is
+    mandatory.
 
     Which ones are mandatory depends on the misalignment type, because ROSS
     picks the force function from it (MisalignmentFlex.__init__): parallel uses

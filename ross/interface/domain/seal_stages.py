@@ -2,9 +2,8 @@
 """The hybrid seal's two stages, from the fields of its form to ROSS's dicts.
 
 `HybridSeal` takes each stage as a dictionary, `hole_pattern_parameters` and
-`labyrinth_parameters`. The form used to ask for them as typed dictionaries,
-which the users found hard to read and to get right, so it now asks for one
-field per key, `hp_<key>` and `lab_<key>` (domain/field_catalog.py), each with
+`labyrinth_parameters`. A typed dictionary is hard to read and to get right,
+so the form asks for one field per key, `hp_<key>` and `lab_<key>` (domain/field_catalog.py), each with
 its unit. `folded` puts the dictionaries back together, in SI, for the builder
 and for the exported script alike, so the two cannot disagree.
 

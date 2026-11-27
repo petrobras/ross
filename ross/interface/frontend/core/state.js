@@ -8,8 +8,7 @@ import { adoptMaterials } from './material_names.js';
 // This is not a state framework and does not want to be: it is the minimum set
 // of what several parts read **and write**. They live in an object because
 // `export let` is read-only for importers -- and because this way a mutation
-// has an address and a search finds it. The goal of the coming slices is for
-// this object to shrink.
+// has an address and a search finds it. It should only ever shrink.
 export const state = {
     rotorLibrary: [],
     activeRotorIndex: -1,
@@ -18,9 +17,8 @@ export const state = {
     currentTab: null,
     editingIndex: -1,
     currentSubType: 'BASIC',
-    // Which of a MultiRotor's two rotors is being edited. It used to live in
-    // `state.multiRotorEditTarget`, read and written by three modules -- a seventh
-    // shared value, only without an address.
+    // Which of a MultiRotor's two rotors is being edited, read and written by
+    // three modules -- so it lives here, with an address, like the rest.
     multiRotorEditTarget: 'driving',
 };
 
@@ -129,14 +127,13 @@ export function syncBackToLibrary() {
 // the first change will come back to.
 //
 // It lives here, beside `syncBackToLibrary`, and not in the Hub calling
-// `resetHistory` directly -- which is what it did, and it was a bug the node
-// battery could not see. Emptying the stacks is a change to the history exactly
-// like recording a step is, and the buttons have to hear about both; the Hub
-// emptied them and told nobody, so the buttons kept the state they had under
-// the *previous* rotor and undo arrived alive in a model with no history.
+// `resetHistory` directly. Emptying the stacks is a change to the history
+// exactly like recording a step is, and the buttons have to hear about both:
+// stacks emptied without telling them would leave the buttons in the state they
+// had under the *previous* rotor, with undo alive in a model with no history.
 //
-// Putting both behind this module is what makes that impossible rather than
-// merely fixed: there is no way to change the history without announcing it.
+// Putting both behind this module makes that impossible: there is no way to
+// change the history without announcing it.
 export function openProjectHistory(project) {
     resetHistory(structuralSnapshot(project));
     projectChanged();

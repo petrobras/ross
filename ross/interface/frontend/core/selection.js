@@ -9,9 +9,8 @@
 // The list on screen changes in three places (`openTab`,
 // `switchMultiRotorTarget`, and entering a rotor) and its contents change in
 // five more. Clearing the selection at each of those is eight places to
-// remember, and this project has just paid for exactly that shape of mistake:
-// the undo buttons kept the state of the previous rotor because one path
-// changed something and told nobody.
+// remember, and one forgotten path is all it takes for the selection of one
+// list to act on another.
 //
 // So the set is stamped with the list it was taken on, and reading it from
 // another list gives nothing rather than gives the wrong thing. Forgetting is

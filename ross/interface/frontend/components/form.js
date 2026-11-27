@@ -1,5 +1,5 @@
-// An element form, built from the schema. Until Phase 1 this was ~450 lines of
-// literal HTML in FormTemplates, with copies of UNITS_MAPPING alongside it.
+// An element form, built from the schema (/api/schema/elements): no literal HTML
+// per element, and no copy of the units alongside it.
 import { openCustomAlert, openCustomPrompt } from './modals.js';
 import { escapeHtml } from '../core/dom.js';
 import { state } from '../core/state.js';
@@ -31,7 +31,7 @@ function buildFieldHTML(field) {
             escapeHtml(String(option).toUpperCase()) + '</option>').join('');
         controlHtml = '<select id="inp-' + field.name + '">' + optionsHtml + '</select>';
     } else {
-        // is_dict replaces the "{dict}" that used to sit glued to the old label
+        // is_dict marks a field that takes a dictionary: its placeholder shows the shape
         const placeholderText = field.placeholder || (field.is_dict ? '{"key": value}' : null);
         const placeholder = placeholderText ? ' placeholder="' + escapeHtml(placeholderText) + '"' : '';
         controlHtml = '<input type="text" id="inp-' + field.name + '"' + placeholder + '>';

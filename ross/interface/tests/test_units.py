@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """The unit of each parameter, and the alternatives the screen offers.
 
-Before Phase 1 this dictionary existed twice, word for word: in `app.py` and in
-the JS. BE-13 of the audit was one of the copies growing stale.
+The dictionary lives in one place; two copies, one in `app.py` and one in the
+JS, would let one of them grow stale.
 
-The guard that would have caught BE-13 on its own, on the day of the refactor,
-is the first one below: every mapped unit has to point at a parameter the ROSS
-class really accepts."""
+The first guard below holds it to ROSS: every mapped unit has to point at a
+parameter the ROSS class really accepts."""
 
 import inspect
 import os
@@ -36,7 +35,7 @@ def _parts_of_dictionaries():
 
 
 def test_every_mapped_unit_is_a_real_ross_parameter():
-    """This test would have caught BE-13 on its own, on the day of the bearing refactor.
+    """A unit mapped to a parameter ROSS renamed is accused the same day.
 
     The hybrid seal's stage fields are keys of a dictionary parameter: their
     unit is checked against that parameter being in the signature."""

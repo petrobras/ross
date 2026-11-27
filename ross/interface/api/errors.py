@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""How an error reaches the user (BE-10).
+"""How an error reaches the user.
 
-Before, every route ended with the same block:
+Without this module, every route would end with the same block:
 
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -9,10 +9,10 @@ Before, every route ended with the same block:
 
 Three problems. **Every error became a 400**, including a defect of ours -- the
 client had no way to tell "you sent something invalid" from "it broke in here".
-The message was the `str()` of some exception, so a `KeyError: 'odl'` reached
-the screen as `'odl'`, with no context. And `traceback.print_exc()` writes to
-`sys.stdout`, which **does not exist** in a console-less PyInstaller executable
--- precisely the distribution form chosen for Phase 4.
+The message would be the `str()` of some exception, so a `KeyError: 'odl'`
+would reach the screen as `'odl'`, with no context. And `traceback.print_exc()`
+writes to `sys.stdout`, which **does not exist** in a console-less PyInstaller
+executable -- the form the interface is distributed in.
 
 Now it is centralised, and the split is by type:
 
@@ -23,7 +23,7 @@ Now it is centralised, and the split is by type:
 * an exception **ROSS raises on purpose** -> **400** as well, with its message
   and nothing added. ROSS does not refuse only through `ValueError`: "Each
   rotor needs a GearElement in the coupled nodes!" is a `TypeError`, and it
-  used to reach the screen as "Unexpected error (TypeError): ...", as though
+  would otherwise reach the screen as "Unexpected error (TypeError): ...", as though
   the program had broken. "On purpose" is read off the traceback, not guessed
   from the type: the innermost frame is in ROSS's own code (not this
   interface's) and the instruction running there is a `raise`. A `TypeError`

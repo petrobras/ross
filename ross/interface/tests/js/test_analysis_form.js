@@ -1,12 +1,12 @@
 // Is the form built from the server catalogue the same as before?
 //
-// Slice 4 moved 147 fields from the frontend to the backend. A port like that
-// is checked by comparing the two outputs, not by reading the diff: the same
-// function that builds the panel gets both catalogues and the HTML has to come
-// out identical.
+// The 147 fields of the analysis forms come from the backend's catalogue. It is
+// checked against the frontend catalogue it replaced by comparing outputs: the
+// same function that builds the panel gets both catalogues and the HTML has to
+// come out identical.
 //
-// The old catalogue is frozen in `tests/golden/analysis_dashboards.json`, taken
-// from the real object by evaluating the module -- not by a parser of mine.
+// The frontend catalogue is frozen in `tests/golden/analysis_dashboards.json`,
+// taken from the real object by evaluating the module, not by a parser.
 import { node, clearDom, schemaResponse } from './fake_dom.js';
 import { readFileSync } from 'fs';
 
@@ -23,10 +23,10 @@ const FROZEN = JSON.parse(readFileSync(
     new URL('../golden/analysis_dashboards.json', import.meta.url), 'utf8'));
 
 // One change applies to every form at once, and so it is applied to the frozen
-// file here, by rule, instead of being listed analysis by analysis: the sliders
-// left in phase 5, slice 14. Their fields became plain numbers and their bounds
-// went away -- a fixed 0-4000 cannot fit a speed that depends on the machine,
-// and the slider did not follow a change of unit. Written as a transformation,
+// file here, by rule, instead of being listed analysis by analysis: there are
+// no sliders. Their fields are plain numbers with no bounds -- a fixed 0-4000
+// cannot fit a speed that depends on the machine, and a slider does not follow
+// a change of unit. Written as a transformation,
 // the rest of each frozen form keeps being compared exactly; listing the ten
 // analyses that have a speed would have stopped comparing them altogether.
 function withoutSliders(forms) {
@@ -56,14 +56,14 @@ check('the twelve analyses came',
 check('and an analysis that does not exist gives back nothing',
           analysisFieldsFor('does_not_exist') === null);
 
-// The only deliberate difference since then is slice 5's `data-deps-de`, which
-// says which field each conditional visibility depends on (FE-07). It is taken
+// The only other deliberate difference is `data-deps-de`, which says which field
+// each conditional visibility depends on. It is taken
 // out of the comparison here and enforced just below -- removing it without
 // enforcing would let its absence pass as equality.
 const withoutDepsSource = html => html.replace(/ data-deps-de="[^"]*"/g, '');
 
-// The other kind of exception, and this one is not free. Where the port had to
-// reproduce the old panel, `clearance` is a panel we deliberately rebuilt: a
+// The other kind of exception, and this one is not free. Where every other form
+// reproduces the frozen one, `clearance` is a panel deliberately rebuilt: a
 // single `node` box beside list-valued magnitude and phase could never carry
 // more than one value, and the one value it did carry reached ROSS as a
 // one-element array where a number was expected -- tolerated by numpy until
@@ -175,12 +175,12 @@ check('and the panel carries the fields of the analysis', ucs.includes('k_min') 
 check('the label from the catalogue shows up in the panel',
           ucs.includes(analysisFieldsFor('ucs')[0].label));
 
-// --- FE-07: which field each visibility depends on ---------------------------
+// --- which field each visibility depends on ---------------------------------
 //
-// `checkDeps` read **every** select on the card and showed the field if any of
-// them held one of the allowed values. It worked because no dependency value
-// appeared in two selects of the same analysis -- a measured coincidence, not a
-// guarantee. Now it reads the field the catalogue names.
+// Reading **every** select on the card and showing the field if any of them
+// held one of the allowed values would work only while no dependency value
+// appeared in two selects of the same analysis -- a coincidence, not a
+// guarantee. `checkDeps` reads the field the catalogue names.
 import { registerSelector } from './fake_dom.js';
 import { checkDeps } from '../../frontend/features/analysis.js';
 
@@ -203,8 +203,8 @@ checkDeps('x1');
 check('changing the coupling changes which one shows',
           soFlex.style.display === 'none' && soRigid.style.display === 'flex');
 
-// The FE-07 control: another select on the same card carrying the value of the
-// other branch. In the old code this showed both fields at once.
+// The control: another select on the same card carrying the value of the other
+// branch. Reading every select would show both fields at once.
 node('input-coupling-x1').value = 'flex';
 node('input-plot_type-x1').value = 'rigid';
 checkDeps('x1');

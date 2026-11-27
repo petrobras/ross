@@ -114,8 +114,8 @@ def test_every_unsupported_entry_names_something_real(key):
 def test_the_route_refuses_the_combination_by_name(client_with_token):
     """The user gets the reason, not the ROSS traceback.
 
-    It is BE-10 again: an error that answers a different question from the one
-    asked costs more than the defect."""
+    An error that answers a different question from the one asked costs more
+    than the defect."""
     for (analysis, conversion), entry in UNSUPPORTED.items():
         response = _answer(
             client_with_token,

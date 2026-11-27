@@ -8,7 +8,7 @@ another, with no error on screen at all. These tests pin the three ends:
 
 * the files in tests/golden/ hold the output of the OLD generator, case by
   case, for a battery of 44 projects. They were produced by running the
-  pre-slice-4 app.js and the new generator side by side: 43 came out identical
+  browser's generator and the backend's side by side: 43 came out identical
   byte for byte, and the only different one is the material-name escaping fix,
   covered below. A future change to the generator has to come through here.
 * the generated script has to be valid Python -- the old generator never checked.
@@ -75,10 +75,9 @@ def test_the_exported_call_sends_the_three_unbalance_columns_as_lists():
     """`ast.parse` says the file opens; it does not say the file runs.
 
     The clearance block used to write `node=1` beside
-    `unbalance_magnitude=[0.05]`. That parses, so the guard above passed it for
-    four slices -- and this is the copy that leaves the program, so whoever ran
-    the exported script got the failure on their own machine with no interface
-    to blame. ROSS pairs the three with a `zip`; mixed shapes either lose rows
+    `unbalance_magnitude=[0.05]`. That parses, so the guard above passes it --
+    and this is the copy that leaves the program, so whoever runs the exported
+    script gets the failure on their own machine with no interface to blame. ROSS pairs the three with a `zip`; mixed shapes either lose rows
     in silence or, from numpy 2.5, raise.
 
     The sweep reads the generated scripts as text on purpose. Comparing them to
@@ -434,8 +433,8 @@ def test_number_conversion_follows_javascript_rules(text, is_nan):
     """Python's float() accepts '1_0' and 'nan'; JavaScript's Number() does not.
 
     If this test loosens, a field with '1_0' starts coming out as a number here
-    and as text in what the user sees -- the same class of divergence the whole
-    slice exists to close."""
+    and as text in what the user sees -- the divergence the generator in the
+    backend exists to close."""
     assert _js_is_nan(text) is is_nan
 
 
@@ -476,9 +475,8 @@ NODE_CASES = [
     [{"n": ".5"}, {"n": "5."}, {"n": "1e400"}],
 ]
 
-# The bridge imports the real module. Until Phase 3 slice 3 it cut app.js by a
-# text marker and `eval`ed it -- a cut that already broke four guards of this
-# refactor when a comment moved somewhere else.
+# The bridge imports the real module, rather than cutting the source by a text
+# marker and `eval`ing it -- a cut that breaks as soon as a comment moves.
 JS_BRIDGE = """
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -496,9 +494,9 @@ def test_node_numbering_matches_the_frontend(tmp_path):
 
     The backend decides the nodes of the figure and of the script; the frontend
     only labels the list on screen. But it is the same number the user compares.
-    Before slice 4 the JavaScript used parseInt (which accepts '0x10' and '3abc')
-    and Python used float() (which accepts '1_0'): each turned a different piece
-    of garbage into a node."""
+    JavaScript's parseInt accepts '0x10' and '3abc' and Python's float() accepts
+    '1_0': left to those, each side would turn a different piece of garbage into
+    a node."""
     bridge = tmp_path / "bridge.js"
     bridge.write_text(JS_BRIDGE, encoding="utf-8")
     entry = tmp_path / "cases.json"

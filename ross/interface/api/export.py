@@ -36,9 +36,9 @@ def with_model_probes(project, analyses):
 def python_script():
     """Return the Python script equivalent to the project on screen.
 
-    The script used to be assembled in the browser, from the DOM, with its own
-    copies of node numbering, the unit map and the ROSS class names. Here it is
-    born from the same functions that build the real rotor, so the exported file
+    The script is born from the same functions that build the real rotor -- not
+    from the DOM, with copies of node numbering, the unit map and the ROSS class
+    names of its own -- so the exported file
     and the on-screen chart cannot disagree. `ast.parse` is the safety net: an
     invalid script comes back as an error instead of becoming a broken download.
     """

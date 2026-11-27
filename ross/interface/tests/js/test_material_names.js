@@ -176,8 +176,8 @@ check('a material name is escaped in the shaft form',
 // --- a MultiRotor: the materials of both halves -----------------------------------------------
 //
 // Each half keeps its own list, and the server checks each half against its
-// own. A material made while editing one half was offered nowhere else: the
-// other half's form, and the sketch, had only the default steel (Leonardo).
+// own. A material made while editing one half must be offered in the other
+// half's form and in the sketch too, not only the default steel.
 
 const steel = { element_type: 'BASIC', name: 'Steel', rho: '7810' };
 const alloy = { element_type: 'BASIC', name: 'Aco_4340', rho: '7850' };

@@ -6,7 +6,7 @@ The effective numbering is not `range(len(shafts))`: a bearing can point at a
 rule is here and the same one has to hold on the screen -- the user compares the
 two numbers.
 
-And the topology validation (BE-09) refuses the gap: a node named without the
+And the topology validation refuses the gap: a node named without the
 previous one existing lets ROSS build a singular matrix without saying anything."""
 
 import os
@@ -23,9 +23,6 @@ from ross.interface.domain import node_resolver
 # A fake element: `node_resolver` only looks at attributes (`n`, `n_link`), so
 # building real rotors here would cost the installed ROSS without measuring
 # anything more.
-#
-# Rebuilt from bytecode: I deleted the source file before moving this class,
-# and the `.pyc` of an earlier run was what was left.
 class _FakeElement:
     def __init__(self, **attributes):
         for name, value in attributes.items():
@@ -75,7 +72,7 @@ def test_validate_node_topology_accepts_link_nodes():
 
 
 def test_validate_node_topology_detects_gap_behind_n_link():
-    """BE-09: before, n_link was never collected and this gap slipped through."""
+    """n_link is collected too, so a gap behind it does not slip through."""
     elements = [_FakeElement(n_l=0, n_r=1), _FakeElement(n=0, n_link=5)]
     with pytest.raises(ValueError) as exc:
         node_resolver.validate_node_topology(elements)

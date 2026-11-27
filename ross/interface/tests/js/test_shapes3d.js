@@ -1,8 +1,8 @@
 // The geometry bank: the shapes an element can be drawn with in the 3D view
 // instead of its default -- a compressor impeller in place of a disk, say.
 //
-// WHY THIS BATTERY EXISTS. The shape is only a picture (Leonardo's decision:
-// ROSS computes with the form's own mass and inertias), and that is exactly
+// WHY THIS BATTERY EXISTS. The shape is only a picture (ROSS computes with the
+// form's own mass and inertias), and that is exactly
 // why it can go wrong quietly:
 //
 //   * a shape that pokes out of the element's envelope is drawn where the
@@ -14,7 +14,7 @@
 //   * the picker has to show what the element holds, after a restore, a
 //     redraw, a language change;
 //   * where nothing is chosen, a bearing, a seal or a gear is drawn as its
-//     ROSS model says (Leonardo asked for it): a ball bearing as a rolling
+//     ROSS model says: a ball bearing as a rolling
 //     bearing, a gear with a helix angle as a helical gear. A mapping that
 //     names a key the catalogue lost would quietly draw the default.
 //

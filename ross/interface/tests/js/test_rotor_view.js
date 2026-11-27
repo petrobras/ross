@@ -150,9 +150,9 @@ release();
 await settle(50);
 check('the answer takes the card down and opens the view again', node('rotor-3d-busy').hidden === true && open('rotor-3d'));
 
-// Leonardo's tilting pad: long enough to switch views in the middle. The
-// build started in 3D is overtaken by the one the 2D figure asks for, and
-// returns without a word -- it used to leave the 3D view closed for good.
+// A tilting pad: long enough to switch views in the middle. The build started
+// in 3D is overtaken by the one the 2D figure asks for, and returns without a
+// word -- it must not leave the 3D view closed for good.
 buildRotorLive();
 await settle(1200);
 check('(a build under way in 3D)', closed('rotor-3d') || node('rotor-3d-busy').hidden === false);
@@ -239,6 +239,34 @@ const css = fs.readFileSync(new URL('../../frontend/style.css', import.meta.url)
 check('and its 2D/3D buttons are kept out of what is hidden',
     /\.rotor-info:not\(\.has-readings\) > :not\(\.rotor-view\)/.test(css)
     && !/\n\.rotor-info \{[^}]*opacity\s*:\s*0/.test(css));
+
+// A sketch left open in the 3D view (features/sketch3d.js) holds the view as a
+// tool. It keeps the 3D view's own message and button out of its way, and
+// nothing else: the 2D figure, seen after switching views, still has to follow
+// the project -- not show the rotor that was there before, with its mass.
+console.log('\nA sketch left open in 3D');
+
+const { useTool } = await import('../../frontend/features/rotor3d.js');
+disk.content['ross-rotor-view'] = '2d';
+buttons = prepare();
+startRotorViewToggle();
+const readings = classesOf(node('rotor-info'));
+answer = () => ({ status: 'success', mass: 1, ip: 1, scene: { kind: 'rotor', nodes: [], shafts: [] } });
+buildRotorLive();
+await settle(700);
+check('a rotor built in 2D, with its readings', readings.has('has-readings') && !node('plot-rotor').innerHTML.includes(t('addOneShaft')));
+node('rotor-3d-first-shaft').hidden = true;
+node('rotor-3d-message').textContent = 'the sketch';
+useTool({ onRotor() {} });
+state.projectData.shafts = [];
+buildRotorLive();
+await settle(700);
+check('its shafts deleted under an open sketch, the 2D figure says the project is empty',
+    node('plot-rotor').innerHTML.includes('data-action="add-first-shaft"'));
+check('and reads no mass or inertia', !readings.has('has-readings'));
+check('while the 3D view, the sketch\'s, keeps its button and message out of the way',
+    node('rotor-3d-first-shaft').hidden === true && node('rotor-3d-message').textContent === 'the sketch');
+useTool(null);
 
 console.log('\n' + ok + ' checks ok, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

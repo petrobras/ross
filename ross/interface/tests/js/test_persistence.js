@@ -1,4 +1,4 @@
-// The work has to survive closing the tab (FE-09) -- and what gets stored has
+// The work has to survive closing the tab -- and what gets stored has
 // to be the model, not the charts: a Plotly figure of a Campbell is over 15 KB
 // and would blow the localStorage quota in a handful of projects.
 import { disk, clearDisk } from './fake_dom.js';

@@ -1,6 +1,5 @@
 // The buttons of the modelling screen: the category tabs, the element list,
-// the form, the node hub and what sits around the rotor figure. Phase 5,
-// slice 13 -- the second stage of moving the page off the `window` bridge
+// the form, the node hub and what sits around the rotor figure, as actions
 // (see core/actions.js).
 //
 // Rows of a list carry their position as `data-index` instead of inside a

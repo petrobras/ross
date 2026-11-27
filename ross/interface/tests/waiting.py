@@ -1,19 +1,10 @@
 # -*- coding: utf-8 -*-
 """The suite's way of waiting for a job: `api/waiting.py`, plus assertions.
 
-Slice 6c changed what `POST /run_analysis` answers: a job, not a chart. Five
-tests in four other files still expected the old contract, and they failed
-together -- which is the good outcome, but they failed *after* the change went
-out instead of while it was being made. The lesson is the project's sixth one,
-in a new place: a contract that changes belongs to every caller, and the search
-for them is a `grep`, not a memory.
-
-**And the first version of this file got the address wrong.** The waiting was
-written once -- here -- but `selftest.py`, bundled inside the executable, is a
-caller too, and it cannot import from `tests/`. It went on reading the old
-contract, reported all twelve analyses as failed, and took the CI package job
-down on three systems. The loop now lives in `api/waiting.py`, which ships; what
-is left here is only what belongs to a test, which is the assertions.
+`POST /run_analysis` answers a job, not a chart. The waiting is written once,
+in `api/waiting.py`, because `selftest.py`, bundled inside the executable, is a
+caller too and cannot import from `tests/`; what is here is only what belongs to
+a test, which is the assertions.
 """
 
 # Generous: on CI a cold analysis can take the numba compilation with it, and a

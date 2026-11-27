@@ -1,19 +1,14 @@
 # -*- coding: utf-8 -*-
 """The frontend is ES modules, and the boundaries between them hold.
 
-Until this point the frontend was a 3030-line file in a single scope: ~164
-top-level names, all global, none declaring what it depended on. The practical
-cost was not aesthetic -- it was that the JS tests had to **cut text** out of
-the file between two markers and `eval` it, because there was no way to import
-anything. That cut broke four guards of this refactor when a comment moved
-somewhere else.
+Every module declares what it depends on, and no name is global: the JS tests
+import what they test instead of cutting text out of a file and `eval`ing it,
+which breaks as soon as a comment moves.
 
-The boundaries were not chosen by taste: they were measured. The usage graph
-over the 164 names pointed at four edges crossing layers in the wrong
-direction, and all four were fixed (the `restoreState` that told the Hub to
-redraw, the `renderList` that called the rotor builder, the `toggleAdvanced`
-that lived far from the form, and the bootstrap that had landed in the middle
-of the help).
+The layers only look downwards: a core module does not tell the screen to draw
+(`restoreState` gives back a count instead of redrawing the Hub), a component
+does not call a feature (`renderList` announces a reorder instead of building
+the rotor).
 
 The behaviour is in `tests/js/`, importing the real modules. Here are the
 structural properties."""
@@ -107,11 +102,8 @@ def test_the_file_protocol_guard_is_a_classic_script():
 def test_nothing_publishes_to_window():
     """No module hangs functions on `window`.
 
-    There used to be 21 `window.x = function` scattered through the file, then
-    one bridge block in main.js for the inline handlers of the HTML (73 names at
-    its largest). Since slice 15 every button names an action (core/actions.js)
-    and the bridge is gone; a function made global again would be one the page
-    reaches without the table."""
+    Every button names an action (core/actions.js); a function made global
+    would be one the page reaches without the table."""
     scattered = []
     for module in MODULES:
         for number, line in enumerate(_text(module).split("\n"), 1):
@@ -207,7 +199,7 @@ def test_no_module_shadows_a_name_it_imported(module):
 # written down with its reason: without that, the test would become a list of
 # suppressions that only grows.
 ACCEPTED_ORPHANS = {
-    "changeLanguage": "it exists and works; the selector is missing from index.html (FE-11)",
+    "changeLanguage": "it exists and works; the selector is missing from index.html",
     "persistenceIsOff": "a read accessor, today consumed only by the tests",
     "actionNames": "the vocabulary of the page, read by tests/js/test_actions.js against the HTML",
 }
@@ -216,12 +208,10 @@ ACCEPTED_ORPHANS = {
 def test_no_function_is_left_unreachable():
     """A function nobody calls is either a lost wiring or dead code.
 
-    That is what happened to `onReorder`: slice 3 created the hook, nobody
-    subscribed, and dragging an element stopped updating the figure -- with no
-    error, no warning, only the user noticing. The loose-name sweep does not see
-    this: the name is declared and imported, it is just not used."""
-    # Arrow functions too: `const getNum = (id, def) => ...` escaped the first
-    # version of this test and stayed dead in the file for two slices.
+    A hook like `onReorder` that nobody subscribes to would leave dragging an
+    element without updating the figure -- with no error and no warning. The
+    loose-name sweep does not see this: the name is declared and imported, it is just not used."""
+    # Arrow functions too: `const getNum = (id, def) => ...` is a function.
     definition = re.compile(
         r"^(?:export\s+)?(?:async\s+)?(?:function\s+|const\s+(?=[A-Za-z_$][\w$]*\s*=\s*"
         r"(?:async\s*)?(?:function|\(|[A-Za-z_$][\w$]*\s*=>)))([A-Za-z_$][\w$]*)",
@@ -339,11 +329,9 @@ def test_the_entry_point_holds_no_logic():
 def test_every_relative_import_points_at_a_file_that_exists():
     """An `import` to a renamed file gives no error until someone runs node.
 
-    Ten of them appeared at once when the modules were renamed to English, and they
-    started throwing `ERR_MODULE_NOT_FOUND`. Except that what saw them throw was
-    `node` -- and the lesson of the previous slice is that node may not be
-    installed. This guard reads the source: it accuses the same defect on a machine
-    with no node.
+    Renaming modules can leave many of them throwing `ERR_MODULE_NOT_FOUND`, but
+    only `node` sees them throw, and node may not be installed. This guard reads
+    the source: it accuses the same defect on a machine with no node.
 
     It holds for both sides of the frontend and for the batteries: all of them use
     relative paths, and none has anything resolving them before execution."""
@@ -383,10 +371,9 @@ def test_the_import_sweep_actually_resolves_something():
 
 # --- A styled class nobody writes is dead style ------------------------------
 #
-# `.lang-select` had 17 lines of rule and no element: the language selector was
-# born in the i18n slice with `class="ui-language"`, and the CSS was left
-# pointing at the old name. Nothing breaks -- the selector simply shows up
-# unstyled, with the browser's default look, and that passes for a choice.
+# A rule for `.lang-select` with the selector written as `class="ui-language"`
+# is dead style. Nothing breaks -- the selector simply shows up unstyled, with
+# the browser's default look, and that passes for a choice.
 #
 # It is the missing half of a renaming: renaming the class in the JS and
 # forgetting the CSS (or the other way round) produces no error at all, only a
@@ -585,13 +572,13 @@ def test_the_layout_does_not_reflow_with_the_window():
 
     Zooming in *is* a narrower viewport. With rules keyed to the window width,
     the page rearranged itself exactly when someone asked for a bigger version
-    of it, and between the breakpoints buttons slid over text. Leonardo's
-    decision: keep the proportions and scroll. So no rule may depend on the
+    of it, and between the breakpoints buttons slid over text. So the
+    proportions stay and the page scrolls: no rule may depend on the
     window's width -- in the CSS (`@media (max-width ...)`) or in the JS
     (`window.innerWidth`) -- and the page carries a minimum width instead.
 
-    The value is measured, not chosen: the measurement is written up in the
-    project notes for Phase 5, slice 9."""
+    The value is measured, not chosen: about 40 px over the first width at
+    which the buttons ROSS places in its figure are clipped."""
     css = _css_without_comments()
     assert not re.search(r"@media[^{]*\b(?:max|min)-width", css), (
         "a width breakpoint came back to style.css"

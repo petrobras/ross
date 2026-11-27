@@ -1,10 +1,9 @@
 // The buttons of the dialogs: About, the help, the interface's own prompt /
 // confirm / alert, and the two hub modals that build a rotor out of two
-// (MultiRotor and concatenation). Phase 5, slice 15 -- the last stage of
-// moving the page off the `window` bridge (see core/actions.js).
+// (MultiRotor and concatenation), as actions (see core/actions.js).
 //
-// The prompt, confirm and alert used to pass their answer written into the
-// attribute (`closeCustomConfirm(true)`). Here each answer is its own name --
+// The prompt, confirm and alert do not pass their answer written into an
+// attribute (`closeCustomConfirm(true)`): each answer is its own name --
 // `confirm-yes`, `confirm-no` -- because a dataset value is a string, and a
 // `data-answer="false"` read as a truthy "false" would be a confirmation.
 //

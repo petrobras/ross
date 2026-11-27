@@ -34,7 +34,7 @@ The numbers below say whether that is what is happening:
 
 WHAT IT MEANS IF IT IS TRUE, and this is the part that matters more than the
 worker: the interface **already** draws the mode with an orientation that is not
-reproducible between runs. It has nothing to do with slice 6 -- opening the same
+reproducible between runs. It has nothing to do with the worker -- opening the same
 rotor tomorrow can give the orbit turned by a degree or two, and there is no
 wrong answer among them. What the screen should do about that is a question for
 the interface, not for the pipe.

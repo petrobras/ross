@@ -27,11 +27,10 @@ from ross.interface.services.analysis import REGISTRY, get_runner
 from ross.interface.services.analysis.ucs import HALF_A_RANGE
 from ross.interface.tests.frontend_source import source as _frontend
 
-# The analyses the screen offers. Until the i18n slice these were twelve
-# `<option>` in index.html; now the `<select>` is filled with the catalogue
+# The analyses the screen offers. The `<select>` is filled with the catalogue
 # titles, so "what the screen offers" is what the catalogue has. If someone
 # adds an analysis to the catalogue without writing the runner, the test
-# accuses it -- before, the analysis simply did not answer.
+# accuses it -- otherwise the analysis would simply not answer.
 
 
 def _analyses_on_the_screen():
@@ -244,7 +243,7 @@ class SpyParams(dict):
 
 @pytest.mark.parametrize("name", NAMES)
 def test_the_spec_never_reads_a_plot_parameter(name):
-    """The central check of the slice, made by spying on the reads.
+    """The central check of the runners, made by spying on the reads.
 
     `spec` is what goes to `compute` and what forms the cache key. If it consulted
     a plot parameter, that parameter would change the computation without changing
@@ -297,8 +296,8 @@ def test_the_unbalance_arguments_leave_in_the_same_shape(name):
     then hands what is left to a branch that expects scalars. Any disagreement
     between the three is therefore either a silent loss -- two magnitudes and
     one node means the second magnitude never reaches the rotor -- or a crash;
-    which of the two you get depended on the version of numpy, which is why this
-    survived four slices before a CI job on numpy 2.5 named it.
+    which of the two you get depends on the version of numpy (numpy 2.5
+    raises).
 
     None of the existing guards could see it. They ask whether the spec
     serialises, whether it ignores plot parameters, whether the twelve produce a
@@ -350,14 +349,11 @@ def test_some_runner_really_carries_the_unbalance_trio():
 def test_declared_plot_parameters_are_actually_used(name):
     """A declaration nobody reads becomes a lie in two refactors.
 
-    This test was **vacuous** until Phase 3 slice 4, and for a reason that only
-    shows up on a second look: it searched for the parameter name in the source of
-    the runner module, and the tuple `PLOT_PARAMS = ("plot_type", ...)` was itself
-    in that source. The declaration satisfied the check of the declaration. It went
-    through all of Phase 2 without ever being able to fail.
+    Searching for the parameter name in the source of the runner module would be
+    **vacuous** if the tuple `PLOT_PARAMS = ("plot_type", ...)` were itself in
+    that source: the declaration would satisfy the check of the declaration.
 
-    With the catalogue outside the runner it started to hold -- and the first thing
-    it accused was true: Campbell's `plot_type` is read by no runner. What consumes
+    With the catalogue outside the runner it holds -- and what it accuses is true: Campbell's `plot_type` is read by no runner. What consumes
     it is the screen, which decides whether the card becomes the mode-shape panel.
     That field has role `interface` in the catalogue, and is checked from the other
     side, in `test_analysis_catalog.py`."""
@@ -386,23 +382,18 @@ def test_declared_plot_parameters_are_actually_used(name):
         )
 
 
-# --- the regression the slice found ------------------------------------------
+# --- the mode shape and the cache ---------------------------------------------
 
 
 def test_mode_shape_and_default_now_share_a_cache_entry():
     """Both compute the same thing, so they share the result.
 
-    The old code cut the number of steps in mode-shape mode (`if plot_type ==
-    'Mode Shape' and s_steps > 15`), but `plot_type` stayed out of the cache key:
-    asking for 50 steps, opening in Mode Shape and going back to Default gave back
-    a 15-point diagram with the 50-step key. While the cut existed, the two modes
-    had to have separate entries.
-
-    Slice 3 removed the cut. It existed because ROSS's `_plot_with_mode_shape` ran
-    an extra `run_modal` per critical speed, ahead of time -- and now there is no
-    work done ahead at all: the mode shape costs the same as the Default. Without
-    the cut, both modes compute exactly the same Campbell, and sharing the cache
-    entry becomes the right behaviour."""
+    Cutting the number of steps in mode-shape mode (`if plot_type == 'Mode
+    Shape' and s_steps > 15`) with `plot_type` out of the cache key would give
+    back a 15-point diagram under the 50-step key. There is no such cut: no work
+    is done ahead for the mode shape, which costs the same as the Default. Both
+    modes compute exactly the same Campbell, and sharing the cache entry is the
+    right behaviour."""
     runner = REGISTRY["campbell"]
     base = dict(PARAMS["campbell"], speed_steps="50")
 
@@ -416,10 +407,9 @@ def test_mode_shape_and_default_now_share_a_cache_entry():
 
 # --- how many points a speed sweep has ---------------------------------------
 #
-# `freq_response` and `unbalance` swept `np.linspace(min, max, 50)` with the 50
-# written into the runner: the form did not offer the number and no value the
-# user typed could change it, while `campbell` and `clearance` had asked for it
-# since the port. A user reported it.
+# Every sweep takes its number of points from the form: a
+# `np.linspace(min, max, 50)` with the 50 written into the runner is a number no
+# value the user types can change.
 
 SWEEPS = ["campbell", "clearance", "freq_response", "unbalance"]
 
@@ -635,16 +625,7 @@ def test_a_rigid_coupling_does_not_carry_the_flexible_fields():
     assert "mis_angle" not in extras
 
 
-# --- what is left of the comparison with the old code ------------------------
-#
-# During slice 2, tests/legacy_analysis.py kept the original if/elif frozen, and
-# the twelve analyses ran through both paths comparing `fig.to_json()`. Result:
-# 12 of 12 identical in the base configurations and, across 90 variants, 79
-# identical plus 11 differences all deliberate (discretisation defaults and
-# physical fields refused by name). Green in the venv with the real ROSS, that
-# file went -- it existed for one slice only.
-#
-# The rotor below stays: the tests that depend on the real ROSS continue.
+# --- the tests that depend on the real ROSS ----------------------------------
 
 try:
     import ross as rs
@@ -730,7 +711,7 @@ def test_clearance_with_an_empty_table_runs_on_the_api617_unbalance():
 
 @needs_ross
 def test_the_force_expression_error_still_names_the_node_and_dof():
-    """BE-05 stays covered after the change of house."""
+    """A force expression that cannot be read names its node and DoF."""
     rotor = _test_rotor()
     runner = REGISTRY["time_response"]
     params = dict(
@@ -816,8 +797,7 @@ def test_a_rigid_coupling_needs_its_own_distance():
 
 def test_the_time_response_refuses_an_empty_force_table():
     """With no force the response is zero at every node -- a flat chart that looks
-    like a result. The same reasoning as BE-05: null excitation does not go through
-    a computation.
+    like a result. Null excitation does not go through a computation.
 
     The probe exposed this: sending the empty table, `time_response` came out
     "NO EFFECT" on both conversions -- and zero is zero at any number of degrees of
@@ -1044,10 +1024,8 @@ def _a_mode_with_an_orbit(result):
     mode 0 on Windows and on this Linux, a Torsional one on the CI's macOS and
     an Axial one on the CI's Ubuntu. ROSS answers a non-lateral mode with a
     figure carrying an annotation and no curve, so a test pinned to index 0 was
-    measuring the machine rather than the runner.
-
-    (The same degeneracy is written up from the other end in the project notes:
-    a mode shape is not reproducible between processes, and that is expected.)
+    measuring the machine rather than the runner. (For the same reason a mode
+    shape is not reproducible between processes, and that is expected.)
     """
     for index, shape in enumerate(result.shapes):
         if shape.orbits is not None:

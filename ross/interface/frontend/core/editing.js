@@ -3,7 +3,7 @@
 // The form remembers its element by **position** (`state.editingIndex`) --
 // elements have no identity of their own. So every change that moves positions
 // owes the form an update, or saving writes the form into whichever element now
-// sits where the edited one used to be. With no message: the list simply shows
+// sits where the edited one was. With no message: the list simply shows
 // the wrong element changed.
 //
 // `deleteItem` and `splitItem` did this arithmetic by hand; `copyItem` and

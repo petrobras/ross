@@ -5,10 +5,9 @@
 // (`components/help.js` wires the click outside the modal). That is why this
 // file is always a test's first import, and installs by side effect.
 //
-// Until Phase 3 slice 3 the JS tests read `app.js` as text and `eval`ed a cut
-// between two markers. With modules, they import the real file -- and the class
-// of defect where a guard measured another excerpt because a comment moved
-// somewhere else disappears.
+// The JS tests import the real modules, rather than reading a file as text and
+// `eval`ing a cut between two markers -- a guard of that kind measures another
+// excerpt as soon as a comment moves somewhere else.
 
 const nodes = new Map();
 
@@ -59,8 +58,8 @@ export function node(id) {
         contains(child) { return this._children.includes(child); },
         remove() {},
         focus() {}, select() {}, click() {}, on() {},
-        // Attributes used to be discarded (`setAttribute` was a no-op). `applyLanguage()`
-        // writes `title` and `placeholder` through here: without keeping them, the
+        // Attributes are kept, not discarded: `applyLanguage()` writes `title` and
+        // `placeholder` through here, and without keeping them the
         // language battery would have no way to see the translation arrive.
         attributes: {},
         setAttribute(name, value) { this.attributes[name] = value; },
@@ -143,8 +142,7 @@ globalThis.localStorage = {
 
 // --- the schema answers ------------------------------------------------------
 //
-// The analysis catalogue started coming from the server in slice 4. The
-// stand-ins answer with the **real** catalogue, read from the golden file a
+// The analysis catalogue comes from the server. The stand-ins answer with the **real** catalogue, read from the golden file a
 // Python test keeps equal to `domain/analysis_catalog.py` -- a catalogue
 // invented here would make the tests agree with themselves.
 import { readFileSync } from 'fs';

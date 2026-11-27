@@ -82,7 +82,7 @@ def test_a_job_is_answered_and_carries_where_it_was_computed():
 
 
 def test_the_route_gets_a_name_back_before_anything_is_computed():
-    """The whole point of the slice: the answer is a job, not a wait."""
+    """The whole point of the queue: the answer is a job, not a wait."""
     answers = _Answers()
     answers.hold()
     jobs = Jobs(ask=answers)
@@ -94,11 +94,11 @@ def test_the_route_gets_a_name_back_before_anything_is_computed():
 
 
 def test_a_job_that_has_not_started_leaves_the_line_when_the_card_asks_again():
-    """The defect this slice exists to remove.
+    """The defect the queue exists to remove.
 
-    Until now the browser aborted its own `fetch` and the server carried on to
-    the end, so a card run twice made the second analysis wait for the first --
-    which nobody wanted any more, with nothing on screen to say so.
+    A browser that only aborts its own `fetch` leaves the server carrying on to
+    the end, so a card run twice would make the second analysis wait for the
+    first -- which nobody wants any more, with nothing on screen to say so.
     """
     answers = _Answers()
     latch = answers.hold()
@@ -120,7 +120,7 @@ def test_a_job_that_has_not_started_leaves_the_line_when_the_card_asks_again():
 
 
 def test_a_job_already_running_is_left_to_finish():
-    """Decided with Leonardo: stopping ROSS mid-computation means killing the
+    """Stopping ROSS mid-computation means killing the
     process, and that costs the next analysis its startup. So a running job runs
     to the end and its answer is simply not the one the card is waiting for.
     """
@@ -241,7 +241,7 @@ def test_the_line_is_answered_in_the_order_it_was_asked():
 
 
 def test_the_report_counts_the_waiting_for_whoever_shows_it():
-    """Slice 6c-2 draws this; the number has to be there before it can."""
+    """The screen draws this; the number has to be there before it can."""
     answers = _Answers()
     latch = answers.hold()
     jobs = Jobs(ask=answers)
@@ -258,15 +258,15 @@ def test_the_report_counts_the_waiting_for_whoever_shows_it():
     latch.set()
 
 
-# --- what only the line can say (slice 6c-2) ---------------------------------
+# --- what only the line can say ---------------------------------------------
 
 
 def test_a_waiting_job_is_told_how_many_are_ahead_of_it():
-    """The measurement the whole slice was built on.
+    """How many are ahead: what tells waiting from computing.
 
-    On screen, *computing* and *waiting for another card* looked identical --
-    both cards said "updating" -- so two analyses taking turns were read as two
-    analyses running at once. A job cannot know this about itself: how long it
+    Without it, *computing* and *waiting for another card* look identical on
+    screen -- both cards say "updating" -- and two analyses taking turns read as
+    two analyses running at once. A job cannot know this about itself: how long it
     will wait is a fact about everybody else.
     """
     answers = _Answers()

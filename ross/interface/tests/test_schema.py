@@ -7,7 +7,7 @@ import sys
 import pytest
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# Since slice 4 app.py is only the entry point. Each name below comes from its
+# app.py is only the entry point. Each name below comes from its
 # own layer -- and this explicit import is the documentation of that.
 import ross as rs
 from ross.interface.app import app
@@ -40,8 +40,7 @@ def _every_field(language="en"):
 def test_schema_has_no_unknown_fields():
     """The central test: no form field that ROSS would refuse.
 
-    It is the automatic version of the manual check that revealed BE-13. If a ROSS
-    refactor renames a parameter, this fails the same day."""
+    If a ROSS refactor renames a parameter, this fails the same day."""
     assert schema_problems() == []
 
 
@@ -81,13 +80,13 @@ def test_every_form_field_is_accepted_by_its_class():
 
 
 def test_coupling_has_no_link_node_field():
-    """BE-16: CouplingElement does not accept n_link, nor inherit from anyone who does."""
+    """CouplingElement does not accept n_link, nor inherit from anyone who does."""
     assert "n_link" not in inspect.signature(rs.CouplingElement.__init__).parameters  # noqa: F405
     assert not any(c["name"] == "n_link" for c in FIELDS["couplings"]["BASIC"])
 
 
 def test_squeeze_film_has_no_colour_field():
-    """BE-17: SqueezeFilmDamper does not accept color and has no **kwargs."""
+    """SqueezeFilmDamper does not accept color and has no **kwargs."""
     assert "color" not in inspect.signature(rs.SqueezeFilmDamper.__init__).parameters  # noqa: F405
     assert not any(c["name"] == "color" for c in FIELDS["bearings"]["SqueezeFilm"])
 

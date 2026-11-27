@@ -1,13 +1,10 @@
 // Reloading the page: the state comes back from memory and the screen shows it.
 //
-// Slice 3 inverted the dependency -- `restoreState` gives back how many rotors
-// came back, instead of telling the Hub to redraw, because a core module does
-// not tell the screen to draw. The inversion was right and the other end was
-// left loose: the bootstrap did not call `renderRotorHub()`. The rotors came
-// back into memory and the Hub stayed empty.
-//
-// It is the second time a dependency inversion loses its other end in this
-// slice (the first was `onReorder`). That is why this battery exists.
+// `restoreState` gives back how many rotors came back, instead of telling the
+// Hub to redraw, because a core module does not tell the screen to draw. The
+// other end has to hold: the bootstrap calls `renderRotorHub()`, or the rotors
+// come back into memory and the Hub stays empty. A dependency inversion that
+// loses its other end fails in silence, which is why this battery exists.
 import { node, clearDom, disk, clearDisk } from './fake_dom.js';
 
 globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({

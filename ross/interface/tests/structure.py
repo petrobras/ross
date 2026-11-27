@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 """Questions about the shape of the code, answered by the tree and not by the text.
 
-Twice a guard written as a text search tripped over a comment of mine:
-`"iframe" not in app_js` accused the sentence that **explained** that the iframe
-had gone, and `"except Exception" not in source` accused the comment explaining
-why the old net had been removed. In both cases the guard was right about the
-code and wrong about the file.
+A guard written as a text search trips over comments: `"iframe" not in app_js`
+would accuse a sentence that **explains** that there is no iframe, and
+`"except Exception" not in source` a comment explaining why there is no such
+net. The guard would be right about the code and wrong about the file.
 
 With `ast`, comments and docstrings do not exist -- only what executes. And the
 question gets more precise as a bonus: a bare `except:` is a generic catch too,

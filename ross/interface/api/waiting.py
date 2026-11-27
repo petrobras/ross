@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Asking about a job until it is over. Written once, and it ships.
 
-Since slice 6c a POST to `/run_analysis` answers **a job**, not a chart: `202`
+A POST to `/run_analysis` answers **a job**, not a chart: `202`
 with a name, and the chart arrives later from `GET /api/jobs/<id>`. Every
 caller that wants the chart therefore has to wait, and this is the only place
 that knows how.
@@ -15,10 +15,10 @@ is bundled into the executable and is what CI runs to decide whether a build
 works -- posts to the same route, and so does `tools/conversion_probe.py`.
 Neither can import from `tests/`, and neither shipped with it.
 
-The cost of getting that wrong was measured: after slice 6c the selftest went on
-checking `status == "success"` on the 202, reported **all twelve analyses as
-failed**, and took down the package job on all three systems. The guards could
-not have caught it, because they swept `tests/` and this file is not a test.
+Getting that wrong is costly: a selftest checking `status == "success"` on the
+202 reports **all twelve analyses as failed** and takes down the package job on
+all three systems. Guards that sweep `tests/` cannot catch it, because this file
+is not a test.
 
 So the rule is one step wider than it was: a contract belongs to every caller,
 and the helper that hides a contract belongs where **every** caller can reach
