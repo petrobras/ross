@@ -1,15 +1,11 @@
 # -*- coding: utf-8 -*-
 """The analysis state lives in a store, not in the DOM.
 
-Until this point the DOM was the analyses' database. The parameters lived in
-`div.rossParams`, the type in `div.rossType`, the frames in `div.rossFrames`,
-and the title was **read back** from the header's `innerText` -- with a
-`.replace(' (Loaded)', '')` to undo what the screen itself had written.
-
-That is not only inelegant: what was saved to disk came from
-`p.data`/`p.layout` of the chart div. An analysis whose card had not rendered
--- because the request failed, for instance -- vanished from what was saved,
-with no warning.
+With the DOM as the analyses' database -- parameters, type and frames in
+properties of divs, the title read back from the header's `innerText` -- what is
+saved to disk would come from the chart div, and an analysis whose card had not
+rendered (because the request failed, for instance) would vanish from what is
+saved, with no warning.
 
 The behaviour of the store is in `tests/js/test_store.js`, which exercises the
 real functions. Here are the structural properties: that the DOM reads are gone,
@@ -85,9 +81,8 @@ def test_the_list_and_the_state_are_always_emptied_together():
     js = _code()
     lines = js.split("\n")
 
-    # Counting the calls did not work: the i18n slice added a third legitimate
-    # place (redrawing the cards in the new language) and the guard accused the
-    # right code. What matters is the pair, not how many pairs exist.
+    # Counting the calls would not work: redrawing the cards in a new language is
+    # a legitimate place too. What matters is the pair, not how many pairs exist.
     # Only the card list: `container.innerHTML` is also the element list and the
     # Hub's, which have no state to forget.
     empty_together = []
@@ -128,7 +123,7 @@ def test_deleting_a_card_also_forgets_the_analysis():
     assert "forgetAnalysis(" in excerpt
 
 
-# --- slice 2: persistence (FE-09) ------------------------------------------
+# --- persistence --------------------------------------------------------------
 #
 # The behaviour is in tests/js/test_persistence.js, with a fake localStorage.
 # Here are the properties you only see by looking at the whole file.
@@ -151,9 +146,8 @@ def test_the_state_is_restored_when_the_page_loads():
     There are two in the file: the first is the guard for whoever opens index.html
     straight from disk. Anchoring on the first found the wrong block.
 
-    The anchor has changed once already -- it was the language selector, which the
-    i18n slice took out of the bootstrap. Now it is the call that translates the
-    page, which is the first thing the bootstrap does."""
+    The anchor is the call that translates the page, which is the first thing
+    the bootstrap does."""
     js = _code()
     excerpt = js[js.index("    applyLanguage();") :]
     excerpt = excerpt[: excerpt.index("});")]
@@ -210,14 +204,11 @@ def test_a_card_without_a_chart_invites_a_recalculation():
 
 
 def test_the_hub_exports_the_rotors_own_analyses():
-    """The empty list was the remains of a decision that stopped making sense.
+    """Exporting from the Hub sends the rotor's own analyses, not an empty list.
 
-    In Phase 1 slice 4, exporting from the Hub sent `[]` on purpose: the only
-    source of analyses was the DOM, holding the cards of the **open** project --
-    which belong to another rotor and would come out with nodes this one does not
-    even have. When the state left the DOM (Phase 3 slice 1), each rotor started
-    carrying its own in savedAnalyses and the reason evaporated. The empty list
-    stayed."""
+    Each rotor carries its own in savedAnalyses; the cards on screen belong to
+    the **open** project, another rotor, and would come out with nodes this one
+    does not even have."""
     excerpt = _code()
     excerpt = excerpt[excerpt.index("function generatePythonFromHub(") :]
     excerpt = excerpt[: excerpt.index("function switchScreen(")]

@@ -19,22 +19,15 @@ DEFAULT_UNITS = {
 class CampbellRunner(Runner):
     """Campbell, and the 3D mode shape of whichever point the user clicks.
 
-    ## What used to be here
+    ## Why not `plot_with_mode_shape`
 
-    The mode shape came out of ROSS's `plot_with_mode_shape`, which starts a
-    **Dash** server on a random port. To find the port, the interface replaced
-    `sys.stdout` with an object that spied on what Dash printed, started a
-    thread and polled for up to 10 seconds; the URL became the `src` of an
-    iframe inside the card (BE-04).
+    ROSS's `plot_with_mode_shape` starts a **Dash** server on a random port,
+    and finding that port means watching what Dash prints on `sys.stdout`. In a
+    console-less PyInstaller executable there is no `sys.stdout`; without
+    `dash` installed, ROSS raises ImportError inside a thread and the real cause
+    never reaches the screen.
 
-    Three problems, beyond the ugliness. In a console-less PyInstaller
-    executable there is no `sys.stdout` to spy on. If `dash` is not installed,
-    ROSS raises ImportError inside the thread, the error becomes a `print`, and
-    the user waits the full 10 seconds to be told "it took too long to respond"
-    -- the real cause never reaches the screen. And the replaced `sys.stdout`
-    was never restored.
-
-    ## What is here now
+    ## What is here
 
     None of that is necessary. `plot_with_mode_shape` is a thin shell over
     `_plot_with_mode_shape`, which in turn does only two things: `self.plot(...)`

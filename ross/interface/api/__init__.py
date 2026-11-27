@@ -6,10 +6,6 @@ calls the domain or the services, and returns JSON. No route has a `try/except`:
 error handling is central, in `api/errors.py`, and that is what decides between
 400 and 500. No route computes anything: that lives in `domain/` and
 `services/`.
-
-Before slice 4 all of this was a 1190-line `app.py` with routes, rotor
-assembly, the expression evaluator, the cache and ROSS file reading mixed
-together.
 """
 
 from flask import Flask

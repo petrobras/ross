@@ -1,9 +1,9 @@
 // What the buttons mean, by name -- and that every name means something.
 //
-// WHY THIS BATTERY EXISTS. The page moved off the `window` bridge
-// (core/actions.js, slices 12 to 15): a button says `data-action="save-rotor"`
-// and one listener looks the name up. The failure this trades away was silent -- a
-// function missing from `window` left its button dead. The failure it could
+// WHY THIS BATTERY EXISTS. The page uses no `window` bridge (core/actions.js):
+// a button says `data-action="save-rotor"` and one listener looks the name up.
+// The failure this trades away is silent -- a function missing from `window`
+// leaves its button dead. The failure it could
 // introduce is the same one under a new name: a `data-action` nobody defined.
 // So the table is read against the HTML in both directions, every action is
 // pressed once, and the listener's rules are checked on plain objects.
@@ -239,9 +239,8 @@ check('a tab button opens its own tab', state.currentTab === 'disks');
 
 // --- the analysis cards -----------------------------------------------------------------
 //
-// The row editors used to be picked through a variable and written into the
-// handler, which is why the bridge battery had to list four names by hand. The
-// button now names its kind of list, and the table picks the editor.
+// The button names its kind of list, and the table picks the editor -- no
+// editor picked through a variable and written into a handler.
 const containers = { probe_list: 'probe', force_list: 'force', unbalance_list: 'unb',
                      angle_probe_list: 'angle-probe' };
 for (const [list, prefix] of Object.entries(containers)) {
@@ -292,8 +291,8 @@ check('and forgets its analysis', !analysesToSave().some(a => a.title === 'Modes
 
 // --- the dialogs ----------------------------------------------------------------------------
 //
-// The answers used to be written into the attribute -- `closeCustomConfirm(true)`
-// -- and are names now. What a mix-up would cost is a confirmation read as a
+// The answers are names, not values written into an attribute --
+// `closeCustomConfirm(true)`. What a mix-up would cost is a confirmation read as a
 // refusal or the other way round (a rotor deleted on "No"), so each answer is
 // pressed and what the waiting code receives is read back.
 const { openCustomAlert, openCustomConfirm, openCustomPrompt } =
@@ -353,15 +352,15 @@ check('the four selects carry their sentence in the page', selects.join(' | ')
 // --- nothing on the window -------------------------------------------------------------------
 //
 // The bridge is gone. A name hung on `window` again would be a function the
-// page could reach without the table -- the thing slices 12 to 15 undid.
-// Comment lines out: main.js tells the story of the bridge in its header.
+// page could reach without the table.
+// Comment lines out: main.js mentions `window` in its header.
 const MAIN = fs.readFileSync(path.join(FRONTEND, 'main.js'), 'utf8')
     .split('\n').filter(line => !line.trim().startsWith('//')).join('\n');
 check('main.js publishes nothing on the window', !MAIN.includes('Object.assign(window'));
 
 // --- the ratchet -------------------------------------------------------------------------
 //
-// Inline handlers in index.html: none since slice 15, and a new `onclick=`
+// Inline handlers in index.html: none, and a new `onclick=`
 // in the page fails here. The five `onerror` on the logo images call nothing
 // (they hide a missing picture) and are counted apart.
 const inline = (PAGE.match(/\son(?!error)[a-z]+="/g) || []).length;
@@ -369,12 +368,11 @@ check('inline handlers left in index.html: ' + inline + ' (none)', inline === 0)
 
 // The same count for the HTML the JavaScript writes (the hub's rotor cards and
 // the analysis cards, today). Comment lines are left out: a comment that
-// quotes an old handler is not a handler -- and the bridge sweep once counted
-// one as a live call, which kept `saveRotor` on the bridge for a whole slice.
+// quotes an old handler is not a handler.
 const generated = sources(FRONTEND)
     .map(text => text.split('\n').filter(line => !line.trim().startsWith('//')).join('\n'))
     .reduce((total, text) => total + (text.match(/\bon[a-z]+=\\?["']/g) || []).length, 0);
-// None left since slice 14: from here on it can only stay at zero.
+// None: from here on it can only stay at zero.
 check('inline handlers written by the JavaScript: ' + generated + ' (none)', generated === 0);
 
 shutDown();

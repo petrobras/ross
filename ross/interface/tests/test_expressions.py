@@ -85,8 +85,8 @@ def test_safe_expression_eval_rejects_escapes(expression):
 
 
 def test_invalid_force_expression_returns_400(client):
-    """Before, the error was swallowed and the analysis ran with null excitation."""
-    # The project goes inside the envelope since Phase 2 (slice 1).
+    """The error is not swallowed: the analysis must not run with null excitation."""
+    # The project goes inside the envelope.
     payload = {
         "project": SIMPLE_ROTOR,
         "conversion_type": "",

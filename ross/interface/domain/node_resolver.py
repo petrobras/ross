@@ -1,9 +1,9 @@
 """Single source of node numbering.
 
-This logic existed twice, in two languages: get_eff_nodes in app.py and
-getEffectiveNodes in frontend/app.js. The frontend one decided the nodes of the
-exported Python script and the backend one decided the nodes of the chart -- any
-drift between them would produce a script that does not reproduce the screen.
+The frontend has the same rule (`getEffectiveNodes`, components/list.js) to
+label the list; the nodes of the chart and of the exported script are decided
+here. Any drift between the two would show a node on screen that is not the one
+the script uses, and a test holds them to the same cases.
 """
 
 import re

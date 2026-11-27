@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
-"""The analysis catalogue leaves the frontend and starts being cross-checked.
+"""The analysis catalogue, cross-checked against the runners.
 
-Until this point the 147 fields of the analysis forms lived in
-`AnalysisDashboards`, 198 lines in the frontend -- and the **same names** were
-already written on the other side: each runner's `spec` reads its parameters by
-name, and each runner declared a `PLOT_PARAMS`. Two hand-kept lists, in two
-languages, with nothing checking that they agreed.
+The 147 fields of the analysis forms carry the **same names** the runners use:
+each runner's `spec` reads its parameters by name, and each runner has a
+`PLOT_PARAMS`. Two lists, in two places, need something checking that they
+agree.
 
-## Why it was not derived, the way the elements are
+## Why it is not derived, the way the elements are
 
-The slice started with a measurement, not with a design. Of the 147 fields, 63
+Of the 147 fields, 63
 appear in some ROSS signature and only **28** in a `run_*` parameter. The rest
 are not missing by oversight -- they cannot come from a signature:
 
@@ -22,15 +21,13 @@ A form half derived and half declared would be harder to understand than either
 pure one. So the copy does not go away -- and the way out is `getEffectiveNodes`'
 one: the rule is written on one side only, and the test cross-checks.
 
-## What the slice found
+## Worth knowing
 
-* three fields of `freq_response` were declared as compute and are not: they are
-  read in `plot` and appeared in no tuple;
-* `test_declared_plot_parameters_are_actually_used` was **vacuous**: it searched
-  for the parameter name in the runner source, and the tuple itself was in that
-  source;
+* three fields of `freq_response` are read in `plot` only;
+* a test that searches for a parameter name in the runner source is vacuous if
+  the name is written there as data;
 * Campbell's `plot_type` is read by no runner -- what consumes it is the screen.
-  It gained the role `interface`, and is enforced from the frontend side."""
+  Its role is `interface`, and it is enforced from the frontend side."""
 
 import inspect
 import io
@@ -256,9 +253,8 @@ def test_the_documented_exceptions_are_still_needed():
 def test_every_mapped_field_is_a_real_ross_parameter(name):
     """The 28 fields pointing at a `run_*` parameter still exist.
 
-    It is BE-13 again, on the analysis side: when ROSS renamed 14 seal fields, the
-    interface went on offering the old names and the error only showed up for
-    whoever filled in the right field."""
+    When ROSS renames a parameter, a form that goes on offering the old name
+    shows the error only to whoever fills in that field."""
     method = getattr(rs.Rotor, ROSS_METHOD[name], None)
     if method is None:
         pytest.skip("%s does not exist in this version of ROSS" % ROSS_METHOD[name])
@@ -278,10 +274,9 @@ def test_every_mapped_field_is_a_real_ross_parameter(name):
 def test_the_declared_ross_method_is_the_one_the_runner_calls(name):
     """The method name in the catalogue has to be the one the runner calls.
 
-    Writing that map by hand has cost before: I had put `run_harmonic_balance` and
-    `run_clearance` when ROSS calls `run_harmonic_balance_response` and
-    `run_clearance_analysis`. `getattr` gave back None and the rename test
-    **skipped in silence** -- a guard that guards nothing is worse than none,
+    A map written by hand can say `run_harmonic_balance` and `run_clearance` when
+    ROSS calls `run_harmonic_balance_response` and `run_clearance_analysis`; then
+    `getattr` gives back None and the rename test **skips in silence** -- a guard that guards nothing is worse than none,
     because it looks like coverage."""
     js = inspect.getsource(sys.modules[type(REGISTRY[name]).__module__])
     called = set(re.findall(r"rotor\.(run_\w+)\(", js))
@@ -327,10 +322,8 @@ def test_every_field_that_points_at_ross_is_accounted_for():
 def test_the_screen_offers_exactly_what_the_catalogue_has():
     """The twelve options left the HTML: the screen offers what the catalogue says.
 
-    Until the i18n slice the titles were written in two places -- the `<option>` of
-    index.html and a `typeNames` in the JS. Now they come from the catalogue,
-    already translated, and the guard becomes what always mattered: the catalogue
-    and the runner registry cover the same analyses."""
+    The titles come from the catalogue, already translated, so the guard is what
+    matters: the catalogue and the runner registry cover the same analyses."""
     with io.open(
         os.path.join(ROOT, "frontend", "index.html"), encoding="utf-8", newline=""
     ) as handle:
@@ -408,7 +401,7 @@ def test_the_javascript_fixture_matches_the_catalogue():
 
 
 def _without_sliders(forms):
-    """The frozen forms as they read once the sliders left (phase 5, slice 14).
+    """The frozen forms as they read without sliders.
 
     One change that applies to every form at once, so it is applied here by
     rule instead of being listed analysis by analysis: a `range` field became a
@@ -416,7 +409,7 @@ def _without_sliders(forms):
     speed that depends on the machine, and the slider did not follow a change of
     unit. As a transformation, the rest of every frozen form keeps being
     compared exactly; putting the ten analyses that have a speed on
-    `CHANGED_ON_PURPOSE` would have stopped comparing them altogether."""
+    `CHANGED_ON_PURPOSE` would stop comparing them altogether."""
     out = {}
     for name, form in forms.items():
         out[name] = []
@@ -431,29 +424,29 @@ def _without_sliders(forms):
 
 
 def test_the_frozen_dashboards_still_match_the_catalogue():
-    """The golden file of the old form is what the port has to reproduce.
+    """The frozen forms are what the catalogue has to reproduce.
 
-    `tests/golden/analysis_dashboards.json` was taken from the real
-    `AnalysisDashboards` by evaluating the module -- not with a parser of mine,
-    which would fail on the first unforeseen syntax exception.
+    `tests/golden/analysis_dashboards.json` was taken from the real frontend
+    catalogue by evaluating the module -- not with a parser, which would fail on
+    the first unforeseen syntax exception.
     `tests/js/test_analysis_form.js` builds the twelve panels from it and from the
     catalogue and requires identical HTML; here the comparison is of the data,
     field by field.
 
-    Three new fields stay out of the comparison because they did not exist before:
-    `role` and `ross_param`, from the catalogue (slice 4), and `deps_de`, which
-    says which field each conditional visibility depends on (FE-07, slice 5).
+    Three fields stay out of the comparison because the frozen forms do not have
+    them: `role` and `ross_param`, from the catalogue, and `deps_de`, which says
+    which field each conditional visibility depends on.
     Their presence is enforced elsewhere -- in this same file for `deps_de` -- so
     that taking them out of the comparison does not become taking them out of the
     checking.
 
     `CHANGED_ON_PURPOSE` is the other kind of exception, and it costs more. This
-    golden's whole claim is "the port did not change the form", and once a form
+    golden's whole claim is "the form did not change", and once a form
     is deliberately changed that claim is simply no longer true of it. The
     tempting move -- regenerate the file -- would make the claim untrue of every
     analysis at once, silently, because a golden regenerated from the code it
-    guards agrees with anything. So the file stays frozen, the one analysis we
-    changed is named here with its reason, and the control below fails if a
+    guards agrees with anything. So the file stays frozen, each analysis changed
+    on purpose is named here with its reason, and the control below fails if a
     named analysis stops differing: an exception that outlives its cause is a
     hole with a comment on it."""
     path = os.path.join(ROOT, "tests", "golden", "analysis_dashboards.json")
@@ -480,7 +473,7 @@ def test_the_frozen_dashboards_still_match_the_catalogue():
             )
 
 
-# The analyses whose form we deliberately changed after the port, and why. Read
+# The analyses whose form deliberately differs from the frozen one, and why. Read
 # by the test above and by its control just below.
 CHANGED_ON_PURPOSE = {
     "clearance": (
@@ -612,16 +605,16 @@ def test_the_field_a_dependency_points_at_exists_and_offers_the_values(name):
 
 @pytest.mark.parametrize("name", NAMES)
 def test_a_dependency_value_belongs_to_exactly_one_select(name):
-    """The coincidence that made FE-07 work, now written down as a rule.
+    """Which select a dependency reads, written down as a rule.
 
     As long as **a value used in `deps`** appears in the options of only one
     select, reading "every select on the card" gives the same result as reading the
-    right one. It was true, and it was luck.
+    right one -- and that must not be left to luck.
 
-    The first version of this test forbade *any* repeated option between two
-    selects -- and failed on five analyses, with `True`/`False`, `RPM`/`rad/s` and
-    `m`/`mm`. Repetition like that is legitimate and not ambiguous: none of them is
-    a dependency value. The right invariant is narrower, and it is this one."""
+    Forbidding *any* repeated option between two selects would be too much:
+    `True`/`False`, `RPM`/`rad/s` and `m`/`mm` repeat legitimately and are not
+    ambiguous, since none of them is a dependency value. The right invariant is
+    narrower, and it is this one."""
     owners = {}
     for field in ANALYSES[name]:
         if field["type"] != "select":

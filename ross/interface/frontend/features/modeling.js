@@ -27,18 +27,10 @@ import { applyProject, splitProject, splitProjectAt, withoutAnalyses } from './s
 import { meshProject } from './mesh.js';
 import { clearRotor3d, hideRotor3d, relabelRotor3d, showRotor3d, toolInUse } from './rotor3d.js';
 
-// How the rotor figure settles into the panel. This used to be done in the
-// backend (BE-12): margin, background, size and legend position assembled on top
-// of the Plotly JSON before sending. What knows the size of the panel is the
-// screen.
-// What the screen says about the rotor figure, and it is now only the theme.
+// How the rotor figure settles into the panel: what the screen says about the
+// rotor figure is only the theme.
 //
-// This used to carry `height: null`, a `margin` of its own and a `legend`
-// position, from BE-12 in Phase 3: the backend was assembling them and "what
-// knows the size of the panel is the screen". That was right at the time.
-//
-// ROSS 3 changed the ground under it. `plot_rotor` now computes height, margin
-// and legend position **together**, and the source says why they belong
+// `plot_rotor` computes height, margin and legend position **together**, and the source says why they belong
 // together: the height comes from a nominal width and the `scaleanchor`
 // constraint, the bottom margin reserves fixed bands so showing the axes
 // indicator does not resize the figure, and the legend hangs from a line below
@@ -46,13 +38,11 @@ import { clearRotor3d, hideRotor3d, relabelRotor3d, showRotor3d, toolInUse } fro
 // Measured on a six-element rotor, it asks for `height: 332`,
 // `margin {l:70, r:25, t:100, b:102}` and `legend.y = 1.4615`.
 //
-// We were replacing all three with values that knew nothing about each other --
-// a bottom margin of 80 where ROSS reserves 102, and a legend at 1.05 where it
-// puts 1.46. Taking one of a set of three and leaving the other two is how a
-// figure ends up with its buttons clipped.
+// Replacing any of the three with values that know nothing about the others --
+// a bottom margin of 80 where ROSS reserves 102, a legend at 1.05 where it puts
+// 1.46 -- is how a figure ends up with its buttons clipped.
 //
-// So the line is drawn differently now: **ROSS owns the geometry, the screen
-// owns the theme**. The two colours stay because ROSS sets neither (measured:
+// So **ROSS owns the geometry, the screen owns the theme**. The two colours stay because ROSS sets neither (measured:
 // `paper_bgcolor` and `plot_bgcolor` both come back as None), so making the
 // figure transparent over a themed panel is genuinely ours. Width is ours too,
 // but not through `responsive: true` -- see `startRotorFigureFollowsWidth`.
@@ -93,18 +83,15 @@ function renderVerticalScalePicker() {
 // changed. Two would be two chances to forget the stretch.
 //
 // The toggle buttons under the axis are ROSS's to place, like the rest of the
-// geometry. There used to be a `ROTOR_MENU = { y: -0.15 }` applied here, and
-// it was the fourth member of the set this file's comment above says cannot be
-// split: `-0.15` is a fraction of the plot area's height, chosen when the area
-// was whatever the panel gave (~500 px, so 75 px below the axis). With ROSS's
-// own 130 px area it came to 20 px -- on top of the tick labels. ROSS puts them
-// at `-0.4615` of its area, which is 60 px down, inside the 102 px band it
-// reserves for them. Measured in a browser, not reasoned about.
+// geometry, a fourth member of the set the comment above says cannot be split:
+// their `y` is a fraction of the plot area's height. ROSS puts them at
+// `-0.4615` of its 130 px area, which is 60 px down, inside the 102 px band it
+// reserves for them; a value chosen for another area -- `-0.15` of ~500 px --
+// lands on top of the tick labels.
 //
 // And `withVerticalScale` **returns** the stretched layout; it does not change
-// the one it is given. The first version of this function called it for a side
-// effect it no longer had, so 2× and 5× computed a stretch and threw it away --
-// the contract of the helper changed and this call site was not revisited.
+// the one it is given. Called for a side effect, 2× and 5× would compute a
+// stretch and throw it away.
 function drawRotorFigure(fig) {
     lastRotorFigure = fig;
     const dressed = Object.assign(JSON.parse(JSON.stringify(fig.layout)), ROTOR_APPEARANCE);
@@ -127,15 +114,14 @@ function showInsteadOfFigure(container, html) {
 
 // --- following the width -----------------------------------------------------
 //
-// The figure used to follow the window through Plotly's `responsive: true`, and
-// measuring it in a browser showed what that costs: Plotly answers a resize with
-// `relayout({autosize: true})`, which **throws away the layout's height**.
-// ROSS's 332 px -- and the height the vertical scale computes -- became the
-// container's (676 px on a 1080p screen) at the first resize. And a resize is
-// any of: resizing the window, zooming the page, hiding the sidebar or the
-// list. So the figure a person saw depended on what they had clicked before,
-// and the offsets ROSS computed for its buttons and legend were fractions of an
-// area that was no longer there.
+// The figure does not follow the window through Plotly's `responsive: true`:
+// Plotly answers a resize with `relayout({autosize: true})`, which **throws away
+// the layout's height**. ROSS's 332 px -- and the height the vertical scale
+// computes -- would become the container's (676 px on a 1080p screen) at the
+// first resize. And a resize is any of: resizing the window, zooming the page,
+// hiding the sidebar or the list. So the figure a person saw would depend on
+// what they had clicked before, and the offsets ROSS computed for its buttons
+// and legend would be fractions of an area that is no longer there.
 //
 // So the rotor figure is drawn once with `responsive: false` and redrawn here,
 // from the figure the server sent, with the geometry ROSS and the scale decided.
@@ -248,9 +234,9 @@ function redrawAtNewWidth() {
 
 // --- State of the screen itself ----------------------------------------------
 //
-// Four values only this screen reads and writes, which used to hang off
-// `window`: any script on the page could touch them, and nothing said whose they
-// were. Here they are module-level `let` -- unreachable from outside, and with
+// Four values only this screen reads and writes. Hung off `window`, any script
+// on the page could touch them, and nothing would say whose they are. Here they
+// are module-level `let` -- unreachable from outside, and with
 // the scope declaring the owner.
 //
 // `nodeMap` is the node -> z position table, rebuilt on every rotor figure;
@@ -395,8 +381,8 @@ export function openTab(category) {
 // Function to open the form
 
 export async function openForm(isNew = true) {
-    // The list panel is left as it is. The form used to live in it and had to
-    // open it to be seen; as a window of its own it is seen anyway, and someone
+    // The list panel is left as it is. As a window of its own the form is seen
+    // whether the list is open or not, and someone
     // who hid the list to give the figure room keeps that room while editing.
     await schemaReady();          // the forms come from /api/schema/elements
     if (isNew) { state.editingIndex = -1; state.currentSubType = 'BASIC'; }
@@ -547,8 +533,8 @@ export function copyItem(index) {
 
 // Delete function for the element
 
-// The question, when there is one, is the only reason this is not the plain
-// call it used to be: an `await` suspends even when the answer is already
+// The question, when there is one, is the only reason this is not a plain
+// call: an `await` suspends even when the answer is already
 // known, and the batteries -- like the screen -- expect a delete with nothing
 // to ask about to have happened by the time the call returns. So the promise
 // is only in the path that has a question.
@@ -634,8 +620,8 @@ function restore(snapshot) {
     // itself would push onto the stack the very step it just took off.
     writeBackToLibrary();
     // Through `projectChanged`, not by calling `refreshHistoryButtons` here.
-    // This line used to name that one subscriber directly, which worked only
-    // while there was one -- and it would have skipped the selection, whose
+    // Naming that one subscriber directly works only while there is one -- and
+    // it would skip the selection, whose
     // ticked positions point at a model that is no longer on screen.
     projectChanged();
     renderList();
@@ -836,16 +822,14 @@ export function saveItem() {
 // While ROSS builds the rotor -- a moment, or a minute for a bearing it has to
 // solve, a tilting pad -- the view on screen is dimmed and closed to the
 // pointer, and after half a second says it is computing: the 2D figure's place
-// with the spinner, the 3D view with the same card over its canvas (Leonardo:
-// the 3D view said nothing while the 2D figure did).
+// with the spinner, the 3D view with the same card over its canvas.
 //
 // All of that belongs to the NEWEST build. A build overtaken by a newer one
 // returns at once, and the newer one begins by taking down whatever the older
-// one put up, in either view. It used to be each build's own to take down, and
-// the overtaken one returned without doing it: a build started in 3D and
-// overtaken by a switch to 2D left the 3D view dimmed and deaf to the mouse
-// for good -- what Leonardo saw with a tilting pad, whose build is long enough
-// to switch views in the middle of.
+// one put up, in either view. Left to each build to take down, the overtaken one
+// would return without doing it: a build started in 3D and overtaken by a switch
+// to 2D would leave the 3D view dimmed and deaf to the mouse for good -- a
+// tilting pad's build is long enough to switch views in the middle of.
 const SAY_BUSY_AFTER_MS = 500;
 let building = null;
 

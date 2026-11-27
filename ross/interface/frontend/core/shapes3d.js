@@ -1,7 +1,7 @@
 // The geometry bank: other shapes an element can be drawn with in the 3D view
 // -- a compressor impeller, a turbine wheel, a fan -- instead of its default.
 //
-// ONLY A PICTURE. Leonardo's decision: ROSS goes on computing with the mass
+// ONLY A PICTURE. ROSS goes on computing with the mass
 // and inertias of the element's form, and the shape chosen here is drawn in
 // the envelope the element already has (its outer radius, its width). It is
 // saved with the element, as `shape3d`, so a project opens as it was left;
@@ -30,8 +30,8 @@ export const SHAPE_FIELD = 'shape3d';
 // THE EMPTY KEY. Where the element's model says what it is -- a ROSS
 // `BallBearingElement` is a rolling bearing, a `HolePatternSeal` a hole-pattern
 // seal, a gear with a helix angle a helical gear -- nothing chosen means "as
-// the model says" (`automaticShape`); Leonardo asked for bearings to follow
-// their model. Where it says nothing (a disk, a point mass, a coupling), it
+// the model says" (`automaticShape`), so a bearing follows its model. Where it
+// says nothing (a disk, a point mass, a coupling), it
 // means the category's own drawing, as before.
 const CATALOGUE = {
     disks: [

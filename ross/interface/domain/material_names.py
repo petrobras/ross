@@ -3,8 +3,8 @@
 
 `rs.Material` refuses any space in the name (`materials.py`: ``if " " in name:
 raise ValueError("Spaces are not allowed in Material name")``). The form lets a
-person type "Stainless Steel", and before this module the rotor then failed to
-build, far from the field that caused it.
+person type "Stainless Steel", and the rotor would then fail to build, far from
+the field that caused it.
 
 The screen now writes the name the way ROSS wants it when the material is saved
 (`frontend/core/material_names.js`). This is the same rule on the server's side,
@@ -32,7 +32,7 @@ def material_key(name):
 
 # --- a reference that finds nothing ------------------------------------------
 #
-# A shaft names its material by text. Until this guard, a name no material
+# A shaft names its material by text. Without this guard, a name no material
 # carried -- a material deleted, a rotor loaded from a file written by hand, a
 # project edited outside the screen -- reached `extract_kwargs` and was answered
 # with `list(mat_dict.values())[0]`: the **first material of the list**, or

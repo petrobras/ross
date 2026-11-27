@@ -154,8 +154,8 @@ class Worker(object):
         # pipe, and that is only correct while one conversation happens at a
         # time. If the identifiers stop matching, two answers have been swapped
         # -- which on a chart route means somebody looking at the answer to a
-        # question they did not ask, with nothing on screen to say so. That is
-        # FE-05 of the audit, on this side of the wire. A conversation out of
+        # question they did not ask, with nothing on screen to say so. A
+        # conversation out of
         # step cannot be repaired, so it ends here and the worker is replaced.
         if answer.get("id") != message["id"]:
             raise WorkerGone(

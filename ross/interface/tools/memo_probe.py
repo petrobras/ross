@@ -1,22 +1,18 @@
 # -*- coding: utf-8 -*-
 """Does ROSS's memo survive the parameter changes a user actually makes?
 
-THE QUESTION, AND WHY IT COMES BEFORE ANY CODE. The phase-4 measurement found
-that keeping the `Rotor` object between requests would take the campbell from
-6.64 s to 0.064 s, the freq_response to 0.28 ms and the modes to 24 us -- and do
-nothing at all for the other nine analyses. It also wrote down, in the same
-paragraph, the thing nobody had measured:
+THE QUESTION, AND WHY IT COMES BEFORE ANY CODE. Keeping the `Rotor` object
+between requests (tools/timing_probe.py, `same` against `fresh`) takes the
+campbell from about 6.6 s to 0.06 s, the freq_response to 0.28 ms and the modes
+to 24 us -- and does nothing at all for the other nine analyses. But a rotor
+cache only adds value when the **spec** changes and the rotor does not -- the
+user changes the speed and recomputes. Whether ROSS's memoisation survives that
+depends on which parameter moved: changing the campbell's speed range changes
+the speeds and the memo misses; changing how many curves to show does not.
 
-    the rotor cache only adds value when the **spec** changes and the rotor does
-    not -- the user drags the speed slider and recomputes. Whether ROSS's
-    memoisation survives that depends on which parameter moved: changing the
-    campbell's speed range changes the speeds and the memo misses; changing how
-    many curves to show does not.
-
-That sentence is the whole of slice 6d. If the memo dies on the parameters people
-actually move, the rotor cache is machinery that speeds up the case the analysis
-cache already covers -- and the right outcome is to not build it. Finding that
-out costs this probe; finding it out afterwards costs a slice.
+If the memo dies on the parameters people actually move, a rotor cache is
+machinery that speeds up the case the analysis cache already covers -- and the
+right outcome is to not build it.
 
 HOW IT ASKS. Two passes, and the first decides whether the second is worth
 running.

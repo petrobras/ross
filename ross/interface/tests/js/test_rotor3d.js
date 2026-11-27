@@ -8,7 +8,7 @@
 // what ROSS builds today. Every claim is about agreement -- a part drawn where
 // the pointer finds it, a camera that frames what is drawn, a rebuild that
 // frees what it replaces -- because a view that agrees with itself and not
-// with the rotor is the prototype's defect over again.
+// with the rotor is the defect to avoid.
 import fs from 'node:fs';
 import { check, shutDown } from './fake_dom.js';
 
@@ -101,8 +101,8 @@ check('the driven line\'s parts are keyed apart and carry the shift',
         && (p.hanging || (near(p.offset.x, placed.x) && near(p.offset.y, placed.y) && near(p.offset.z, placed.z)))));
 
 // ROSS's own MultiRotor example: the pinion's pitch diameter (77 mm) is smaller
-// than its 150 mm shaft. Drawn as given, its teeth were buried in the shaft
-// and the two gears were drawn inside each other -- what Leonardo saw.
+// than its 150 mm shaft. Drawn as given, its teeth would be buried in the shaft
+// and the two gears drawn inside each other.
 const example = CASES.ross_multirotor_example.scene;
 const exampleParts = layoutScene(example).parts;
 const pinion = exampleParts.find(p => p.half === 'driven' && p.kind === 'gear');
@@ -131,8 +131,8 @@ check('the thicker element\'s end, standing proud of the thinner one, is', every
 
 // A coupling is drawn at its own length, mid-span: hubs at the two ends of
 // its body, a slender spacer between them, and the shaft showing on each side
-// as it runs into a hub. (Leonardo: on node 0 it used to swallow the whole
-// first element up to the bearing.)
+// as it runs into a hub. (Drawn over the whole span, a coupling on node 0
+// would swallow the first element up to the bearing.)
 const couplingCase = CASES.coupling.scene;
 const couplingPart = layoutScene(couplingCase).parts.find(p => p.kind === 'coupling');
 const [body0, body1] = couplingPart.body;
@@ -169,8 +169,8 @@ check('it carries ROSS\'s two lumped masses for the tooltip',
     couplingPart.entry.m_l === 2 && couplingPart.entry.m_r === 3);
 couplingModel.dispose();
 
-// The shaft line is separated at the coupling (Leonardo: "como se os dois eixos
-// se separassem pelo acoplamento"): it runs into each hub and stops. When a
+// The shaft line is separated at the coupling, as two shafts joined by it: it
+// runs into each hub and stops. When a
 // shaft element also spans the coupling's nodes -- a second, parallel
 // stiffness in ROSS -- it is cut the same way, and the tooltip says so.
 const gapOf = part => [part.body[0] + part.hub, part.body[1] - part.hub];
@@ -378,7 +378,7 @@ for (const [name, { scene }] of Object.entries(CASES)) {
     model.dispose();
 }
 
-// Colours: ROSS's names, not the prototype's fixed palette.
+// Colours: ROSS's names, not a fixed palette.
 const oneDisk = { parts: layoutScene(every).parts.filter(p => p.kind === 'disk').slice(0, 1), rings: [], bounds: null };
 const diskModel = buildRotorModel(THREE, oneDisk);
 const colour = diskModel.object.getObjectByName('metal').geometry.attributes.color.array;

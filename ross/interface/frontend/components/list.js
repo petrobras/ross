@@ -10,13 +10,12 @@ import {
     activeCount, askForNumbers, criteriaFor, filterPanelOpen, missingNumbers, rowMatches,
 } from '../core/list_filter.js';
 import { renderFilterPanel } from './list_filter_panel.js';
-// The list does not know the rotor. Whoever builds the rotor subscribes here;
-// before, `renderList` called `buildRotorLive` directly, and measuring the
-// boundaries showed that as the only path from a component to a feature.
-// The default **throws**, and that is not carelessness. Slice 3 created this hook
-// and forgot to connect it; with a `() => {}` in its place, dragging an element
-// stopped updating the figure with nothing to show for it, and only the user
-// noticed. A hook with no subscriber has to hurt on first use.
+// The list does not know the rotor. Whoever builds the rotor subscribes here,
+// so that no component calls a feature (`buildRotorLive`) directly.
+// The default **throws**, and that is not carelessness. With a `() => {}` in its
+// place, a hook nobody connected would leave dragging an element without
+// updating the figure, with nothing to show for it. A hook with no subscriber
+// has to hurt on first use.
 let reorderHandler = () => {
     throw new Error('onReorder: ninguem se inscreveu no reordenamento');
 };
@@ -31,8 +30,8 @@ export function onReorder(fn) {
 // figure and of the exported script is the backend. But the user compares the
 // two, so the rule has to be identical. That is why the regex exists:
 // JavaScript's Number() accepts '0x10' and Python's float() accepts '1_0'; each
-// side turned a different piece of garbage into a node. tests/test_fase1_fatia4.py
-// compares the two implementations case by case.
+// side would turn a different piece of garbage into a node.
+// tests/test_python_export.py compares the two implementations case by case.
 const NODE_SYNTAX = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
 function explicitNode(item) {
@@ -79,9 +78,8 @@ export const getEffectiveNodes = (arr) => {
 
 // The row whose form is open, marked, and the heading of the form window.
 //
-// The form used to open under its row, and that was how the person knew which
-// element it was. In a window of its own (components/floating_form.js) the row is
-// marked instead, and the window's bar says it in words -- the words of the
+// In a window of its own (components/floating_form.js) the form is not under its
+// row, so the row is marked instead, and the window's bar says it in words -- the words of the
 // row, so the two cannot disagree. Called on every redraw of the list, because
 // a drag or a copy above it moves the edited row and renumbers it.
 export function markEditedRow() {
@@ -119,9 +117,9 @@ export function categoryName(category, button) {
 }
 
 // The sidebar button of a category, found by what it *is* (`data-tab`) rather
-// than by what it happens to call. It used to be found by reading `openTab('x')`
-// out of the `onclick` text -- which is how this slice would have broken the
-// title and the highlight the moment the buttons started calling `pickTab`.
+// than by what it happens to call: reading `openTab('x')` out of an `onclick`
+// would break the title and the highlight as soon as a button called something
+// else.
 export function tabButton(category) {
     return Array.from(document.querySelectorAll('.tab-btn'))
         .find(b => b.dataset && b.dataset.tab === category);
@@ -241,11 +239,10 @@ function buildRows(currentArray, effNodes, passes) {
 
 // The list is **built first and swapped in at the end**.
 //
-// It used to be emptied first -- `container.innerHTML = ''` -- and then built
-// from the project. Anything that threw in between (a category missing from the
-// project, a `null` in a list, a half of a MultiRotor that is not there) left
-// the panel empty, and with no error handler anywhere, nothing on screen or in
-// the console said why. That is what Leonardo saw as "the lists vanished".
+// Emptied first -- `container.innerHTML = ''` -- and then built from the
+// project, anything that threw in between (a category missing from the project,
+// a `null` in a list, a half of a MultiRotor that is not there) would leave the
+// panel empty, with nothing on screen or in the console to say why.
 //
 // Now every row is made before the container is touched. If making them fails,
 // the error still propagates -- the notice in `features/error_notice.js` shows
@@ -290,9 +287,8 @@ export function renderList() {
         handle: '.item-drag',
         // Only the rows move, and only rows are counted.
         //
-        // The open form used to be a child of this same container, under the
-        // element it edited (it is a window of its own now, but anything else
-        // put in the list would do the same). With Sortable's defaults it
+        // Anything else put in this container -- an open form under the
+        // element it edits, say -- would be dragged as a row too. With Sortable's defaults it
         // counted as an item:
         // `oldIndex` and `newIndex` are positions among **all** the children,
         // so with the form above the dragged row every index was one too high.

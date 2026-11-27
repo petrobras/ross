@@ -26,7 +26,7 @@
 export const HISTORY_LIMIT = 50;
 
 // Keys that describe the screen's copy of a rotor rather than the rotor. The
-// analyses are out by decision: they are the heavy half (one Campbell figure
+// analyses are left out on purpose: they are the heavy half (one Campbell figure
 // runs past 15 KB) and they are *already* stale after any edit, so restoring
 // yesterday's chart onto today's model would be worse than leaving it alone.
 const NOT_THE_MODEL = ["name", "uid", "savedAnalyses"];

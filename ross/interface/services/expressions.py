@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """An allow-list expression evaluator, in place of eval().
 
-The time response's F(t) field accepts an expression written by the user. Until
-Phase 0 that went straight into eval(), which -- together with the open CORS --
-gave code execution from any browser tab (BE-01).
+The time response's F(t) field accepts an expression written by the user, and
+it never goes to eval(): with eval(), any page able to reach the server would
+have code execution.
 
 Here the expression is compiled to an AST and walked node by node; only
 numbers, the supplied variables, the arithmetic operators and the functions in
 SAFE_FUNCTIONS get through. Any other node raises ValueError naming what was
-refused. It left app.py in Phase 2 because the analysis runners need it and
+refused. It lives outside the app because the analysis runners need it and
 cannot import the app.
 """
 

@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
-"""The element forms, after the first round of user testing.
+"""The element forms: what these tests hold in place.
 
-What the testers found, and what holds it in place:
+* TiltingPad: `xj`/`yj` have a description and no unit -- they are fractions
+  of the radial clearance, not millimetres; `equilibrium_type` is chosen, not
+  typed;
+* the shaft's `shear_method_calc` and every `lubricant` are chosen among what
+  ROSS accepts;
+* ball, roller and magnetic bearings have units;
+* a single speed or frequency needs no brackets;
+* a point mass's `mx`, `my`, `mz` read as masses.
 
-* TiltingPad: `xj`/`yj` had no description and a unit they do not have --
-  they are fractions of the radial clearance, and were read as millimetres;
-  `equilibrium_type` was typed instead of chosen;
-* the shaft's `shear_method_calc` and every `lubricant` were typed instead of
-  chosen among what ROSS accepts;
-* ball, roller and magnetic bearings had no units;
-* a single speed or frequency had to be typed between brackets;
-* a point mass's `mx`, `my`, `mz` read as something other than masses.
-
-And one found while fixing them: a quantity ROSS does not convert itself --
-a ball bearing's `fs`, any argument of a constructor without `@check_units` --
-reached ROSS as a pint Quantity. Which ones ROSS converts is restated in
+And a quantity ROSS does not convert itself -- a ball bearing's `fs`, any
+argument of a constructor without `@check_units` -- must not reach ROSS as a
+pint Quantity. Which ones ROSS converts is restated in
 `element_registry.ross_converts`, held here to ROSS's own `check_units`.
 """
 

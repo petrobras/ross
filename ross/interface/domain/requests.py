@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
 """The shape of every request body, written once.
 
-Until this point each route read the body with loose `.get()` calls. A wrong
-field name -- `analysisType` instead of `analysis_type` -- raised nothing at
-all: it became `None` and the analysis carried on with the default value. And
-the refusal of the pre-Phase-2 format was an `if` written by hand inside app.py.
+With loose `.get()` calls in each route, a wrong field name -- `analysisType`
+instead of `analysis_type` -- would raise nothing at all: it would become `None`
+and the analysis would carry on with the default value. And refusing an older
+body format would be an `if` written by hand in a route.
 
-Here the two become one thing. The envelope declares the fields it accepts, and
+Here the two are one thing. The envelope declares the fields it accepts, and
 **refuses any key that is not declared** -- including the old format's, which is
 now recognised by name with no special case.
 
-Pydantic was considered for this, as the decisions document had planned. Two
-reasons for a hand-written validator instead: ROSS does not ship Pydantic (it
-would be a new dependency inside the PyInstaller executable, for fewer than ten
-fields), and the environment where these files are written cannot execute it --
-the validation layer would be the only one reaching the user unverified.
+The validator is written by hand rather than with Pydantic: ROSS does not ship
+Pydantic, and it would be a new dependency inside the PyInstaller executable,
+for fewer than ten fields.
 """
 
 from .cache import STRUCTURAL_KEYS
@@ -120,9 +118,9 @@ ROTOR_REQUEST = Envelope(
 
 # `key` names the subject a request belongs to -- one card on the screen. The
 # server uses it to take an older job for the same subject out of the queue
-# before it runs: until slice 6c the browser aborted its own `fetch` and the
-# computation carried on regardless, so a card run twice made the second
-# analysis wait for the first, which nobody wanted any more.
+# before it runs. A browser that only aborts its own `fetch` leaves the
+# computation running regardless, so a card run twice would make the second
+# analysis wait for the first, which nobody wants any more.
 #
 # It is optional, and a request without one is simply never superseded.
 ANALYSIS_REQUEST = Envelope(

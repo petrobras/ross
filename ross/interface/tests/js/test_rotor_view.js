@@ -150,9 +150,9 @@ release();
 await settle(50);
 check('the answer takes the card down and opens the view again', node('rotor-3d-busy').hidden === true && open('rotor-3d'));
 
-// Leonardo's tilting pad: long enough to switch views in the middle. The
-// build started in 3D is overtaken by the one the 2D figure asks for, and
-// returns without a word -- it used to leave the 3D view closed for good.
+// A tilting pad: long enough to switch views in the middle. The build started
+// in 3D is overtaken by the one the 2D figure asks for, and returns without a
+// word -- it must not leave the 3D view closed for good.
 buildRotorLive();
 await settle(1200);
 check('(a build under way in 3D)', closed('rotor-3d') || node('rotor-3d-busy').hidden === false);

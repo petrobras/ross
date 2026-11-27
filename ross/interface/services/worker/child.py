@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """The loop inside the worker process: read a line, answer a line.
 
-Deliberately thin. Everything that can be decided without a process was decided
+Deliberately thin. Everything that can be decided without a process is decided
 in `protocol.py`; what is left here is the part the test suite cannot reach, and
 the less of it there is, the less is unverified.
 

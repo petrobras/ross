@@ -4,19 +4,17 @@
 // tests with the real library, and by the page only once the 3D view is
 // opened, so that nobody who never opens it pays for 2 MB of it.
 //
-// What the prototype taught, measured (see the project's 3D evaluation):
+// Three rules:
 //
 // * **few geometries for the whole rotor.** Every part is merged, with its
 //   colour in the vertices, into one mesh per finish (bare metal, painted) and
 //   one set of outlines -- a handful of draw calls whatever the number of
-//   elements, where the prototype spent about five per shaft element and
-//   seventeen per bearing;
-// * **everything built here is disposed here.** The prototype removed the old
-//   meshes from the scene and never freed them: eleven times the geometries on
-//   the GPU after twenty edits. `dispose()` below frees every geometry and
-//   material this module created, and nothing it did not create;
-// * **detail stays**, as decided with Leonardo, and after the first look at it
-//   he asked for more: chamfered shafts, disks with hub, tapered web, rim and a
+//   elements, rather than several per shaft element and per bearing;
+// * **everything built here is disposed here.** Meshes removed from the scene
+//   and never freed pile up on the GPU with every edit. `dispose()` below frees
+//   every geometry and material this module created, and nothing it did not
+//   create;
+// * **detail stays**: chamfered shafts, disks with hub, tapered web, rim and a
 //   bolt circle, gears with involute teeth, lightening holes and a keyway,
 //   pillow blocks with their bolts and grease nipple, ribbed seal glands,
 //   couplings as a flanged hub on each node with a disc pack and a spacer.

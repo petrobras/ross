@@ -5,8 +5,7 @@
 // of step with the element lists. Editing from it goes through the same forms
 // and paths the lists use (`editFrom3d` and its siblings in modeling.js).
 //
-// What the prototype cost, and what this does instead (measured; see the
-// project's 3D evaluation):
+// What keeps it light:
 //
 // * three.js is **loaded the first time the 3D view is opened**, with
 //   `import()`: whoever never opens it never downloads it;
@@ -121,7 +120,7 @@ let flyToNextBuild = false;
 // the event, which then goes no further, not even to the camera.
 let tool = null;
 
-// Editing from the 3D view (slice 3). `chosen` is the key of the part last
+// Editing from the 3D view. `chosen` is the key of the part last
 // clicked -- its row's form is open -- and `listPointed` the part of the row
 // the pointer is on in the element list.
 let chosen = null;
@@ -471,8 +470,8 @@ function makeStage(container) {
     // uploads the geometries again by itself; what was drawn on the GPU, the
     // environment map and the shadow map, has to be made again, and a view
     // that draws only when something changes has to be told to draw. Without
-    // this the canvas stayed as the loss left it until the pointer moved over
-    // it, and dull where it used to shine.
+    // this the canvas stays as the loss left it until the pointer moves over
+    // it, and dull where it should shine.
     renderer.domElement.addEventListener('webglcontextrestored', () => {
         lightByRoom(scene, renderer);
         renderer.shadowMap.needsUpdate = true;
@@ -677,8 +676,8 @@ export async function showEmptyStage(container) {
 
 // A project with no shaft (features/modeling.js): the rotor drawn before --
 // the one deleted, or the project open before this one -- leaves the view,
-// and its legend with it. The chips of a rotor that is no longer there used
-// to stay in the corner of the empty view (Leonardo).
+// and its legend with it: the chips of a rotor that is no longer there must not
+// stay in the corner of the empty view.
 export function clearRotor3d() {
     if (!stage) return;
     dropRotor();

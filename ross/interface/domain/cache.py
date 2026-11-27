@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 """In-process caches: bounded, locked, and keyed honestly.
 
-Two defects used to live here.
+Two things this module avoids.
 
-**BE-06.** The element cache was pruned at the end of every assembly, dropping
-everything that did not belong to the rotor just built. Switching between two
-rotors in the Hub emptied the cache in both directions -- precisely the case it
-was there to serve. And both dictionaries were globals without a lock, inside a
-Flask that serves requests on threads.
+**Pruning by the last rotor.** An element cache pruned at the end of every
+assembly, dropping everything that did not belong to the rotor just built,
+would empty itself in both directions when switching between two rotors in the
+Hub -- precisely the case it is there to serve. And both dictionaries are
+shared by a Flask that serves requests on threads, so they are locked.
 
-**BE-07.** The analysis key was the whole payload, and the payload carried
-`savedAnalyses` -- the already-rendered charts, complete Plotly figures. Saving
-one chart changed the key of every following analysis: a cold cache without
-anything about the rotor having changed.
+**Keying by the whole payload.** The payload carries `savedAnalyses` -- the
+already-rendered charts, complete Plotly figures. Keyed by it, saving one chart
+would change the key of every following analysis: a cold cache without anything
+about the rotor having changed.
 
 On sharing ROSS objects between rotors, which is what the cache does:
 `Rotor.__init__` copies the shaft elements before touching them (ROSS's own
@@ -78,11 +78,11 @@ def spec_key(project, conversion_type, analysis_type, spec):
     less (see services/analysis/base.py). That makes it impossible for a
     computation to depend on something left out of the key.
 
-    Until slice 2 the key was "the parameters minus a hand-kept list of plot
-    keys", and the list was wrong: Campbell reads `plot_type` during the
-    computation, to clip the speeds to 15 in mode-shape mode, while
-    `plot_type` sat outside the key. Opening Mode Shape and going back to
-    Default returned a 15-point diagram with the form still saying 50.
+    A key made of "the parameters minus a hand-kept list of plot keys" goes
+    wrong as soon as the list does: Campbell reads `plot_type` during the
+    computation, to clip the speeds to 15 in mode-shape mode, so with
+    `plot_type` outside the key, opening Mode Shape and going back to Default
+    would return a 15-point diagram with the form still saying 50.
     """
     return fingerprint(
         [structural_project(project), conversion_type or "", analysis_type, spec]

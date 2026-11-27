@@ -5,9 +5,8 @@
 import { apiFetch } from './api.js';
 import { setSchemaLanguage, preferredLanguage } from './i18n.js';
 // --- Element schema and form building ---------------------------------------
-// The forms used to be ~450 lines of literal HTML in FormTemplates, with copies
-// of UNITS_MAPPING and UNIT_ALTERNATIVES beside them. They now come from
-// /api/schema/elements, which the backend derives from the installed ROSS. A
+// The forms come from /api/schema/elements, which the backend derives from the
+// installed ROSS, not from literal HTML with copies of the units beside it. A
 // parameter renamed in the library disappears from the form on its own, instead
 // of becoming a TypeError at build time.
 
@@ -59,9 +58,8 @@ export function analysisUnsupported(type, conversion) {
     return (byConversion && byConversion[conversion || '']) || null;
 }
 
-// An analysis's title, in the schema's language. Until the i18n slice the
-// twelve names were written twice -- in the <select> options of index.html and
-// in a `typeNames` in the JS.
+// An analysis's title, in the schema's language: one list, kept by the
+// catalogue, for the <select> options and the card header.
 export function analysisTitle(type) {
     return ANALYSIS_TITLES[type] || String(type || '').toUpperCase();
 }

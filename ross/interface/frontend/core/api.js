@@ -20,10 +20,9 @@ export function apiFetch(path, options = {}) {
 const REQUESTS_IN_FLIGHT = new Map();
 
 // The backend only needs what describes the rotor. `savedAnalyses` holds the
-// already-rendered Plotly figures of each saved analysis -- and until now the
-// interface resent that whole bundle on every keystroke in the form and every
-// slider move, only to get a chart back. Worse: since the cache hash was the
-// payload, saving a chart changed the key of every analysis that followed.
+// already-rendered Plotly figures of each saved analysis, a bundle not worth
+// resending on every keystroke in the form only to get a chart back -- and the
+// server keys its cache by what it receives.
 export function projectForServer(project) {
     if (!project || typeof project !== 'object') return {};
     const copy = Object.assign({}, project);
@@ -55,15 +54,14 @@ export function wasCancelled(error) {
 
 // --- asking for work that takes a while --------------------------------------
 //
-// Since slice 6c an analysis is not answered by the request that asks for it.
+// An analysis is not answered by the request that asks for it.
 // The server puts the work in a line, answers with the name of the job, and
 // this function asks about that name until there is a chart.
 //
-// Three things follow, and only the first was the point. A job that has not
-// started can leave the queue when the same card asks again -- until now the
-// browser aborted its own `fetch` and the computation carried on to the end, so
-// a card run twice made the second analysis wait for the first, which nobody
-// wanted any more. The screen stops being held by a request it is not showing.
+// Three things follow. A job that has not started can leave the queue when the
+// same card asks again -- aborting a `fetch` alone would leave the computation
+// running to the end, so a card run twice would make the second analysis wait
+// for the first, which nobody wants any more. The screen stops being held by a request it is not showing.
 // And a chart can only land in the card that asked for it, because the answer
 // carries the name of the question.
 //

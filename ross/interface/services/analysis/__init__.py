@@ -2,8 +2,8 @@
 """Analysis registry: one class per analysis, instead of an if/elif.
 
 Importing this package registers the twelve runners. `get_runner(name)` returns
-the runner or raises ValueError listing the known names -- the message used to
-be "Analysis not implemented yet.", which did not say which ones existed.
+the runner or raises ValueError listing the known names, so the message says
+which ones exist.
 
 The order of the imports below does not matter; what matters is that they are
 all here, or the corresponding analysis disappears from the interface without

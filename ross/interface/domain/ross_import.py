@@ -6,8 +6,8 @@ SI base units. The interface works in text and in whichever unit the user chose
 on the form, so the conversion happens here.
 
 The ROSS-class -> interface-tab map comes from element_registry: the same one
-that builds the forms and the one that generates the Python script. Before
-Phase 1 this function had a `class_map` of its own, inverted by hand.
+that builds the forms and the one that generates the Python script, not a
+`class_map` of its own inverted by hand.
 """
 
 import json

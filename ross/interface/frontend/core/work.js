@@ -1,12 +1,10 @@
 // What is being computed right now, in one place.
 //
-// WHY THIS EXISTS. Until slice 6c-2 each card knew only about itself, and that
-// was enough while a card that was waiting and a card that was computing looked
-// the same. They are not the same, and the interface proved it the hard way:
-// asked to run the Campbell and the crack together, it showed both cards
-// "updating" and Leonardo read two analyses running in parallel. There is one
-// worker and one thread -- they took turns. Nothing on screen could have said
-// otherwise, because nothing on screen knew about more than one card.
+// WHY THIS EXISTS. A card that knows only about itself cannot tell waiting
+// from computing. Asked to run the Campbell and the crack together, both cards
+// would show "updating", and read as two analyses running in parallel. There is
+// one worker and one thread -- they take turns -- and nothing on screen could
+// say so without knowing about more than one card.
 //
 // So the line has a single reader here. Each job announces itself while it runs,
 // the bar at the bottom of the page subscribes, and the card gets the state that

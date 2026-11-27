@@ -1,11 +1,10 @@
 // The rotor figure following the width without losing its height.
 //
-// WHY THIS BATTERY EXISTS. The figure used to follow the window through
-// Plotly's `responsive: true`. Measured in a browser while building the list
-// toggle, that answers every resize with `relayout({autosize: true})`, which
-// throws away the layout's height: ROSS's 332 px became the container's 676,
-// and a 5× stretch lost the height it had computed. Every check of the vertical
-// scale passed, because none of them resized anything.
+// WHY THIS BATTERY EXISTS. Following the window through Plotly's `responsive:
+// true` answers every resize with `relayout({autosize: true})`, which throws
+// away the layout's height: ROSS's 332 px becomes the container's 676, and a 5×
+// stretch loses the height it computed. Checks of the vertical scale that
+// resize nothing cannot see it.
 //
 // Hiding the list is a resize, so is hiding the sidebar, zooming the page or
 // dragging the window. What is checked is the layout that reaches Plotly after

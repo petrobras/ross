@@ -4,12 +4,12 @@
 The interface is served by Flask itself and receives, injected into
 `index.html`, a token generated on every run. Every route requires that token
 in the `X-ROSS-Token` header. With no open CORS, a page from another origin
-cannot read it (BE-01, BE-02).
+cannot read it.
 
-**The list here is of the public routes, not the protected ones.** Until slice 4
-it was the other way round: a hand-written `PROTECTED_ROUTES` set that had to be
-remembered on every new route. Forgetting to add one left that route open, and
-nothing said so. Inverted, forgetting leaves the route *closed* -- which fails
+**The list here is of the public routes, not the protected ones.** A
+hand-written set of protected routes would have to be remembered on every new
+route, and forgetting to add one would leave that route open with nothing to
+say so. This way round, forgetting leaves the route *closed* -- which fails
 in your face instead of silently. `tests/test_security.py` walks Flask's route map
 and requires every non-public route to refuse a caller with no token.
 """

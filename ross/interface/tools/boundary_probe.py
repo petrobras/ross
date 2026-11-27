@@ -3,8 +3,7 @@
 
 Real cancellation needs a separate process. A thread cannot interrupt a running
 numpy/numba call, so cancelling inside one only stops the waiting while the CPU
-goes on burning -- which is the defect BE-11 exists to fix, with machinery
-around it. A process can be killed.
+goes on burning. A process can be killed.
 
 That makes the whole design depend on a question nobody has answered: **does the
 result survive the trip back?** This probe answers it instead of assuming, and

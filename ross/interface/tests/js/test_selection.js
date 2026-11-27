@@ -59,9 +59,9 @@ check('but merely looking at another tab does not throw the first one away',
     JSON.stringify(picked('shafts/')) === '[0,2]');
 
 // Which is `nowShowing`, called by `renderList`. A selection belongs to what is
-// on screen: leaving the list ends it. Before this, the ticks merely went
-// invisible and came back when the tab did -- safe, because any real change to
-// the model drops them anyway, but a resurrection nobody chose.
+// on screen: leaving the list ends it. Ticks that merely went invisible and came
+// back with the tab would be safe -- any real change to the model drops them
+// anyway -- but a resurrection nobody chose.
 nowShowing('disks/');
 check('putting another list on screen ends the selection',
     picked('disks/').length === 0);

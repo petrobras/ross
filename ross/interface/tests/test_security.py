@@ -80,9 +80,9 @@ def test_every_private_route_refuses_a_request_without_the_token(
 ):
     """Walks Flask's route map, not a hand-kept list.
 
-    Until slice 4 there was a PROTECTED_ROUTES set kept by hand. Adding a route and
-    forgetting to add it there left the route **open**, and nothing warned. Turned
-    around, the oversight leaves the route closed -- which fails in your face. This
+    A PROTECTED_ROUTES set kept by hand would leave a route forgotten there
+    **open**, and nothing would warn. Turned around, the oversight leaves the
+    route closed -- which fails in your face. This
     test covers any new route automatically."""
     for method in methods:
         response = getattr(client, method.lower())(route, json={})

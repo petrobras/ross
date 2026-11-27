@@ -798,11 +798,6 @@ export function t(key) {
 // the text -- which is why `textContent` can be rewritten without erasing any
 // icon. Where the text shares the element with an `<i>`, the markup sits on a
 // `<span>` holding only the text.
-//
-// Until this slice the index's ~93 texts were hard-coded English, and only the
-// forms translated (their labels come from the backend). The language selector
-// did not exist: `preferredLanguage()` read a `localStorage` that nothing in the
-// interface could write -- dead configuration deciding what the user saw.
 export function applyLanguage() {
     document.querySelectorAll('[data-i18n]').forEach(node => {
         node.textContent = t(node.dataset.i18n);

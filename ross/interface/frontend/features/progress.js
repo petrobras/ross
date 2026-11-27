@@ -1,10 +1,9 @@
 // The line of work, and the only button that can stop it.
 //
-// WHY THERE IS A BAR AT ALL. Slice 6c-1 made the screen stop blocking, and the
-// first thing that came back from using it was a misreading: two cards said
-// "updating" at the same time, so two analyses looked like they were running at
-// the same time. There is one worker and one thread -- they take turns. The
-// cards now say which of the two states they are in, and this bar says what the
+// WHY THERE IS A BAR AT ALL. The screen does not block while analyses run, and
+// two cards saying "updating" at the same time would look like two analyses
+// running at the same time. There is one worker and one thread -- they take
+// turns. The cards say which of the two states they are in, and this bar says what the
 // line as a whole is doing, because a card can only ever speak for itself.
 //
 // WHY ONE BUTTON AND NOT ONE PER CARD. Stopping a computation that is already

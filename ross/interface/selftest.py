@@ -101,9 +101,9 @@ def _every_analysis_answers():
     never touches. An oracle covering one path licenses cuts that break eleven.
 
     The list is not written here. It is `sorted(ANALYSES)`, which is also why
-    this file no longer contains the name of any analysis: the first executable
-    this project produced died on `KeyError: 'modal'`, a name I had guessed from
-    a file name. What cannot be written down cannot be guessed wrong.
+    this file contains the name of no analysis: a name guessed from a file name
+    is a `KeyError` in the executable. What is not written down cannot be
+    guessed wrong.
     """
     from ross.interface.api import create_app
     from ross.interface.api.security import SESSION_TOKEN
@@ -121,12 +121,9 @@ def _every_analysis_answers():
             "conversion_type": "none",
             "project": ROTOR,
         }
-        # Since slice 6c the route answers a **job**, not a chart: `202` with a
-        # name, and the chart from `GET /api/jobs/<id>`. This file went on
-        # reading the old contract, called all twelve analyses failed, and took
-        # the CI package job down on three systems -- while `check.bat`, which
-        # does not build, stayed green. The waiting is `api/waiting.py`, the one
-        # place that knows it, and it ships precisely so that this file can
+        # The route answers a **job**, not a chart: `202` with a name, and the
+        # chart from `GET /api/jobs/<id>`. The waiting is `api/waiting.py`, the
+        # one place that knows it, and it ships precisely so that this file can
         # reach it.
         try:
             answer = answer_for(

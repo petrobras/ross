@@ -1,6 +1,5 @@
 // The buttons of the analysis screen: the cards, their forms and the row
-// editors (probes, forces, unbalances). Phase 5, slice 14 -- the third stage
-// of moving the page off the `window` bridge (see core/actions.js).
+// editors (probes, forces, unbalances), as actions (see core/actions.js).
 //
 // A card's buttons carry the card as `data-card` and the analysis as
 // `data-type`. The row editors add with `data-list` (which kind of list) and

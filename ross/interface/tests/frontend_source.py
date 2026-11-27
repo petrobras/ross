@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 """The frontend JS, as one text, for the guards that read text.
 
-Until Phase 3 slice 3 it was one file (`app.js`). Now there are twelve modules,
-and the question these guards ask -- "does this still exist in the frontend?" --
+The frontend is a set of modules, and the question these guards ask -- "does this still exist in the frontend?" --
 holds for the set, not for one file. The order is fixed so that a guard's
 `index()` does not change result with the file system.
 
-The comment filter stays here and stays mandatory: four guards in this suite
-have already tripped over a comment of mine."""
+The comment filter stays here and stays mandatory: a guard that reads comments
+trips over the code's own explanations."""
 
 import io
 import os
@@ -24,11 +23,10 @@ THIRD_PARTY = ("vendor", "lib", "node_modules")
 def modules():
     """All the frontend JS that is ours, in a stable order.
 
-    It used to sweep only `main.js` and the three named folders. `frontend/schema.js`
-    -- a forgotten copy from before the move to modules, which nobody imported and
-    whose own `import`s did not even resolve from there -- stayed invisible to every
-    guard by living somewhere the list did not mention. Now the sweep walks the
-    whole tree: a new file joins on its own, and an orphan has nowhere to hide."""
+    The sweep walks the whole tree rather than `main.js` and a list of named
+    folders: a forgotten file that nobody imports would stay invisible to every
+    guard by living somewhere the list did not mention. This way a new file joins
+    on its own, and an orphan has nowhere to hide."""
     paths = []
     for root_path, folders, names in os.walk(FRONTEND):
         folders[:] = sorted(p for p in folders if p not in THIRD_PARTY)

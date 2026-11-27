@@ -1,20 +1,13 @@
 # -*- coding: utf-8 -*-
-"""The Campbell mode shape without Dash (BE-04).
+"""The Campbell mode shape without Dash.
 
-## What there was
+## Why not `plot_with_mode_shape`
 
-The mode shape came out through ROSS's `plot_with_mode_shape`, which starts a
-**Dash** server on a random port. To find the port, the backend replaced
-`sys.stdout` with an object that spied on what Dash printed, started a daemon
-thread and polled for up to 10 seconds; the URL became the `src` of an iframe
-on the screen.
-
-Four problems: in a PyInstaller executable with no console there is no
-`sys.stdout` to spy on -- and packaging is the Phase 4 decision; without `dash`
-installed ROSS raises an ImportError inside the thread, the error becomes a
-`print`, and the user waits the 10 seconds to get "took too long to answer",
-never learning the cause; the replaced `sys.stdout` was never restored; and
-Dash went into the bundle.
+ROSS's `plot_with_mode_shape` starts a **Dash** server on a random port, found
+by watching what Dash prints on `sys.stdout`. In a PyInstaller executable with
+no console there is no `sys.stdout`; without `dash` installed ROSS raises an
+ImportError inside a thread and the user never learns the cause; and Dash would
+go into the bundle.
 
 ## What there is
 
@@ -298,9 +291,9 @@ def test_the_three_drawing_paths_all_ask_the_same_question():
 def test_the_conversion_travels_with_a_saved_analysis():
     """Without this, a card computed in 4 DoF came back as 6 DoF when clicked.
 
-    In Phase 3 the conversion stopped living in `div.rossConversion` and became a
-    field of the analysis record. What this test guards is still the same: that it
-    is recorded at creation, at both restorations, and comes out in what is saved."""
+    The conversion is a field of the analysis record. What this test guards is
+    that it is recorded at creation, at both restorations, and comes out in what
+    is saved."""
     app_js = _frontend()
 
     # creation and the two restorations (back from the Hub, load from a file)

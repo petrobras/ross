@@ -7,7 +7,7 @@ is also why the button it serves is a single global one and not one per card.
 
 ## Why stopping needs a route at all
 
-Everything else in slice 6c is arranged so the user never has to think about the
+Everything else in the job queue is arranged so the user never has to think about the
 worker. This is the exception, and it exists because of a hard fact of the
 domain: **a computation already inside ROSS cannot be interrupted politely.**
 There is no cancellation point in an eigenvalue solve; the only way out is to
@@ -44,8 +44,9 @@ def interrupt():
     """Empty the line, kill what is running, and say what actually happened.
 
     `cancelled` counts the jobs that will now never produce anything -- the one
-    that was running included. `was_running` separates "I stopped a computation"
-    from "I emptied a queue", which are worth different words on screen.
+    that was running included. `was_running` separates "a computation was
+    stopped" from "a queue was emptied", which are worth different words on
+    screen.
     `worker_killed` is false when there was no worker to kill: see above.
     """
     return jsonify(dict(JOBS.stop_everything(), status="interrupted"))

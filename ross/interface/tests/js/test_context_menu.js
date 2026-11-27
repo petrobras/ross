@@ -62,7 +62,7 @@ runContextItem(0);
 check('a disabled entry runs nothing', ran.length === 1);
 
 // Windows asks for the browser's menu after the release that opened ours, and
-// from ours, under the pointer: both opened (Leonardo, in Chrome).
+// from ours, under the pointer: both would open (seen in Chrome).
 const asked = () => { const event = { prevented: false, preventDefault() { this.prevented = true; } }; blockBrowserMenu(event); return event.prevented; };
 openContextMenu(10, 10, [{ label: 'One', run: () => {} }]);
 check('while ours is open, the browser\'s menu is refused', asked() === true);

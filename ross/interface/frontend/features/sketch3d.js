@@ -1,6 +1,6 @@
 // A shaft element drawn in the 3D view: a sketch of one or two concentric
 // circles on the plane of a cross-section, then an extrusion along the rotor
-// axis (Leonardo's proposal, after the way a CAD program builds a solid).
+// axis, the way a CAD program builds a solid.
 //
 // It is a second way into the element list, not a model of its own: what it
 // makes is a row of the shaft list, added the way the form adds one, and the

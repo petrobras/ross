@@ -8,7 +8,7 @@
 //
 // What the mouse gives is only a preview, rounded to a step that suits the
 // size (`niceStep`); the value typed in the box beside it is what the element
-// gets (Leonardo: "o valor digitado manda").
+// gets.
 //
 // Lengths are in metres in the scene and in millimetres for the person: the
 // shaft form's unit (domain/units.py), so the row needs no `_unit`.
