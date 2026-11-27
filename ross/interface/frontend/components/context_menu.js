@@ -64,7 +64,7 @@ export function runContextItem(position) {
 // The browser's own menu, while ours is open. On Windows the browser asks
 // for its menu AFTER the button is released -- after the 3D view has opened
 // ours under the pointer -- so the question comes from our menu, not from the
-// canvas that refuses it, and both menus opened (Leonardo, in Chrome). Linux
+// canvas that refuses it, and both menus would open (seen in Chrome). Linux
 // and macOS ask on the press, before ours exists, and the canvas refuses it
 // there. Once ours is closed -- a right click anywhere else closes it on the
 // press -- the browser's menu is the page's again.

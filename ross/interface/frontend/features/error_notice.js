@@ -1,11 +1,10 @@
 // Saying so when something breaks.
 //
-// WHY THIS EXISTS. Until now there was no `window.onerror` and no handler for
-// rejected promises anywhere in the frontend. An exception inside a click
-// handler went to the console -- which nobody using the interface has open --
-// and the screen simply stopped where it was. That is how a failure reached
-// Leonardo as "the element lists vanished": the list had been emptied and the
-// error that interrupted its rebuilding was never seen.
+// WHY THIS EXISTS. Without `window.onerror` and a handler for rejected
+// promises, an exception inside a click handler goes to the console -- which
+// nobody using the interface has open -- and the screen simply stops where it
+// is: a list emptied, say, and the error that interrupted its rebuilding never
+// seen.
 //
 // This does not recover anything. It makes the failure visible, with the one
 // line that says where it happened, so that the next report comes as a message

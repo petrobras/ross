@@ -5,8 +5,9 @@
 // gear on each (`MultiRotor`: "Each rotor needs a GearElement in the coupled
 // nodes!"). The node is a number, though, and what the person chose was the
 // gear: cutting a shaft below it, meshing the line or adding an element before
-// it moves the gear to another node, and the number, left as it was, pointed
-// past it. The MultiRotor then refused to build, far from the cut that broke it.
+// it moves the gear to another node, and the number, left as it was, would point
+// past it. The MultiRotor would then refuse to build, far from the cut that
+// broke it.
 //
 // So the number follows the gear: whichever gear row sat on the coupled node
 // before the change, the coupled node is that row's node after it. Splitting,

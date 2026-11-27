@@ -1,17 +1,13 @@
 // The element list, when something goes wrong -- and the form, when the list
 // moves under it.
 //
-// WHY THIS BATTERY EXISTS. Leonardo reported that the element lists vanished
-// during a modelling session, and nobody could say why. The mechanism was in
-// the code: `renderList` emptied the list *before* reading the project, so any
-// exception in between left an empty panel, and with no error handler anywhere
-// nothing said what had happened. The trigger was never reproduced. So what is
-// checked here is the class, not the trigger: whatever throws, the list that was
-// on screen stays there, and the failure is shown.
+// WHY THIS BATTERY EXISTS. A list emptied *before* reading the project leaves
+// an empty panel on any exception in between, with nothing to say what
+// happened. What is checked here is the class, not a trigger: whatever throws,
+// the list that was on screen stays there, and the failure is shown.
 //
-// And the same slice closed the other way an edit could land in the wrong
-// place: the form remembers its element by position, and copying or dragging
-// moved positions without telling it.
+// And the other way an edit could land in the wrong place: the form remembers
+// its element by position, and copying or dragging moves positions.
 import { check, draggable, node, shutDown } from './fake_dom.js';
 
 // Node's global is not an EventTarget; the notice listens on `window`.
@@ -77,10 +73,9 @@ check('and leaves the previous list on screen as well', list.innerHTML === befor
 state.projectData.gears = [];
 state.currentTab = 'shafts';
 
-// The form is part of what survives. It used to live inside the list, and the
-// old code moved it out before failing, where it stayed. It is a window of its
-// own now; what has to survive a failed redraw is that it stays open, on its
-// element, under the heading that names it.
+// The form is part of what survives. It is a window of its own; what has to
+// survive a failed redraw is that it stays open, on its element, under the
+// heading that names it.
 openRotor(['A', 'B', 'C']);
 renderList();
 form.style.display = 'block';
@@ -114,15 +109,15 @@ check('dragging entirely below it leaves it', afterMove(0, 2, 3) === 0);
 check('dragging one from above onto its place moves it up', afterMove(3, 0, 3) === 2);
 
 // The bug, through the screen. Editing C (position 2), copying A (position 0):
-// A's copy goes in at 1 and C moves to 3. The form used to stay at 2 -- on B --
-// and "Save" wrote C's form over B.
+// A's copy goes in at 1 and C moves to 3. A form left at 2 -- on B -- would
+// have "Save" write C's form over B.
 openRotor(['A', 'B', 'C']);
 renderList();
 state.editingIndex = 2;
 copyItem(0);
 check('copying above the edited element keeps the form on it',
     state.projectData.shafts[state.editingIndex].tag === 'C');
-// The heading used to be the form's place under its row; renumbered with it.
+// The heading names the row, so it is renumbered with it.
 check('and the window\'s heading follows it to its new number',
     node('form-window-title').textContent === 'SHAFT #4 (Node 3)');
 
@@ -151,11 +146,11 @@ draggable().options.onEnd({ oldDraggableIndex: state.editingIndex, newDraggableI
 check('dragging the edited element takes the form with it',
     state.projectData.shafts[state.editingIndex].tag === 'B');
 
-// What Leonardo hit, in the browser: with the form open, Sortable counted it as
-// a row, so the indices it reported were one too high. Dragging the last of
-// four shafts to the top asked for element 4 of a four-element list, and
-// `splice` answered by inserting `undefined` -- saved as `null`, and no render
-// of that list succeeded afterwards.
+// Anything in the list that Sortable counts as a row makes the indices it
+// reports one too high. Dragging the last of four shafts to the top would ask
+// for element 4 of a four-element list, and `splice` would answer by inserting
+// `undefined` -- saved as `null`, and no render of that list would succeed
+// afterwards.
 check('only rows can be dragged, so the form is never counted as one',
     draggable().options.draggable === '.list-item');
 openRotor(['A', 'B', 'C', 'D']);
@@ -168,11 +163,8 @@ check('and nothing was inserted or lost',
 
 // --- leaving with the form open ------------------------------------------------------------
 //
-// The other half of what Leonardo saw, and very likely the original "lists
-// vanished": `openRotorWorkspace` emptied the list with the form still inside
-// it, which deleted the form from the page. The form is a window of its own
-// now and cannot be emptied away; what is left to hold is that leaving closes
-// it, so the next rotor does not open on a form for an element of this one.
+// The form is a window of its own and cannot be emptied away with the list;
+// what is left to hold is that leaving closes it, so the next rotor does not open on a form for an element of this one.
 const { openRotorWorkspace } = await import('../../frontend/features/hub.js');
 openRotor(['A', 'B']);
 renderList();
@@ -232,7 +224,7 @@ state.rotorLibrary = [{
     shafts: [{}, {}], disks: [{}], gears: [{}], couplings: [{}], seals: [{}], bearings: [{}, {}], pointmasses: [{}],
 }];
 renderRotorHub();
-// It used to add up shafts, disks and bearings only: this rotor was "5 elements".
+// Counting shafts, disks and bearings only, this rotor would be "5 elements".
 check('the hub counts every element of every kind', /\(9 elements\)/.test(node('rotor-hub-list').innerHTML));
 
 const { readFileSync } = await import('fs');

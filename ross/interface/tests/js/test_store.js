@@ -1,7 +1,5 @@
-// The analysis state: before Phase 3 this lived in properties hung off DOM
-// nodes (`div.rossParams`, `div.rossType`, `div.rossFrames`), and the title was
-// read back from the header's innerText. An analysis whose card did not render
-// vanished from what was saved, with no warning.
+// The analysis state, kept as records and not as properties hung off DOM nodes:
+// an analysis whose card did not render must not vanish from what is saved.
 import './fake_dom.js';
 import {
     ANALYSES, analysesInScreenOrder, analysesToSave, recordResult,

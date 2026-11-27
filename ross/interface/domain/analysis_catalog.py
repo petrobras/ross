@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 """Catalog of every analysis form field.
 
-Until Phase 3 slice 4 this was `AnalysisDashboards`, 198 lines in the frontend
--- 147 fields whose names the backend already wrote on its own (what each
-`spec` reads, plus each runner's `PLOT_PARAMS`). Two hand-kept lists, in two
-languages, with nothing checking that they agreed.
+The 147 fields are declared once, here, next to the names the backend already
+reads (what each `spec` reads, plus each runner's `PLOT_PARAMS`): two
+hand-kept lists, in two languages, would have nothing checking that they agree.
 
-**Why declared and not derived.** The measurement that opened the slice: of the
-147 fields, only 63 (43%) appear in a ROSS signature. The rest are not missing
+**Why declared and not derived.** Of the 147 fields, only 63 (43%) appear in a ROSS signature. The rest are not missing
 by oversight -- they cannot come from any signature:
 
   * composition: `speed_min`/`speed_max`/`speed_steps` are three fields that
@@ -16,9 +14,8 @@ by oversight -- they cannot come from any signature:
     a human for an array;
   * list editors: `probes`, `forces`, `unbalances`, `inps`;
   * presentation: `plot_type`, default units, conditional visibility (`deps`).
-    (Slider bounds used to be here too. The sliders left in phase 5, slice 14:
-    a fixed range cannot fit a speed that depends on the machine, and it did
-    not follow a unit change.)
+    (There are no slider bounds: a fixed range cannot fit a speed that depends
+    on the machine, and it would not follow a unit change.)
 
 So the copy cannot go away -- and the way out is the same as `getEffectiveNodes`':
 the rule is written on one side only, and tests cross this catalog against what
@@ -26,10 +23,10 @@ the runners read and against ROSS's real signatures (`tests/test_analysis_catalo
 
 **`role`** says who consumes the field: `compute` (the runner's `spec` reads
 it), `plot` (only `plot` reads it) or `interface` (neither -- the screen is the
-consumer). Each runner's `PLOT_PARAMS` comes from here; it used to be a tuple
-kept by hand in every file, and it was incomplete in seven of them: `probes`,
-`inps` and `outs` are read in `plot` and did not appear on the list, which left
-the cache guard not covering those fields.
+consumer). Each runner's `PLOT_PARAMS` comes from here rather than from a tuple
+kept by hand in every file, which is easy to leave incomplete: `probes`, `inps`
+and `outs` are read in `plot`, and a list without them would leave the cache
+guard not covering those fields.
 """
 
 
@@ -1618,9 +1615,8 @@ ANALYSES = {
 
 
 # Each analysis's title, which the screen uses in two places: the <select>
-# options and the card header. Until the i18n slice these were two lists --
-# one in index.html and a `typeNames` in the JS -- with the same twelve names
-# typed by hand. Here it is one list, and a translated one.
+# options and the card header. One list, and a translated one, instead of the
+# same twelve names typed by hand in index.html and in the JS.
 TITLES = {
     "campbell": {"en": "Campbell Diagram", "pt": "Diagrama de Campbell"},
     "ucs": {"en": "UCS Diagram", "pt": "Diagrama UCS"},
@@ -1683,10 +1679,9 @@ def default_params(analysis):
     """The values a card is born with -- and what the user sees first.
 
     Including the tables (probes, forces, unbalances): a card is born with one
-    row in each, and sending `[]` instead measures something else. In the first
-    version of the conversion probe I sent `[]`, and that produced two false
-    results: `freq_response` blew up on all three models (the loop over
-    input/output pairs did not run) and `time_response` came out "NO EFFECT" on
+    row in each, and sending `[]` instead measures something else. A probe that
+    sends `[]` gets two false results: `freq_response` blows up on all three models (the loop over
+    input/output pairs does not run) and `time_response` comes out "NO EFFECT" on
     both (with no force the response is zero, and zero is zero at any number of
     degrees of freedom).
 

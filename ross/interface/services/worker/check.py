@@ -10,8 +10,8 @@ The second is the one that matters. Everything else about this design was
 measured with a plain interpreter, and the question the earlier probe declared
 out of its reach is precisely this one: **inside a PyInstaller bundle, can the
 program start a second copy of itself and talk to it?** If the answer is no,
-the whole shape is wrong, and finding out here costs one short slice instead of
-a rewritten route and a rewritten screen.
+the whole shape is wrong, and finding out here costs one short check instead
+of a rewritten route and a rewritten screen.
 
 WHAT IT CHECKS, AND WHY EACH ONE IS A DIFFERENT WAY OF FAILING.
 

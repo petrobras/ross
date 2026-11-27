@@ -114,9 +114,9 @@ check('coming back to the modeling screen leaves it hidden', hidden());
 switchScreen('screen-modeling');
 check('every time', hidden());
 
-// A form opened from the figure used to live in the panel, and brought the
-// list back. It is a window of its own now: someone who hid the list to give
-// the figure room keeps that room while editing.
+// A form opened from the figure is a window of its own and does not bring the
+// list back: someone who hid the list to give the figure room keeps that room
+// while editing.
 editItem(0);
 await new Promise(done => setTimeout(done, 50));
 check('editing an element from elsewhere leaves the list hidden', hidden());

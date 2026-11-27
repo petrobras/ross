@@ -1,9 +1,7 @@
 """Single source of the UI-type -> ROSS-class mapping.
 
-Before Phase 1 this map existed in three different, incompatible shapes: a
-`type_map` inside build_bearing, another `type_map` inside build_seal, a
-`class_map` in /load_ross_file (inverted) and a `ClassMap` in app.js (keyed
-like 'BASIC_bearings'). Adding one type meant editing all four.
+The builder, the ROSS file reader, the forms and the exported script all read
+it, so adding one type means editing one place.
 
 Each entry names what ROSS is called with to build the element: a class
 (`"GearElement"`) or one of its alternative constructors
@@ -17,7 +15,7 @@ import ross as rs
 
 # Fields the screen keeps on an element for its own drawing, which ROSS never
 # sees: the shape the 3D view draws the element with, from the geometry bank
-# (frontend/core/shapes3d.js). Only a picture, by Leonardo's decision -- ROSS
+# (frontend/core/shapes3d.js). Only a picture -- ROSS
 # computes with the form's own values -- so the builder leaves these out of
 # the constructor's arguments, the element cache leaves them out of its key,
 # and the exported script leaves them out of the code.

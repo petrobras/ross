@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
-"""A lean payload and an honest cache (BE-06 and BE-07).
+"""A lean payload and an honest cache.
 
-Two defects, both invisible on screen:
+Two defects, both invisible on screen, that this guards against:
 
-* the element cache was emptied on every assembly, which made switching between
-  rotors in the Hub rebuild everything -- exactly the case the cache existed to
-  cover;
-* the analysis cache key was the whole payload, and the payload carried
-  `savedAnalyses`, with the already-rendered Plotly figures. Saving a chart
-  invalidated the cache of every analysis that followed, and every slider move
-  sent that bundle back up to the server."""
+* an element cache emptied on every assembly, which would make switching
+  between rotors in the Hub rebuild everything -- exactly the case the cache is
+  there to cover;
+* an analysis cache keyed by the whole payload, which carries `savedAnalyses`
+  with the already-rendered Plotly figures: saving a chart would invalidate the
+  cache of every analysis that followed."""
 
 import json
 import os
@@ -71,7 +70,7 @@ def _with_charts(project, how_many=3):
     return copy_of
 
 
-# --- BE-07: what goes into the key -------------------------------------------
+# --- what goes into the key ---------------------------------------------------
 
 SPEC = {"speed_min": 0.0, "speed_max": 418.9, "steps": 50}
 
@@ -171,7 +170,7 @@ def test_structural_project_survives_garbage():
     assert structural_project({}) == {}
 
 
-# --- BE-06: the cache with a bound and a lock --------------------------------
+# --- the cache with a bound and a lock ----------------------------------------
 
 
 def test_the_cache_discards_the_least_recently_used():
@@ -271,10 +270,9 @@ needs_ross = pytest.mark.skipif(not HAS_ROSS, reason="requires ROSS installed")
 
 @needs_ross
 def test_switching_rotors_no_longer_empties_the_element_cache():
-    """BE-06: the old pruning deleted everything that was not from the last rotor.
+    """Building A, building B and going back to A does not rebuild A.
 
-    Building A, building B and going back to A rebuilt A entirely. Now the two
-    live together, which is the normal use of the Hub."""
+    The two live together, which is the normal use of the Hub."""
     from ross.interface.domain.rotor_builder import build_rotor_from_ui
 
     def project(length):
@@ -325,7 +323,7 @@ def _auth():
 
 @needs_ross
 def test_saved_charts_in_the_payload_hit_the_same_cache_entry(client):
-    """The end-to-end proof of BE-07, by counting cache hits."""
+    """Saving a chart does not change the key, proved by counting cache hits."""
     ANALYSIS_CACHE.clear()
     body = {
         "analysis_type": "static",

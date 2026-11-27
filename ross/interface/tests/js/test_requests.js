@@ -1,16 +1,8 @@
 // A new request cancels the previous one on the same subject.
 //
-// This was defect FE-05 of the audit: with no cancellation, dragging a slider
-// fires several calls and the answer to an old configuration can arrive after
-// the new one, overwriting the right chart. A wrong result, with no error at
-// all on screen.
-//
-// The battery had existed since Phase 2 and **died in the move to modules**: it
-// read `frontend/app.js` with `require()`, and the file stopped existing while
-// the `package.json` here became `"type": "module"`. What followed was a light
-// year of silence: `tests/test_js_dom.py` collected it, `node` blew up on the
-// first line, and the node `skipif` on Windows hid all of it. The coverage of a
-// critical defect already fixed vanished with nobody seeing.
+// With no cancellation, running a card several times fires several calls, and
+// the answer to an old configuration can arrive after the new one, overwriting
+// the right chart. A wrong result, with no error at all on screen.
 import { check, shutDown } from './fake_dom.js';
 
 // --- a `fetch` that obeys the signal and never resolves by itself ------------
@@ -85,8 +77,8 @@ check('the session token travels in the header', headers['X-ROSS-Token'] === 'ab
 
 // --- pruning the project before sending --------------------------------------
 //
-// `savedAnalyses` holds the already-rendered Plotly figures. Until Phase 2 the
-// interface resent that whole bundle on every keystroke.
+// `savedAnalyses` holds the already-rendered Plotly figures, a bundle not to be
+// resent on every keystroke.
 
 const pruned = projectForServer({
     shafts: [{ L: '500' }],
@@ -100,9 +92,8 @@ check('pruning: it invents no object', Object.keys(projectForServer(null)).lengt
 
 // --- a job: asked for once, asked about until there is a chart ----------------
 //
-// Since slice 6c the analysis is not answered by the request that asks for it.
-// What the screen used to do -- one fetch, one chart -- is now submit, then ask
-// about the job by name. Three properties matter and each has a way of failing
+// The analysis is not answered by the request that asks for it: the screen
+// submits, then asks about the job by name. Three properties matter and each has a way of failing
 // quietly: the payload must still arrive whole, the subject must travel as the
 // `key` the server cancels by, and a job the server dropped must come back as
 // dropped instead of as an error on screen.
@@ -156,7 +147,7 @@ const refused = await runJob('card:3', '/run_analysis', {});
 check('a refused body keeps its message', refused.message === 'Unknown field');
 check('and is never asked about as a job', trips.length === 1);
 
-// --- the progress of a job reaches both the card and the bar (slice 6c-2) -----
+// --- the progress of a job reaches both the card and the bar -----------------
 //
 // Announced and not returned, because these arrive while the answer is still
 // unknown. Two listeners, because they need different things: the card wants

@@ -24,8 +24,7 @@ import {
 import { state } from '../../frontend/core/state.js';
 import '../../frontend/main.js';
 
-// Imported from their modules: the `window` bridge they used to be read off is
-// gone (slice 15). The buttons reach them through the `export-python`,
+// Imported from their modules, not read off `window`. The buttons reach them through the `export-python`,
 // `export-rotor-python` and `alert-ok` actions; the functions are the same.
 const { closeCustomAlert } = await import('../../frontend/components/modals.js');
 const { generatePythonFromHub } = await import('../../frontend/features/hub.js');

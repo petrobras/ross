@@ -9,8 +9,7 @@ Three sources combine here, each owning what it knows:
 
 The frontend builds the forms from this. A new parameter on a ROSS class shows
 up on the pending list by itself; a renamed parameter disappears from the schema
-and the tests say so -- that is how BE-13 went unnoticed for ten days before
-Phase 0.
+and the tests say so, instead of going unnoticed.
 """
 
 import inspect

@@ -7,7 +7,7 @@
 // what ROSS will be given.
 //
 // The server applies the same rule (domain/material_names.py) to projects
-// saved before this, and the two are held to the same cases in
+// saved with spaces in a name, and the two are held to the same cases in
 // tests/golden/material_names.json.
 
 // Runs of whitespace become one underscore; the ends are trimmed.
@@ -38,8 +38,8 @@ export function elementsUsing(project, name) {
 }
 
 // Points the elements that named a material at its new name, and says how
-// many moved. Shafts and gears name their material by text; before this, an
-// edited name left them naming one that no longer existed, and the server
+// many moved. Shafts and gears name their material by text; without this, an
+// edited name would leave them naming one that no longer exists, and the server
 // answers an unknown name with the first material of the list -- a rotor
 // built out of the wrong metal, with nothing on screen.
 export function renameMaterial(project, oldName, newName) {
@@ -62,9 +62,9 @@ export function renameMaterial(project, oldName, newName) {
 // builds each half on its own, and the server checks each one against its own
 // list (domain/material_names.py, half by half). A material made on the
 // Materials tab while one half was being edited went into that half's list
-// only, and the form of an element of the other half -- and the sketch, which
-// read the MultiRotor's own list, empty -- had nothing to offer but the default
-// steel (Leonardo, on a MultiRotor).
+// only, and the form of an element of the other half -- and the sketch, reading
+// the MultiRotor's own list, which is empty -- would have nothing to offer but
+// the default steel.
 //
 // So an element of either half is offered the materials of both: its own
 // first, then the other's that it does not have by name (`materialKey`). The

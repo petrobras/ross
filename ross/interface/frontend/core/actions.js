@@ -1,11 +1,11 @@
 // What a button means, by name -- the replacement for the `window` bridge.
 //
-// WHY. The HTML used to call functions by name, in `onclick` attributes, and
-// for that to work every such function had to be hung on `window` by
-// main.js: 73 of them. A name that fell off the bridge left its button dead
-// with nothing on screen and nothing in the console until somebody clicked.
+// WHY. HTML that calls functions by name, in `onclick` attributes, needs every
+// such function hung on `window`, and a name that falls off that bridge leaves
+// its button dead with nothing on screen and nothing in the console until
+// somebody clicks.
 //
-// Now an element says what it *is* -- `data-action="save-rotor"` -- and one
+// Instead an element says what it *is* -- `data-action="save-rotor"` -- and one
 // listener on the document looks the name up here. What changes:
 //
 //   * a name nobody defined is an error **with the name in it**, raised on the

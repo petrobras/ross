@@ -1,20 +1,13 @@
 # -*- coding: utf-8 -*-
 """What belongs to the repository, and what merely lives inside its folder.
 
-Written after the first full run on Linux, where the virtual environment sits
-**inside** the project instead of beside it. Six guards failed at once, all of
-them walking the tree from the root and finding `site-packages`: one found a
-folder called `ross`, another hundreds of `test_*.py` belonging to other
-libraries, another third-party code to parse, another CRLF, and two died with
-`UnicodeDecodeError` on a fixture shipped in `big5`.
+Guards that walk the tree from the root find whatever else lives in the
+folder: a virtual environment **inside** the project (`site-packages`, with a
+folder called `ross`, hundreds of `test_*.py` of other libraries, CRLF, a
+fixture in `big5`), or the `build/` and `dist/` PyInstaller writes there.
 
-Then, one slice later, `build/` and `dist/` did it again. PyInstaller writes
-both inside the project, and the same guards walked straight into them --
-accusing ROSS's own installed folder, and the CRLF in scikit-learn's test data.
-
-**The second time is the interesting one.** The first fix taught this module
-about virtual environments; the question was never about virtual environments.
-It is: *what, inside this folder, is not the repository?* And that question
+The question is not about any one of those. It is: *what, inside this folder,
+is not the repository?* And that question
 already has an answer written down, maintained, and in the one place everybody
 updates when they add build output -- the `.gitignore`.
 

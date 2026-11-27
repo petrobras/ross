@@ -1,26 +1,26 @@
 # -*- coding: utf-8 -*-
 """The analyses: dispatch to the runners, and the click on the Campbell diagram.
 
-Since slice 6a this module is transport and nothing else. What an analysis *is*
+This module is transport and nothing else. What an analysis *is*
 -- refuse, build, cache, compute, draw, serialise -- lives in
 `services/analysis/pipeline.py`.
 
-Since slice 6b it does not choose **where** that happens: a message goes to the
+It does not choose **where** that happens: a message goes to the
 `RESIDENT`, which sends it to the worker process when there is one and answers
 it here when there is not. Either way the same `handle()` runs on the same
 message.
 
-Since slice 6c it does not choose **when**, either. The route puts the work in a
+It does not choose **when**, either. The route puts the work in a
 line and answers immediately with the name of the job; the browser asks about
 that name until there is a chart. Three things come out of that, and only the
 first was the point:
 
 * a job that nobody wants any more can leave the queue before it runs, which
-  until now was something the browser only pretended to do;
+  aborting a browser request cannot do;
 * the screen stops being held by a computation it is not showing yet;
 * and a result can only land in the card that asked for it, because the answer
-  carries the name of the question. That is FE-05 of the audit, fixed by the
-  shape of the thing instead of by everyone remembering to abort.
+  carries the name of the question -- guaranteed by the shape of the thing
+  instead of by everyone remembering to abort.
 
 What did **not** change is the error contract. A refusal still arrives as **400
 with its message** -- the channel ROSS says "Add at least one Shaft!" through --
@@ -56,8 +56,6 @@ def run_analysis():
     Answers with a job, not a chart. The computation lives in
     services/analysis/: one runner per analysis, each with `spec` (what the
     computation needs), `compute` (what ROSS does) and `plot` (the figure).
-    Until Phase 2 this was a 460-line if/elif with the same block repeated
-    twelve times.
     """
     payload = ANALYSIS_REQUEST.read(request.get_json(silent=True))
     job = JOBS.submit(
@@ -117,9 +115,9 @@ def job_state(job_id):
       wondering whether the button did anything.
 
     And while it is still working, the answer carries `ahead` -- how many have to
-    end first. That number is slice 6c-2 itself: without it the screen cannot
-    tell *computing* from *waiting for another card*, which is exactly how two
-    analyses taking turns were read as two analyses running at once.
+    end first. Without it the screen cannot tell *computing* from *waiting for
+    another card*, and two analyses taking turns read as two analyses running at
+    once.
     """
     job = JOBS.look(job_id)
     if job is None:

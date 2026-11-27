@@ -44,8 +44,8 @@ def project(shafts=2, disk_at="1", bearing_at="0", material=None, with_link=Fals
     """A rotor the interface could have built, in the screen's own format.
 
     `with_link` reproduces the topology ROSS requires of a point mass, and it is
-    written out rather than improvised because improvising it is this project's
-    lesson 1: a point mass does not sit on a shaft node. It sits on a *link*
+    written out rather than improvised because it is easy to get wrong: a point
+    mass does not sit on a shaft node. It sits on a *link*
     node past the last shaft node, reached by a bearing with `n_link`, and that
     link node needs a support of its own -- without it `Rotor.__init__` raises
     `ValueError: n is not in list` while assembling.
@@ -142,7 +142,7 @@ def test_the_test_rotor_has_the_dimensions_of_a_rotor():
 def test_the_joined_project_builds_the_rotor_ross_concatenates(with_link):
     """The project we return, built, is the rotor `Rotor.concatenate` returns.
 
-    This is the whole claim of the slice in one assertion. The domain does not
+    This is the whole claim of the module in one assertion. The domain does not
     reimplement ROSS's offsets -- it asks ROSS and writes the answer into the
     project -- so what has to be proved is that the round trip through our own
     format loses none of it.

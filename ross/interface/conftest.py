@@ -24,7 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # `ross_interface.log` is where somebody looks when the program misbehaves on
 # their machine, and the suite runs the application in this same process: it
 # builds applications, refuses bodies on purpose, kills fake workers on purpose.
-# All of that used to land in that file, and it reads exactly like a program
+# All of that would land in that file, and it reads exactly like a program
 # falling apart -- a `KeyError` traceback from a test that asserts a 500, a
 # "the worker was lost" from a test that kills one deliberately, a "worker ready
 # in 0.5 s" from a worker that is a dictionary with no process behind it. The

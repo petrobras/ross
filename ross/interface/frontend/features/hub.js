@@ -145,11 +145,8 @@ export function openRotorWorkspace(index, targetScreen) {
     
     // The form closes with the rotor it was editing: `closeForm` hides the
     // window and sets `editingIndex` to -1, so the next rotor does not open
-    // with a form for an element of the last one. (It also used to lift the
-    // form out of the list before the list was emptied -- the form lived there,
-    // and emptying the list with it inside deleted it from the page, very
-    // likely the "lists vanished" of the week's report. The form is a window of
-    // its own now, and cannot be emptied away.)
+    // with a form for an element of the last one. (The form is a window of its
+    // own, so emptying the list cannot take it away.)
     closeForm();
     // Filters are the last rotor's: its materials and fields, not this one's.
     forgetFilters();
@@ -204,13 +201,10 @@ export function saveRotorFromHub(index) {
 
 // Exports a rotor kept in the hub, with **its own** analyses.
 //
-// Until Phase 3 this function sent the empty list, and for a reason that was a
-// good one at the time: the only source of analyses was the DOM, holding the
-// cards of the open project -- which belong to another rotor and would come out
-// with nodes this one does not even have. When the analysis state left the DOM,
-// each rotor started carrying its own in savedAnalyses, and the reason stopped
-// existing. The empty list stayed, and exporting from the Hub came with no
-// analysis at all.
+// Each rotor carries its own analyses in savedAnalyses, so the script of a rotor
+// exported from the Hub has them -- and not the cards of the open project,
+// which belong to another rotor and would come out with nodes this one does not
+// even have.
 export function generatePythonFromHub(index) {
     const rotor = state.rotorLibrary[index] || {};
     const saved = (rotor.savedAnalyses || [])
@@ -225,9 +219,8 @@ export function generatePythonFromHub(index) {
 // It was not shown anywhere before, which is a gap you only notice once there
 // is an undo button: "undo" is a question about a particular model, and the
 // screen was not saying which one.
-// Every element of a rotor, whatever its kind. It used to add up shafts, disks
-// and bearings only, so a rotor with gears, couplings, seals or point masses
-// was announced with fewer elements than it had. Materials are not elements of
+// Every element of a rotor, whatever its kind: gears, couplings, seals and point
+// masses count as much as shafts, disks and bearings. Materials are not elements of
 // the rotor -- they are what the shafts are made of -- and stay out, as do the
 // probes: ROSS's rotor has none, they are where the analyses read it.
 // "1 element", not "1 elements".

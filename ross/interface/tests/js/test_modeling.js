@@ -1,16 +1,10 @@
 // The modeling screen: opening a tab, seeing the list, opening the form.
 //
-// This battery was born from a defect that got past every check of slice 3 and
-// reached the user: the add-element button did not respond and no tab showed
-// its list. Cause -- the two accessors that moved to `core/state.js` were left
-// reading a loose `projectData`, and `openTab` threw a ReferenceError on its
-// first line.
-//
-// Why nothing caught it: the sweep for loose names discarded, from the set of
-// used names, every name that appeared as a **key** anywhere in the file -- and
-// `projectData:` is a key of the state object, in the same file. And the DOM
-// harnesses that existed exercised the analysis screen, which was precisely the
-// one that worked.
+// It runs the real modules of the modelling screen: an accessor reading a loose
+// `projectData` makes `openTab` throw a ReferenceError on its first line, and
+// the add-element button and every tab go dead. A sweep for loose names can
+// miss that -- `projectData:` is a key of the state object, in the same file --
+// so the screen itself is exercised here.
 import { node, looseNode, clearDom, draggable, schemaResponse,
          ELEMENT_SCHEMA_FIXTURE } from './fake_dom.js';
 
@@ -152,9 +146,8 @@ try { editItem(1); await new Promise(ready => setTimeout(ready, 0)); }
 catch (e) { errorOnEdit = e; }
 withoutError('editing an item does not throw', errorOnEdit);
 check('editing an item records which one', state.editingIndex === 1);
-// The form is a window of its own now (components/floating_form.js); what used to
-// say which element it was -- sitting under its row -- is the window's heading,
-// in the row's own words.
+// The form is a window of its own (components/floating_form.js); what says
+// which element it is, is the window's heading, in the row's own words.
 check('and the form window is headed by that row',
           node('form-window-title').textContent === 'SHAFT #2 (Node 1)');
 check('and the form is not put into the list',
@@ -188,9 +181,8 @@ check('and the tab stays the same after the change', state.currentTab === 'shaft
 
 // --- dragging to reorder ------------------------------------------------------
 // The list announces that the order changed; whoever rebuilds the rotor
-// subscribes to the hook. In the slice 3 delivery the hook existed and nobody
-// subscribed: dragging reordered the list and the figure stayed as it was,
-// with no error at all.
+// subscribes to the hook. With nobody subscribed, dragging would reorder the
+// list and leave the figure as it was, with no error at all.
 console.log('\nDragging an element in the list');
 
 prepare();

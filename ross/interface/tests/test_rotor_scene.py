@@ -93,7 +93,7 @@ def test_a_tapered_shaft_keeps_both_ends():
 
 def test_a_coupling_spans_its_two_nodes():
     """A `CouplingElement` is not a thing at a node: it occupies a span, like
-    a shaft element -- the prototype drew it as a disk at one node."""
+    a shaft element, not a disk at one node."""
     built = project(
         couplings=[
             {
@@ -170,7 +170,7 @@ def test_every_part_carries_the_position_of_its_row():
 
 
 def test_the_equivalent_disk_is_the_inverse_of_rosss_from_geometry():
-    """Decided with Leonardo: a disk is drawn as the steel disk with its mass
+    """A disk is drawn as the steel disk with its mass
     and polar inertia. Built from a real geometry, it has to give that
     geometry back -- bored to the shaft it sits on."""
     real = ross.DiskElement.from_geometry(
@@ -308,7 +308,7 @@ def test_an_inertia_too_small_for_the_bore_gives_a_solid_disk_and_says_so():
 @pytest.mark.parametrize("m, Ip", [(0, 0.1), (10, 0), (-1, 0.1), (None, 0.1)])
 def test_no_disk_is_invented_for_a_mass_or_inertia_that_is_not_positive(m, Ip):
     """The screen draws a symbol instead. A disk made up to fill the gap would
-    be the prototype's invented geometry again."""
+    be invented geometry."""
     assert equivalent_disk(m, Ip, 0.025) is None
 
 

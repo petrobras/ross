@@ -335,7 +335,7 @@ def test_every_third_party_import_is_declared_somewhere():
     assert missing == [], "undeclared third-party import: %s" % missing
 
 
-# --- what the slice cleaned up ------------------------------------------------
+# --- what the sweeps have to see ---------------------------------------------
 
 
 def test_the_frontend_sweep_walks_the_whole_tree():
@@ -398,9 +398,8 @@ def test_no_expression_refers_to_a_name_that_does_not_exist():
     `NameError` and slipped through. The defect is not "f-string"; it is **a name
     that does not exist**, and `ast` knows that in any expression.
 
-    What caught that case was a behaviour test on Leonardo's machine. A guard that
-    only covers the example that created it is not a guard, it is a record of the
-    example."""
+    A guard that only covers the example that created it is not a guard, it is a
+    record of the example."""
     import ast
 
     found_items = []
@@ -422,12 +421,11 @@ def test_no_expression_refers_to_a_name_that_does_not_exist():
 
 # --- the visible names are PER SCOPE, and not per module ---------------------
 #
-# The first version gathered everything the module bound, at any depth. It took
-# only a neighbouring function doing `import inspect` inside itself for
-# `inspect` to look available in the whole file. That is how two `NameError`
-# crossed this guard in the reorganisation of the tests by module and reached
-# Leonardo's `pytest`: `source()` in a file where `source` was only imported
-# inside two other functions, and `inspect` in the same situation.
+# Gathering everything the module binds, at any depth, is not enough: a
+# neighbouring function doing `import inspect` inside itself would make
+# `inspect` look available in the whole file, and a `NameError` would cross
+# this guard -- `source()` in a file where `source` is only imported inside two
+# other functions, say.
 #
 # A class body is the only scope the nested ones do NOT inherit: a method does
 # not see a class attribute by its bare name, and that is the rule of Python.
@@ -775,11 +773,10 @@ def test_ruff_is_pinned_to_an_exact_version():
 def test_the_dev_requirements_declare_what_it_takes_to_run_the_suite():
     """A fresh clone has to be able to run the tests, and ruff alone does not.
 
-    On Windows the runner came from the system Python, so nothing here noticed
-    that nothing declared it. The first virtual environment ever built from
-    these files -- on Linux, for slice 4 -- answered `No module named pytest`,
-    and the suite could not start at all. A dependency is invisible exactly
-    where it happens to be installed already.
+    Where the runner comes from the system Python, nothing notices that nothing
+    declares it, and a fresh virtual environment answers `No module named
+    pytest`. A dependency is invisible exactly where it happens to be installed
+    already.
     """
     declared = " ".join(_dev_requirements()).lower()
     assert "pytest" in declared, "nothing declares the test runner"
@@ -825,13 +822,12 @@ FAILED tests/test_something.py::test_a_thing
 
 
 def test_a_crash_after_the_run_is_not_reported_as_a_failing_test():
-    """Windows, 2026-09-20: 955 passed, 1 skipped, and pytest died on the way out.
+    """Every test passed, and pytest died on the way out.
 
-    It died in `pytest_sessionfinish`, cleaning its own temporary directory --
-    `PermissionError` on the `pytest-current` symlink. Every test had passed.
-    The summary said `pytest FAILED`, which reads as "a test broke", and that is
-    the second pattern of this project living inside the report we built to
-    avoid it: an error answering a different question from the one asked.
+    On Windows it can die in `pytest_sessionfinish`, cleaning its own temporary
+    directory -- `PermissionError` on the `pytest-current` symlink. A summary
+    saying `pytest FAILED` would read as "a test broke": an error answering a
+    different question from the one asked.
 
     Read from the progress characters and not from the summary line, because
     when pytest dies in `sessionfinish` the summary is never printed at all.
@@ -859,7 +855,7 @@ def test_the_summary_line_asks_before_it_judges():
     """Control: the function above has to be the one the report calls.
 
     Written and never wired is the shape of a guard that reassures without
-    guarding -- slice 3 of phase 4 cost a month to that.
+    guarding.
     """
     with io.open(os.path.join(ROOT, "check.py"), encoding="utf-8") as handle:
         script = handle.read()
@@ -1036,7 +1032,7 @@ def test_the_suite_runs_on_three_systems_and_the_bundle_is_built_on_windows():
 
     The check job keeps the three runners: the interface is run from source on
     Linux and macOS, and a path or a line-ending assumption breaks there first.
-    The package job is Windows alone, by decision on 2026-09-15: the executable
+    The package job is Windows alone: the executable
     exists for the workstation with no Python, which is a Windows workstation;
     Linux users install ROSS as a library, and macOS is not a target while the
     bundle cannot be signed and notarized. PyInstaller does not cross-compile,
@@ -1181,8 +1177,7 @@ def _names_handed_to_the_catalogue():
 
     Read with `ast` and not with a regular expression, because the answer has
     to tell an argument from a mention -- and the docstring above this line
-    contains the word. Lesson 10 of the project notes is the record of that
-    exact confusion, made three times.
+    contains the word.
     """
     import ast
 
@@ -1216,17 +1211,14 @@ def _names_handed_to_the_catalogue():
 def test_no_script_that_runs_them_all_names_an_analysis():
     """They run what the catalogue lists, and keep no list of their own.
 
-    The first executable this project ever produced died on `KeyError: 'modal'`.
-    The module is `services/analysis/modal.py`; the catalogue's key is `modes`,
-    and I took the file's name for the key. It built, it started, it served the
-    page, and it failed on the only check that mattered -- on a guess of mine,
-    not on anything the packaging got wrong.
+    The module is `services/analysis/modal.py`, but the catalogue's key is
+    `modes`: a script that takes the file's name for the key builds, starts,
+    serves the page, and dies on `KeyError: 'modal'` on the only check that
+    matters.
 
-    The fix was not a better guess. These scripts iterate `sorted(ANALYSES)`, so
-    there is no name left to get wrong; this guard is what keeps a name from
-    creeping back in. It sweeps them all rather than the one that caused it,
-    because a guard written around its own example is the mistake this project
-    has now made four times.
+    These scripts iterate `sorted(ANALYSES)`, so there is no name left to get
+    wrong; this guard is what keeps a name from creeping back in. It sweeps them
+    all, because a guard written around a single example covers only that one.
     """
     offenders = []
     for relative, source in _scripts_that_run_them_all():
@@ -1293,9 +1285,9 @@ def test_the_walk_uses_what_the_gitignore_already_declares(tmp_path):
     """Control: `build/` and `dist/` are pruned because a file says so.
 
     They are not in any tuple in `repository.py`. They are in the `.gitignore`,
-    which is where somebody adding build output already writes it down. The
-    first version of that module listed names by hand, and `build/` and `dist/`
-    reproduced -- one slice later -- the exact failure `.venv/` had produced.
+    which is where somebody adding build output already writes it down. A list
+    of names kept by hand in that module would miss the next one, the way it
+    would miss `.venv/`.
     """
     assert {"build", "dist"} <= repository.NOT_THE_REPOSITORY, (
         "the .gitignore no longer declares the build output, or it stopped being read"
@@ -1342,11 +1334,10 @@ def test_every_source_file_uses_lf_line_endings():
 
     Some of them open the file with `newline=""`, which keeps the `\\r`; the
     others use universal newlines, which drops it. Either is defensible; what is
-    not is the two disagreeing about the same file. And nothing shows it:
-    `tests/test_rotor.py` reached slice 3 with 135 CRLF lines and 72 LF ones,
-    written by two editors over months, and every test stayed green.
+    not is the two disagreeing about the same file. And nothing shows it: a file
+    with CRLF and LF lines mixed, written by two editors, keeps every test green.
 
-    It matters more now than it did: the destination repository is built on
+    The repository is built on
     Linux, macOS and Windows, and a mixed file is the kind of difference that
     only appears on the machine nobody is looking at.
     """
@@ -1388,13 +1379,12 @@ SCHEDULED = ("DeprecationWarning", "PendingDeprecationWarning", "FutureWarning")
 
 
 def test_a_deprecation_fails_the_run_instead_of_being_printed():
-    """The guard for the lesson `rotor_assembly.py:2418` cost us.
+    """A printed warning is not acted on; a failing run is.
 
-    That warning said "will error in future" in every report we produced, for
-    four slices, and was read every time by someone who then did something else.
-    numpy 2.5 collected: the clearance analysis stopped running on the three
-    systems at once. What failed was not the code, it was the assumption that a
-    printed warning gets acted on.
+    A warning like the one at `rotor_assembly.py:2418` says "will error in
+    future" in every report, and is read every time by someone who then does
+    something else -- until a numpy release collects it and an analysis stops
+    running on every system at once.
 
     A mechanism nobody can switch off by accident is worth more than the
     intention to look. If this line goes, the suite goes back to printing them.
@@ -1458,26 +1448,18 @@ def test_the_reason_sweep_can_tell_an_explained_line_from_a_bare_one():
 
 
 def test_the_shipped_code_cites_no_note_of_ours():
-    """Our working notes do not travel with the folder, so a citation dangles.
+    """Working notes do not travel with the folder, so a citation dangles.
 
-    The `claude/` documents live in the project, not in `interface/`. Code that
-    points at one of them reads, to a ROSS maintainer, as a reference to a file
-    that does not exist -- and there is no way for them to tell whether it was
-    deleted or never shipped.
-
-    Four such citations existed when this guard was written, three of them added
-    the same day by the slice that found them: the Portuguese sweep flagged the
-    file **names**, which is how a problem about repositories arrived disguised
-    as a problem about language. What the comments should carry is the fact that
-    was measured, not the path to where it was written down.
+    Notes kept outside `interface/` do not ship. Code that points at one of them
+    reads, to a ROSS maintainer, as a reference to a file that does not exist --
+    and there is no way for them to tell whether it was deleted or never
+    shipped. What the comments should carry is the fact that was measured, not
+    the path to where it was written down.
     """
     import re
 
-    # A **path**, not the folder's name. The first version of this line looked
-    # for "claude/" and immediately accused the docstring above, which has to
-    # name the folder to explain the rule -- lesson 10, for the fourth time in
-    # this project: a guard that reads source has to discount the text that
-    # talks about the source.
+    # A **path**, not the folder's name: a guard that reads source has to
+    # discount the text that talks about the source.
     citation = re.compile(r"claude/[\w.-]+\.md")
     citing = []
     for relative, path in _source_files_by_name(".py"):

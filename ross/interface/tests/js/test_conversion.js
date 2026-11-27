@@ -4,9 +4,7 @@
 // 6 DoF, one in 4 DoF and one torsional -- all recomputed as 6 DoF.
 // `runCardAnalysis` re-read the screen's "Rotor Model" selector on every
 // computation, and the selector goes back to its default when the page loads.
-// The same selector had already produced the export defect in the previous
-// slice; it was the third place reading from the screen a value that belongs
-// to the analysis.
+// A value that belongs to the analysis is not read from the screen.
 //
 // Along with it, the second symptom of the same cause: cards rebuilt from
 // memory came with no badge, because the badge only existed in the HTML that

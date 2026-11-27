@@ -15,8 +15,8 @@
 // the node that links to it.
 
 // How big the parts ROSS gives no size to are drawn, in shaft radii at their
-// node. The proportions are the prototype's, which were chosen to read as a
-// bearing housing, a seal gland and a clamped collar at any rotor size.
+// node. The proportions are chosen to read as a bearing housing, a seal gland
+// and a clamped collar at any rotor size.
 export const SYMBOL = {
     // A pillow block: the cap is `radius`, the feet reach `feet` to each side
     // and the base sits `base` below the axis; the grease nipple tops it.
@@ -51,8 +51,8 @@ export function couplingHub(span, radius) {
 // How long a coupling is drawn: a real one is about two and a half diameters'
 // worth of hubs and spacer, whatever the length of the span ROSS gives it. On a
 // long span it sits in the middle, and the shaft shows on each side, running
-// into a hub (Leonardo: the coupling on node 0 used to swallow the whole first
-// element up to the bearing). It never takes more than 60 % of the span.
+// into a hub -- drawn over the whole span, a coupling on node 0 would swallow the
+// first element up to the bearing. It never takes more than 60 % of the span.
 export function couplingBody(z0, z1, radius) {
     const length = Math.min(0.6 * (z1 - z0), 2.6 * radius);
     const middle = (z0 + z1) / 2;
@@ -438,7 +438,7 @@ function boundsOf(parts) {
 }
 
 // The motor that drives the rotor, shown with the bench and, like it, only a
-// picture (Leonardo: "totalmente estético, assim como a bancada"). It stands
+// picture. It stands
 // at the start of the rotor -- node 0's end, the left of the view -- on the
 // axis of the line it drives (a MultiRotor's driving line), before everything
 // drawn, and a shaft of its own runs through a coupling to the rotor's first
@@ -474,8 +474,7 @@ export function motorLayout(layout) {
 }
 
 // The node numbers and the dimensions, shown with a button as ROSS's 2D figure
-// numbers its nodes (a suggestion Leonardo brought back from people using
-// it). Per shaft line -- a MultiRotor has two:
+// numbers its nodes. Per shaft line -- a MultiRotor has two:
 //
 //   * a number over each node, at the top of the shaft there;
 //   * above the rotor, two tiers of dimension lines: the nearer one from end
@@ -535,7 +534,7 @@ export function annotationLayout(layout) {
     return { lines, nodes, top };
 }
 
-// The test bench the rotor can be shown on, as in Leonardo's prototype: a
+// The test bench the rotor can be shown on: a
 // slotted bed plate on legs, and a pedestal under every bearing reaching down
 // to it -- and the motor (`motorLayout`), on a pedestal of its own when the
 // plate is further down than its feet. It is not in the model -- ROSS knows no
@@ -566,7 +565,7 @@ export function benchLayout(layout) {
         x0: min[0] - margin, x1: max[0] + margin, z0: min[2] - margin, z1: max[2] + margin,
         top, bottom: top - thickness,
     };
-    // Short legs, close under the plate (Leonardo asked for them shorter), each
+    // Short legs, close under the plate, each
     // standing on a vibration isolator: a rubber mount between two plates.
     const legHeight = Math.max(0.3 * (plate.x1 - plate.x0), 0.035 * length);
     const legSize = 0.08 * (plate.x1 - plate.x0);
@@ -638,10 +637,8 @@ export function framing(bounds, fovDegrees, aspect, direction = [1, 0.45, 0.3]) 
 // of node 0, so the shaft reads left to right as in ROSS's 2D figure -- node 0
 // on the left, z growing to the right.
 //
-// It used to say that and do the opposite: from +x, which puts node 0 on the
-// right, so switching between the 2D figure and the 3D view mirrored the rotor.
-// Nothing checked the claim until the axis triad drew z pointing left. What
-// decides it is the sign of x alone: seen from `d`, the screen's right is
+// Seen from +x, node 0 would be on the right, and switching between the 2D figure
+// and the 3D view would mirror the rotor. What decides it is the sign of x alone: seen from `d`, the screen's right is
 // (d.z, 0, -d.x), so z grows to the right exactly when d.x < 0.
 //
 // For a MultiRotor the second line must not hide behind the first, so the
@@ -708,8 +705,8 @@ export function hitPoint(origin, direction, distance) {
 }
 
 // The part under a ray, or null. Every part is picked as the cylinder that
-// holds it -- the prototype cast its ray at every tooth of every gear, which
-// cost 80 ms per mouse move on a large rotor. A coaxial cylinder is a few
+// holds it -- a ray cast at every tooth of every gear would cost tens of
+// milliseconds per mouse move on a large rotor. A coaxial cylinder is a few
 // multiplications, and a pointer does not need the teeth to know it is on a
 // gear. Returns the nearest hit.
 export function pickPart(parts, origin, direction) {

@@ -30,7 +30,7 @@ const DIRECTIONS = {
 };
 
 // Long enough to see where the camera went, short enough not to be waited
-// for the tenth time (the person's choice: about half a second).
+// for the tenth time: about half a second.
 export const FLIGHT_MS = 500;
 
 export function viewTowards(name, scene) {

@@ -1,12 +1,11 @@
 // Changing the language changes the screen -- measured on the screen, not in
 // the dictionary.
 //
-// Everything this slice has as a guard in `test_fase3e.py` reads TEXT: that
+// The Python guards of the translation (tests/test_i18n.py) read TEXT: that
 // `index.html` is marked, that the dictionary has both languages, that no
 // English sentence was left in the JS. None of that proves the change reaches
-// the user. And the failure mode has already happened twice in this project:
-// the key existed in the dictionary and nobody called it -- the Hub drew "Go to
-// Modeling" with `goToModeling` translated right next to it.
+// the user: a key can exist in the dictionary with nobody calling it -- the Hub
+// drawing "Go to Modeling" with `goToModeling` translated right next to it.
 //
 // This battery runs the real modules and looks at the HTML that comes out.
 import { node, disk, clearDisk, registerSelector, schemaResponse, check,
@@ -94,10 +93,10 @@ check('applyLanguage: title comes back', button.getAttribute('title') === 'Delet
 
 // --- the modeling tab title --------------------------------------------------
 //
-// The defect Leonardo found on screen: in Portuguese the big title above the
-// element list stayed in English, and right after a language change it became
-// the word "CATEGORIA". It was three things: the `<h3>` marked with
-// `data-i18n` (`applyLanguage()` wrote over what `openTab` writes), the name
+// In Portuguese the big title above the element list must not stay in English,
+// nor become the word "CATEGORIA" right after a language change. Three things
+// can cause it: the `<h3>` marked with
+// `data-i18n` (`applyLanguage()` writing over what `openTab` writes), the name
 // coming from the internal key (`shafts`) instead of the label, and the
 // language change not rewriting the title.
 

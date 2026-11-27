@@ -1,9 +1,9 @@
 // The analysis cards: the parameter catalogue of each analysis, assembling the
 // panel, running the computation and restoring the saved cards.
 //
-// The fields of each analysis come from /api/schema/analyses. Until slice 4 this
-// was 198 lines of `AnalysisDashboards` here, with the same names the runners
-// already wrote on the other side -- two hand-kept lists, in two languages.
+// The fields of each analysis come from /api/schema/analyses, written once next
+// to the names the runners read -- not a second hand-kept list, in another
+// language.
 import { openCustomAlert, openCustomConfirm } from '../components/modals.js';
 import { ANALYSES, analysesInScreenOrder, analysesToSave, recordResult, cardConversion, forgetAnalysis, forgetAllAnalyses, conversionName, registerAnalysis, conversionBadge, hasChart } from '../core/analysis_store.js';
 import { runJob, wasCancelled, projectForServer } from '../core/api.js';
@@ -15,10 +15,9 @@ import { analysisFieldsFor, analysisTitle, analysisTitles, analysisUnsupported, 
 import { isModeShape, wireModeShapeClick, prepareModeShapePanels } from './campbell.js';
 import { onScreenShown, switchScreen } from './screens.js';
 import { probeChoices } from '../core/probes.js';
-// One analysis card. It used to be written out three times -- creating a card,
-// restoring the saved ones, loading a file -- with the same header and the
-// same four buttons in each, so a change to a button had three places to be
-// forgotten in. The ids (`card-`, `body-`, `plot-`, `icon-`) are what the rest
+// One analysis card, written once for the three places that make one --
+// creating a card, restoring the saved ones, loading a file -- so a change to a
+// button has one place to be made in. The ids (`card-`, `body-`, `plot-`, `icon-`) are what the rest
 // of this module finds the card by.
 //
 // The buttons carry the card and the analysis as `data-card` and `data-type`
@@ -48,7 +47,7 @@ function cardHTML(uniqueId, type, titleHTML, controlsHTML) {
 
 // Rebuilds the analysis charts on the screen from memory.
 //
-// Asynchronous since slice 4: the fields come from the server, and assembling the
+// Asynchronous: the fields come from the server, and assembling the
 // card before they arrive would give an empty form.
 export async function restoreAnalysesFromMemory(savedArray) {
     await schemaReady();
@@ -284,11 +283,11 @@ export const toggleDashAdv = function(btn) {
 
 // Shows or hides the fields whose visibility depends on another field.
 //
-// Before (FE-07) this read **every** select on the card and showed the field if
-// any of them held one of the allowed values. It worked because no pair of
-// selects in the same analysis shared an option -- a coincidence, not a
-// guarantee. Today the catalogue says which field each dependency comes from, and
-// a test refuses the ambiguity that would make this wrong.
+// The catalogue says which field each dependency comes from. Reading **every**
+// select on the card instead, and showing the field if any of them held one of
+// the allowed values, would work only while no pair of selects in the same
+// analysis shared an option -- a coincidence, not a guarantee; a test refuses
+// that ambiguity.
 export const checkDeps = function(uniqueId) {
     document.querySelectorAll(`.dash-dep-${uniqueId}`).forEach(item => {
         const allowed = (item.dataset.deps || '').split(',').map(v => v.trim());
@@ -312,9 +311,9 @@ export function buildDashboardHTML(uniqueId, type, configOverride) {
     config.forEach(item => {
         let html = '';
         // `data-deps-de` says **which** field this visibility depends on. Without it
-        // `checkDeps` compared the allowed values against the value of every select on
-        // the card (FE-07): it took only another select having the same option -- "1D",
-        // "flex" -- for the field to appear at the wrong moment.
+        // `checkDeps` would compare the allowed values against the value of every
+        // select on the card: it would take only another select having the same
+        // option -- "1D", "flex" -- for the field to appear at the wrong moment.
         const depsAttr = item.deps
             ? `data-deps="${item.deps.join(',')}" data-deps-de="${item.deps_de}" `
               + `class="dash-control-group dash-dep-${uniqueId}"`
@@ -738,9 +737,8 @@ function warnUnsupported(card, conversion, reason) {
 }
 
 // A card with no chart -- restored from another session, or from an analysis that
-// failed -- shows the invitation to recompute. It used to call Plotly with
-// `data: []` and the result was an empty box, which looks like a defect rather
-// than a choice. Charts are deliberately not saved: yesterday's chart, from an
+// failed -- shows the invitation to recompute: Plotly called with `data: []`
+// draws an empty box, which looks like a defect rather than a choice. Charts are deliberately not saved: yesterday's chart, from an
 // earlier version of the rotor, would look current.
 function inviteToRecompute(card, uniqueId, type) {
     card.innerHTML =

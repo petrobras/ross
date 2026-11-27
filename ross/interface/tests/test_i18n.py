@@ -1,22 +1,18 @@
 # -*- coding: utf-8 -*-
 """The whole interface speaks both languages.
 
-Until this point only the element form was translated -- its labels come from
-the backend -- plus 18 interface texts. The rest was fixed English: **80
-visible texts and 13 attributes** in `index.html`, ~45 sentences written by the
-JS and 1240 words of help. And the language selector did not exist:
-`preferredLanguage()` read a `localStorage` value nothing in the interface
-could write. Dead configuration deciding what the user saw -- that is how
-Leonardo came to see the interface in Portuguese without having chosen it.
+The element form's labels come from the backend; the rest of the interface --
+the visible texts and attributes of `index.html`, the sentences written by the
+JS and the help -- is translated here, and the language is chosen by a selector
+rather than by a `localStorage` value nothing in the interface could write.
 
-What the slice did, and what these tests hold:
+What these tests hold:
 
 * `index.html` marked with `data-i18n`, `data-i18n-title` and
   `data-i18n-placeholder`; `applyLanguage()` walks it and substitutes;
-* the ~45 sentences of the JS went through `t()`;
-* the 17 help entries gained a Portuguese version;
-* the twelve analysis titles left the HTML and the `typeNames` and come from the
-  catalogue, already translated;
+* the sentences of the JS go through `t()`;
+* the help entries have a Portuguese version;
+* the twelve analysis titles come from the catalogue, already translated;
 * the selector is on all three top bars."""
 
 import io
@@ -257,10 +253,9 @@ def _sweep(line):
     ]
 
 
-# What the guard MUST accuse. The last three came from the defect Leonardo
-# found on screen: while the line with `${` was discarded whole, the modeling
-# tab title showed the raw key and stayed in English even in Portuguese -- and
-# this guard was green.
+# What the guard MUST accuse. The last three are lines with `${`: discarded
+# whole, a modeling tab title showing the raw key, in English even in
+# Portuguese, would pass this guard.
 MUST_FLAG = [
     '<button onclick="x()">Go to Modeling</button>',
     '`<i class="fas fa-save"></i> Save JSON</button>`',
@@ -353,7 +348,7 @@ def test_the_language_selector_is_on_every_screen():
     """Changing the language only on the Hub would force leaving the screen to change it."""
     html = _index()
     assert html.count('class="ui-language"') == 3
-    # Through the action table since phase 5, slice 12 (core/actions.js).
+    # Through the action table (core/actions.js).
     assert html.count('data-action="change-language"') == 3
     for language in LANGUAGES:
         assert 'value="%s"' % language in html
@@ -452,7 +447,7 @@ def _analyses_route(language):
 def test_the_schema_route_answers_in_the_language_asked():
     """Half the screen's texts are not in the JS dictionary: field labels, analysis
     titles and the incompatibility reasons come from here. Translating only the
-    frontend would leave the screen half and half -- which is what Leonardo saw."""
+    frontend would leave the screen half and half."""
     english, portuguese = _analyses_route("en"), _analyses_route("pt")
 
     assert english["titles"]["modes"] == "Modal Analysis"
@@ -570,14 +565,10 @@ def test_no_function_name_leaked_into_what_the_user_reads():
 
 # --- the code speaks English; only the dictionaries speak Portuguese ----------
 #
-# Slice 2 of phase 4 translated the codebase and was declared finished. The ruff
-# pass of slice 3 then walked the same files and found forty leftovers: eight
-# `TEM_ROSS`, eight `reason="exige o ROSS instalado"`, a user-facing
-# `"Erro inesperado (%s): %s"`, half-translated comments, and five references to
-# test files the reorganisation had already renamed away.
-#
-# They survived because the sweep that declared the slice done was written by
-# hand each time and never became a test. This is that test.
+# A codebase translated by hand leaves leftovers: names like `TEM_ROSS`, a
+# `reason="exige o ROSS instalado"`, a user-facing `"Erro inesperado (%s): %s"`,
+# half-translated comments, references to files renamed away. A sweep done by
+# hand each time misses them; this is that sweep as a test.
 
 PORTUGUESE = frozenset(
     """
@@ -660,7 +651,7 @@ def _our_python_files():
 
 
 def test_the_portuguese_detector_catches_what_slipped_through():
-    """Control: the four shapes that actually got past slice 2."""
+    """Control: the shapes a hand-made sweep lets through."""
     assert _portuguese_in("exige o ROSS instalado")
     assert _portuguese_in("divergiram em %r: js=%r python=%r")
     assert _portuguese_in("TEM ROSS")
@@ -691,12 +682,9 @@ def test_every_deliberate_mention_is_still_there():
 def test_no_portuguese_is_left_in_the_documentation():
     """The README is read before the code, and nothing was reading the README.
 
-    The sweep below walks `.py` files, so the documentation was never measured.
-    It carried two references to files the reorganisation had renamed away --
-    `domain/compatibilidade.py` and `tests/test_fase4.py` -- and the detector
-    found both on its first pass over `.md`. Same rot as the five stale
-    references slice 3 found in the code, in the file a ROSS maintainer opens
-    first.
+    The sweep above walks `.py` files, so the documentation needs a sweep of its
+    own: a reference to a file renamed away (a Portuguese file name, say) rots
+    in the file a ROSS maintainer opens first.
     """
     leftovers = []
     for folder, folders, names in os.walk(ROOT):

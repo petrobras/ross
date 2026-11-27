@@ -1,6 +1,5 @@
 // The buttons that frame every screen: the home page, the hub's header and the
-// three top bars. Phase 5, slice 12 -- the first stage of moving the page off
-// the `window` bridge (see core/actions.js).
+// three top bars, as actions (see core/actions.js).
 //
 // Each entry is a thin adapter on purpose. The functions behind them were
 // written to be called from an `onclick` with specific arguments --

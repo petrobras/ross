@@ -1,25 +1,17 @@
 // The analysis registry: what each card is, with which parameters and under
-// which rotor model. This used to live in the DOM (`div.rossParams`,
-// `div.rossType`), and deleting the card deleted the only copy of the
-// configuration.
+// which rotor model. Not in the DOM: deleting a card must not delete the only
+// copy of its configuration.
 import { escapeHtml } from './dom.js';
 import { t } from './i18n.js';
 // Templates
 
 // --- The analysis state -----------------------------------------------------
 //
-// Each analysis is a record here; the card on screen is its drawing. Until
-// Phase 3 it was the other way round, and the DOM stood in for a database: the
-// parameters lived in `div.rossParams`, the type in `div.rossType`, the frames
-// in `div.rossFrames`, and the title was **read back** from the header's
-// `innerText` -- with a `.replace(' (Loaded)', '')` to undo what the screen
-// itself had written there.
-//
-// What that cost: saving a rotor swept `querySelectorAll('.analysis-card')` and
-// read `p.data`/`p.layout` from the chart's div. An analysis whose card had not
-// rendered -- because the request failed, say -- simply vanished from what was
-// saved, with no warning. And deleting the card deleted the only copy of the
-// configuration.
+// Each analysis is a record here; the card on screen is its drawing, never the
+// other way round. With the DOM standing in for a database, saving a rotor
+// would sweep the cards and read the charts' divs: an analysis whose card had
+// not rendered -- because the request failed, say -- would vanish from what is
+// saved, with no warning.
 
 export const ANALYSES = new Map();   // id -> record
 
@@ -141,13 +133,12 @@ export function forgetAllAnalyses() {
 
 // The Python script comes from the backend, at /api/export/python.
 //
-// Until slice 4 it was assembled here, reading the DOM, and for that the
-// frontend kept its own copy of three things the backend already knew: node
-// numbering, the unit map and the ROSS class names. One of them drifting was
-// enough for the exported file to stop reproducing the on-screen chart -- with
-// no error at all, just a different result. Now the same code that builds the
-// real rotor writes the script, and the backend still runs ast.parse on it
-// before handing it back.
+// Assembled here, the frontend would need its own copy of three things the
+// backend already knows: node numbering, the unit map and the ROSS class names.
+// One of them drifting would be enough for the exported file to stop reproducing
+// the on-screen chart, with no error at all. The same code that builds the real
+// rotor writes the script, and the backend runs ast.parse on it before handing
+// it back.
 
 export function collectActiveAnalyses() {
     // The criterion is having configuration, not having a chart. A card restored
@@ -163,10 +154,9 @@ export function collectActiveAnalyses() {
         }));
 }
 
-// The project and the analyses come in explicitly. This function used to read
-// the screen every time: exporting a rotor from the hub carried along the
-// analysis cards of the open project, which speak of another rotor and other
-// nodes.
+// The project and the analyses come in explicitly, not read off the screen:
+// exporting a rotor from the hub must not carry along the analysis cards of the
+// open project, which speak of another rotor and other nodes.
 // A script carries **one** rotor, and a rotor has **one** degree-of-freedom
 // conversion. If the chosen analyses were computed under different conversions,
 // no script reproduces them all: one would have to be picked and the others

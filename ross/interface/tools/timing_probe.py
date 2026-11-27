@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
 """How long each analysis really takes, and where the time is.
 
-BE-11 proposes a job queue with progress and cancellation. Before designing one
-it is worth knowing whether there is a wait to manage: `/run_analysis` is
-synchronous today, and the frontend's `AbortController` only stops waiting --
-the server goes on computing to the end. Whether that matters is a question
-about numbers nobody has measured. Leonardo's answer when asked was "it varies a
-lot by analysis", which is the reason this probe exists rather than a design.
+Whether a job queue with progress and cancellation is worth it depends on
+whether there is a wait to manage, and the wait varies a lot by analysis. This
+probe measures it.
 
 WHY IT SPLITS THE REQUEST INTO STAGES. A queue can only remove the part it
 owns. If an analysis spends four seconds in `compute`, a queue with progress and
@@ -14,45 +11,37 @@ cancellation is worth building; if it spends four seconds in `fig.to_json()`
 turning a large result into a payload, the same queue changes nothing at all,
 because that work happens after the answer exists.
 
-WHY `compute` IS MEASURED TWICE. The first version of this probe reported one
-compute time and a "warm" total, and the first run showed campbell at 12.4 s
-cold and 1.5 s warm. That gap was not the cache -- it was the probe's own
-defect, and the number it produced by accident turned out to be the important
-one. **The first execution of an analysis in a process is not the same work as
-the second**: numba compiles, and the compilation is paid once for the process,
+WHY `compute` IS MEASURED TWICE. **The first execution of an analysis in a
+process is not the same work as the second**: numba compiles, and the compilation is paid once for the process,
 not once per request. A design that reads 16 s and builds a queue would be
 sizing itself against a cost that a warm-up at startup removes for free.
 
-WHY THERE ARE TWO WARM COLUMNS AND NOT ONE. The second version of this probe
-reused one `Rotor` object for the repetitions and reported `modes` at **3.7
-microseconds**. Nothing compiles that away: ROSS memoises on the rotor
-instance, so the repetitions were reading its memo. The route builds the rotor
-again on every request (`prepared_rotor`), throws it away with the response,
-and therefore never benefits from that memo -- so the number measured was one
-the application cannot have.
+WHY THERE ARE TWO WARM COLUMNS AND NOT ONE. ROSS memoises on the rotor
+instance, so repetitions on one `Rotor` object read its memo (`modes` in a few
+microseconds). The route builds the rotor again on every request
+(`prepared_rotor`), throws it away with the response, and therefore never
+benefits from that memo.
 
 `fresh` rebuilds the rotor for each repetition, which is what a second request
 from the browser really costs. `same` keeps the object, which is what the same
 request would cost if the application held the rotor between calls. The
 difference between the two is not noise: it is the size of a rotor cache that
-does not exist yet, measured before anyone argues about building one.
+the application does not keep.
 
 So `first` is the first execution in this process (compilation included),
 `fresh` what every later request pays, `same` what it could pay, and `cached`
 what a repeated identical request pays today.
 
-WHY `--elements`. Leonardo's point that a bigger rotor costs more is obviously
-true and, until now, unquantified: the self-test rotor has six elements and the
-saved project measured the same, so neither says anything about the shape of the
-curve. `--elements` repeats the template's shaft element N times and moves the
+WHY `--elements`. A bigger rotor costs more, and by how much is the shape of a
+curve that a six-element rotor cannot show. `--elements` repeats the template's shaft element N times and moves the
 far bearing to the last node, which gives a family of rotors that differ in one
 dimension only.
 
 WHY `cached` IS SEPARATE, AND CHECKED. The analysis cache short-circuits
 `compute` for a repeated spec; what is left -- rebuilding the rotor, drawing,
 serialising -- is the floor no queue can remove. The probe **asserts that the
-cache really answered**: the first version silently recomputed when the key did
-not match, and reported the result as if it were a cache hit. An instrument the
+cache really answered**: a key that does not match recomputes silently, and the
+result would read as a cache hit. An instrument the
 test suite cannot reach (this one needs ROSS) has to check its own premises at
 runtime, or it is free to be wrong in the direction nobody looks.
 
@@ -68,8 +57,7 @@ real saved project.
 
 WHY IT NAMES NO ANALYSIS. It iterates `sorted(ANALYSES)` and asks the catalogue
 for each one's default parameters, exactly as the self-test and the conversion
-probe do. The first executable this project produced died on `KeyError: 'modal'`
-because I had written an analysis name by hand.
+probe do: an analysis name written by hand is a `KeyError` waiting to happen.
 
     python tools/timing_probe.py
     python tools/timing_probe.py --project my_rotor.json --repeat 3
