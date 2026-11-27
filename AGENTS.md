@@ -47,7 +47,7 @@ modal.plot_mode_2d(0)
 | `run_amb_non_collocation(magnetic_bearing, ...)` | AMB sensor-actuator non-collocation | `AmbNonCollocationResults` | `plot()`, `plot_mode_shape()`, `plot_sensor_position_map()` | — |
 | `run_clearance_analysis(speed_range, Nma, Nmc, probes, ...)` | API 617 close-clearance check | `ClearanceResults` | `plot()`, `plot_response()`, `plot_probe_response()` | [clearance_analysis](ross/agent_skills/ross/clearance_analysis.md) |
 | `run_mesh_convergence(rtol, frequencies, strategy)` | Shaft discretization with converged natural frequencies | `MeshConvergenceResults` | `plot()` | [mesh_convergence](ross/agent_skills/ross/mesh_convergence.md) |
-| `run_with_motor(t, node, unbalance_magnitude, unbalance_phase, drive_mode, ...)` | Time response driven by the induction-motor torque | `TimeResponseResults` (motor simulation in `.motor_results`: `MotorResponseResults`) | `plot_1d(probe)`, `plot_2d(node)`, `plot_3d()`, `plot_dfft(probe)`; `motor_results.plot_torque()`, `plot_speed()` | [motor](ross/agent_skills/ross/motor.md) |
+| `run_with_motor(t, unbalance_node, unbalance_magnitude, unbalance_phase, drive_mode, ...)` | Time response driven by the induction-motor torque | `TimeResponseResults` (motor simulation in `.motor_results`: `MotorResponseResults`) | `plot_1d(probe)`, `plot_2d(node)`, `plot_3d()`, `plot_dfft(probe)`; `motor_results.plot_torque()`, `plot_speed()` | [motor](ross/agent_skills/ross/motor.md) |
 
 `MultiRotor` (shafts coupled by gears) runs the same analyses, with every speed given for the driving rotor; `run_critical_speed(shaft=)` picks the shaft whose 1X excitation is considered. See [multi_rotor](ross/agent_skills/ross/multi_rotor.md).
 
@@ -66,7 +66,7 @@ All values are SI internally: speed in rad/s, stiffness in N/m, damping in N·s/
 | `rs.rotor_example_amb_simple()` | Rotor with active magnetic bearings |
 | `rs.rotor_example_amb_complex_controllers()` | AMB rotor with complex controllers |
 | `rs.rotor_example_amb_general_controllers()` | AMB rotor with general controllers |
-| `rs.motor_example()` | 1.5 hp, 127 V / 60 Hz, 4-pole induction motor (`MotorElement`) at node 0 |
+| `rs.motor_example()` | 1.5 hp, 127 V / 60 Hz, 4-pole induction motor (`ElectricMotor`) at node 0 |
 
 ### Save, load, interface, recipes
 
@@ -118,7 +118,7 @@ Elements → Rotor assembly → Rotor.run_*() → Results objects with .plot_*()
 | `ross/shaft_element.py`, `disk_element.py`, `bearing_seal_element.py`, `coupling_element.py`, `point_mass.py` | Core elements |
 | `ross/bearings/`, `ross/seals/` | Bearing and seal models |
 | `ross/bearings/fluid_film/`, `ross/bearings/film/` | Journal-bearing solver behind `FluidFilmBearing` (sweeps, convergence diagnostics, pad matrices) and its geometry-independent parts (`Lubricant`, mass-conserving cavitation, condensation, `ConvergenceRecord`, `ConvergenceWarning`) |
-| `ross/motors/` | `MotorElement`, equivalent-circuit estimation (`parameter_estimation.py`: `estimate_from_nameplate`, `estimate_from_catalog`, `EstimationResult`), electrical sources and inverters (`SourceAC`, `InverterVF`, `InverterFOC`), `MotorResponseResults`, `PhaseResults` |
+| `ross/motors/` | `ElectricMotor`, electrical sources and inverters (`SourceAC`, `InverterVF`, `InverterFOC`), `MotorResponseResults`, `PhaseResults` |
 | `ross/rotor_assembly.py`, `ross/multi_rotor/` | `Rotor`, `MultiRotor`: assembly and analyses |
 | `ross/results.py` | `Results` ABC and the rotor results classes; the bearing, multi-rotor, motor and stochastic results classes live in their subpackages |
 | `ross/units.py` | `@check_units` and `Q_` |

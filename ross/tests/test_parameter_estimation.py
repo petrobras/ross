@@ -11,7 +11,7 @@ import pytest
 from numpy.testing import assert_allclose
 
 from ross.motors import parameter_estimation as pe
-from ross.motors.motor_element import MotorElement
+from ross.motors.electric_motor import ElectricMotor
 from ross.units import Q_
 
 FREQUENCY = 2 * np.pi * 60
@@ -318,7 +318,8 @@ NAMEPLATE = dict(
     speed_rated=Q_(1724.598, "RPM"),
     efficiency=0.829204,
     power_factor=0.903327,
-    Ip_motor=0.1,
+    m=10.0,
+    Ip=0.1,
     current_rated=31.2503,
     starting_current_ratio=4.624842,
 )
@@ -326,10 +327,10 @@ NAMEPLATE = dict(
 
 @pytest.mark.parametrize("method", ["asdp", "lee"])
 def test_from_nameplate_matches_estimation(method):
-    motor = MotorElement.from_nameplate(**NAMEPLATE, method=method, tag="M")
+    motor = ElectricMotor.from_nameplate(**NAMEPLATE, method=method, tag="M")
     result = pe.estimate_from_nameplate(method, **RATED)
 
-    assert isinstance(motor, MotorElement)
+    assert isinstance(motor, ElectricMotor)
     assert motor.tag == "M"
     assert_allclose(
         [
@@ -353,7 +354,7 @@ def test_from_nameplate_matches_estimation(method):
 
 @pytest.mark.filterwarnings("ignore:The Kueck estimation did not converge")
 def test_from_nameplate_method_options():
-    motor = MotorElement.from_nameplate(
+    motor = ElectricMotor.from_nameplate(
         **NAMEPLATE, method="kueck", method_options=dict(known_stator_resistance=0.641)
     )
     assert motor.stator_resistance == 0.641
@@ -361,22 +362,22 @@ def test_from_nameplate_method_options():
 
 def test_from_nameplate_warns_without_convergence():
     with pytest.warns(UserWarning, match="did not converge"):
-        MotorElement.from_nameplate(**NAMEPLATE, method="kueck")
+        ElectricMotor.from_nameplate(**NAMEPLATE, method="kueck")
 
 
 def test_from_nameplate_unknown_method():
     with pytest.raises(ValueError, match="method"):
-        MotorElement.from_nameplate(**NAMEPLATE, method="unknown")
+        ElectricMotor.from_nameplate(**NAMEPLATE, method="unknown")
 
 
 def test_from_catalog_requires_data():
     with pytest.raises(ValueError, match="maximum_torque_ratio"):
-        MotorElement.from_catalog(**NAMEPLATE, starting_torque_ratio=2.0)
+        ElectricMotor.from_catalog(**NAMEPLATE, starting_torque_ratio=2.0)
 
 
 @pytest.mark.parametrize("method", ["haque1", "natarajan_misra", "haque2"])
 def test_from_catalog_builds_motor(method):
-    motor = MotorElement.from_catalog(
+    motor = ElectricMotor.from_catalog(
         **NAMEPLATE,
         starting_torque_ratio=2.0,
         maximum_torque_ratio=2.5,
@@ -385,9 +386,9 @@ def test_from_catalog_builds_motor(method):
         efficiency_50=0.80,
         power_factor_50=0.82,
         method=method,
-        Ip_load=0.2,
+        tag="catalog",
     )
-    assert motor.Ip_load == 0.2
+    assert motor.tag == "catalog"
     assert (
         min(
             motor.stator_resistance,
@@ -401,7 +402,7 @@ def test_from_catalog_builds_motor(method):
 
 
 def test_estimated_motor_runs_at_rated_speed():
-    motor = MotorElement.from_catalog(
+    motor = ElectricMotor.from_catalog(
         **NAMEPLATE, starting_torque_ratio=2.0, maximum_torque_ratio=2.5
     )
     t = np.arange(0, 3.0, 1e-4)

@@ -13,6 +13,7 @@ from copy import deepcopy as copy
 
 import ross as rs
 from ross.element import Element
+from ross.motors.electric_motor import ElectricMotor
 from ross.rotor_assembly import Rotor
 from ross.units import Q_, check_units
 from ross.utils import make_speed_array
@@ -271,27 +272,32 @@ class MultiRotor(Rotor):
         bearing_elements = [*R1.bearing_elements, *R2.bearing_elements]
         point_mass_elements = [*R1.point_mass_elements, *R2.point_mass_elements]
 
-        motor_element = None
-        if R1.motor_element is not None and R2.motor_element is not None:
-            motor_element = R1.motor_element
+        motor = None
+        if R1.motor is not None and R2.motor is not None:
+            motor = R1.motor
             raise Warning("""Rotor supports only one motor element.
             Using the motor element of the driving rotor.\n""")
-        elif R1.motor_element is not None:
-            motor_element = R1.motor_element
-        elif R2.motor_element is not None:
-            motor_element = R2.motor_element
+        elif R1.motor is not None:
+            motor = copy(R1.motor)
+        elif R2.motor is not None:
+            motor = copy(R2.motor)
+            motor.n += driven_offset
+            if motor._mechanical_model_type == "fem":
+                motor.n_c += driven_offset
 
         super().__init__(
             shaft_elements,
             disk_elements,
             bearing_elements,
             point_mass_elements,
-            motor_element,
             min_w=min_w,
             max_w=max_w,
             rated_w=rated_w,
             tag=tag,
         )
+        self.motor = motor
+        for rotor in self.rotors.values():
+            rotor.motor = None
 
         driving_shaft_dofs = self.number_dof * len(self.rotors["driving"].nodes)
         driven_shaft_dofs = self.number_dof * len(self.rotors["driven"].nodes)
@@ -566,7 +572,7 @@ class MultiRotor(Rotor):
         """
         import ross
 
-        return {
+        data = {
             "ross_version": ross.__version__,
             "rotor_type": self.__class__.__name__,
             "multi_rotor": self._parameters(),
@@ -574,6 +580,11 @@ class MultiRotor(Rotor):
                 name: rotor._to_dict(file_format) for name, rotor in self.rotors.items()
             },
         }
+
+        if self.motor is not None:
+            data.update(self.motor._to_dict(file_format))
+
+        return data
 
     @classmethod
     def _from_dict(cls, data):
@@ -593,11 +604,17 @@ class MultiRotor(Rotor):
         config = dict(data["multi_rotor"])
         config["coupled_nodes"] = tuple(config["coupled_nodes"])
 
-        return cls(
+        multi_rotor = cls(
             driving_rotor=Rotor._from_dict(data["rotors"]["driving"]),
             driven_rotor=Rotor._from_dict(data["rotors"]["driven"]),
             **config,
         )
+
+        for name, motor_data in data.items():
+            if name.startswith("ElectricMotor_"):
+                multi_rotor.motor = ElectricMotor.read_toml_data(motor_data)
+
+        return multi_rotor
 
     def __eq__(self, other):
         """Compare both assembled elements and multi-rotor configuration."""
@@ -610,10 +627,6 @@ class MultiRotor(Rotor):
             and self.rotors["driving"] == other.rotors["driving"]
             and self.rotors["driven"] == other.rotors["driven"]
         )
-
-    def set_tag(self, tag):
-        """Set the tag for the current multi-rotor."""
-        self.tag = tag or "MultiRotor 0"
 
     def add_nodes(self, new_nodes_pos):
         """Add new nodes to the multi-rotor.
@@ -1021,6 +1034,34 @@ class MultiRotor(Rotor):
         -1426.08...
         """
         return self._node_gear_ratio(node) * value
+
+    def _Ktq_of_applied_torques(self, electric_node, load_node):
+        """Assemble the stiffness matrices due to the torque next to the electric node.
+
+        The distribution of the torque along a gear train is not modelled: the
+        shaft elements that end at ``electric_node`` receive the net torque
+        ``Te - Tl``, so the two matrices are the same and ``load_node`` is not
+        used.
+
+        Parameters
+        ----------
+        electric_node : int
+            Node where the electric torque is applied.
+        load_node : int
+            Node where the load torque is applied.
+
+        Returns
+        -------
+        Ktq_electric, Ktq_load : np.ndarray
+            Global matrices to be multiplied by ``Te`` and by ``-Tl`` at each time
+            step, respectively.
+        """
+        Ktq = np.zeros((self.ndof, self.ndof))
+        for sh in self.shaft_elements:
+            if electric_node in (sh.n_l, sh.n_r):
+                dofs = list(sh.dof_global_index.values())
+                Ktq[np.ix_(dofs, dofs)] += sh.Ktq()
+        return Ktq, Ktq.copy()
 
     def _node_gear_ratio(self, node):
         """Return the signed speed ratio of the specified node.

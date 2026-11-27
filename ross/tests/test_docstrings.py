@@ -21,7 +21,7 @@ from ross import (
     HybridSeal,
     LabyrinthSeal,
     MagneticBearingElement,
-    MotorElement,
+    ElectricMotor,
     MultiRotor,
     PlainJournal,
     Rotor,
@@ -70,7 +70,7 @@ def own_methods(cls):
 
 
 MOTOR_CLASSES = [
-    MotorElement,
+    ElectricMotor,
     MotorResponseResults,
     PhaseResults,
     SourceAC,

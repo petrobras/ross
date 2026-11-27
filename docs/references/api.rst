@@ -45,7 +45,7 @@ Elements
     CouplingElement
     Probe
     PointMass
-    MotorElement
+    ElectricMotor
 
 Rotor and Analysis
 ------------------
@@ -233,7 +233,7 @@ Estimation of the equivalent circuit of an induction motor from nameplate or cat
 
 Motor Drives
 ------------
-Electrical sources that feed a ``MotorElement``.
+Electrical sources that feed a ``ElectricMotor``.
 
 .. currentmodule:: ross.motors.motor_drive
 
